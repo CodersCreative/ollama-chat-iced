@@ -26,7 +26,7 @@ On Linux or MacOS:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-### Run SADE Voice Assistant
+### Run The App
 
 ```
 # Clone the repository:
