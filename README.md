@@ -1,6 +1,6 @@
-# SADE Voice Assistant Rust
+# AI Ollama Chat using Iced
 
-#### SADE is a rust voice assistant which is was made to be easy to set up, customize and learn from.
+#### A GUI made using iced and rust that allows you to talk to an AI.
 
 ## Installation
 ### Download LLM Model
@@ -26,7 +26,7 @@ On Linux or MacOS:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-### Run SADE Voice Assistant
+### Run The App
 
 ```
 # Clone the repository:
