@@ -2,6 +2,7 @@ use iced::widget::checkbox::Appearance;
 use iced::widget::{column, container, horizontal_space, keyed_column, row, text, mouse_area};
 use iced::{Background, Border, Element, Length, Theme};
 use iced_futures::core::Widget;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fs::File;
@@ -16,6 +17,7 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 use iced::Color;
 use crate::utils::{darken_colour, lighten_colour};
+
 #[derive(Serialize, Deserialize, Debug,Clone, PartialEq)]
 pub struct Chat{
     pub name: String,
@@ -42,15 +44,23 @@ impl Chat{
             text_color: Some(THEME.palette().background),
             ..Default::default()
         }).width(Length::Fill).padding(3);
-
+        
+        let replace_spaces_with_tabs = |text: &str|-> String {
+          let re = Regex::new(r"(?m)^[ ]+").unwrap();
+          re.replace_all(text, "\t\t").to_string()
+        };
+        
         let messagesplit = self.message.split_terminator("```");
         let mut messages = Vec::new();
         for (i, x) in messagesplit.enumerate(){
             if i % 2 != 0{
                 let (l, c) = x.split_once("\n").unwrap();
+                println!("{:?}", &c);
                 let bg = THEME.palette().background;
+                let c = replace_spaces_with_tabs(c);
+                println!("{:?}", &c);
 
-                let code = mouse_area(container(text(c).size(18)).padding(8).style(container::Appearance{
+                let code = mouse_area(container(text(&c).size(18)).padding(8).style(container::Appearance{
                     background : Some(iced::Background::Color(darken_colour(bg, 0.02))),
                     border : Border::with_radius(5),
                     ..Default::default()

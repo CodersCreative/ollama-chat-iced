@@ -169,14 +169,10 @@ impl Application for ChatApp{
                 self.chats = SideChats::new(self.save.get_chat_previews());
             },
             Message::ChangeTheme(x) => {
-                //self.save.set_model(x);
-                //self.save.save(SAVE_FILE);
             },
             Message::SaveToClipboard(x) => {
                 println!("Save Clip {}", x);
                 return clipboard::write::<Message>(x.clone());
-                //cli_clipboard::set_contents(x).unwrap();
-                //println!("{}",cli_clipboard::get_contents().unwrap());
             }
         }
 
