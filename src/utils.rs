@@ -2,8 +2,7 @@ use std::{io::{self, Write}, usize};
 use iced::Color;
 use color_art::Color as Colour;
 use text_splitter::TextSplitter;
-use crate::save::Chats;
-use crate::PREVIEW_LEN;
+use crate::{save::chats::Chats, PREVIEW_LEN};
 
 pub fn read_input() -> String {
     let mut input = String::new();

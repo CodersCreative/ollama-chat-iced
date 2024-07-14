@@ -6,6 +6,7 @@ use ollama_rs::{
 use std::time::Instant;
 use tokio::sync::Mutex;
 use std::sync::Arc;
+
 pub fn get_model() -> Ollama{
     return Ollama::new_default_with_history(50);
 }
