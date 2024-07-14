@@ -9,6 +9,7 @@ readme = "README.md"
 publish = true
 keywords = ["ai", "iced", "chat", "chatbot", "ollama"]
 categories = ["application", "chatbot"]
+license = "MIT"
 
 [dependencies]
 ollama-rs = { version = "0.1.8", features = ["chat-history"] }
