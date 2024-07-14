@@ -1,4 +1,4 @@
-# AI Ollama Chat using Iced
+# OChat
 
 #### A GUI made using iced and rust that allows you to talk to an AI.
 
@@ -17,17 +17,17 @@ curl https://ollama.ai/install.sh | sh
 ollama pull orca-mini:3b
 ```
 
-### Install Rust
-
-[Install Rust](https://www.rust-lang.org/tools/install)
-
-On Linux or MacOS:
+## Run The App
+### Install
 ```
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# To install from crates.io
+cargo install ochat
+
+# To run the installed program
+ochat
 ```
 
-### Run The App
-
+### Build & Run
 ```
 # Clone the repository:
 git clone https://gitlab.com/officialccoders/ollama-chat-iced.git
