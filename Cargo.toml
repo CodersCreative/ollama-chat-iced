@@ -8,7 +8,7 @@ repository = "https://github.com/CodersCreative/ollama-chat-iced"
 readme = "README.md"
 publish = true
 keywords = ["ai", "iced", "chat", "chatbot", "ollama"]
-categories = ["application", "chatbot"]
+categories = ["gui", "accessibility"]
 license = "MIT"
 
 [dependencies]

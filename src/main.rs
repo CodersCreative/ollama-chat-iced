@@ -29,9 +29,9 @@ fn main() -> iced::Result{
 }
 
 pub struct ChatApp{
-    save: Save,
-    main_view: View,
-    logic : Logic,
+    pub save: Save,
+    pub main_view: View,
+    pub logic : Logic,
 }
 
 #[derive(Debug, Clone)]
