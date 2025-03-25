@@ -1,36 +1,38 @@
-use iced::widget::{mouse_area, text, container};
-use iced::{ Element, Length};
-use crate::utils::darken_colour;
-use crate::Message;
+use std::time::SystemTime;
+
+use iced::alignment::{Horizontal, Vertical};
+use iced::widget::{button, text};
+use iced::{ Element, Length, Padding};
+use crate::{style, Message};
 
 #[derive(Clone)]
 pub struct Chat{
-    title : String,
-    id : usize,
+    pub title : String,
+    pub time : SystemTime, 
+    pub id : usize,
+
 }
 
 impl Chat{
-    pub fn new(title : String, id : usize) -> Self{
+    pub fn new(title : String, time: SystemTime, id : usize) -> Self{
         return Self{
             title,
-            id
+            time,
+            id,
         };
     }
-    pub fn view(&self, chosen : bool, bg : iced::Color) -> Element<Message>{
-        let title = container(text(&self.title).size(16)).padding(5).width(Length::Fill);
-        let mousea = mouse_area(title).on_press(Message::ChangeChat(self.id)).on_right_press(Message::RemoveChat(self.id));
-        let bg = bg.clone();
-
-        let bg = match chosen{
-            true => bg,
-            false => darken_colour(bg, 0.015),
+    pub fn view(&self, chosen : bool) -> Element<Message>{
+        let style = match chosen{
+            true => style::button::chosen_chat,
+            false => style::button::not_chosen_chat,
         };
-
-        let style = container(mousea).width(Length::Fill).style(container::Appearance{
-            background : Some(iced::Background::Color(bg)),
-            ..Default::default()
-        });
-
-        style.into()
+        
+        button(
+            text(&self.title).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(20)
+        )
+        .style(style)
+        .on_press(Message::ChangeChat(self.id))
+        .width(Length::Fill).padding(Padding::from(10))
+        .into()
     }
 }

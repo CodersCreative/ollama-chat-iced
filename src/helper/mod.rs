@@ -1,11 +1,11 @@
 pub mod chat;
 pub mod chats;
 
-use iced::{Theme, Command};
+use iced::{Task, Theme};
 use crate::{ChatApp, Message, SAVE_FILE};
 
 impl ChatApp{
-    pub fn change_theme(&mut self, theme : Theme) -> Command<Message>{
+    pub fn change_theme(&mut self, theme : Theme) -> Task<Message>{
         self.main_view.theme = theme.clone();
         let mut index = None;
 
@@ -18,6 +18,6 @@ impl ChatApp{
 
         self.save.theme = index;
         self.save.save(SAVE_FILE);
-        Command::none()
+        Task::none()
     }
 }

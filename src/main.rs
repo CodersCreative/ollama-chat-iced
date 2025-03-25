@@ -5,6 +5,8 @@ pub mod sidebar;
 pub mod view;
 pub mod helper;
 pub mod update;
+pub mod style;
+pub mod start;
 
 use crate::{
     save::Save,
@@ -13,11 +15,11 @@ use crate::{
 };
 
 use iced::{
-    widget::{combo_box, container, row}, 
-    Element, Settings, Theme, Application, Command, clipboard
+    clipboard, widget::{combo_box, container, markdown, row}, Element, Task, Theme
 };
 
 use update::Logic;
+use sidebar::SideBarState;
 use std::sync::Arc;
 use crate::view::View;
 
@@ -25,12 +27,13 @@ const SAVE_FILE: &str = "chat.json";
 const PREVIEW_LEN: usize = 20;
 
 fn main() -> iced::Result{
-    ChatApp::run(Settings::default())
+    iced::application(ChatApp::title, ChatApp::update, ChatApp::view).theme(ChatApp::theme).run()
 }
 
 pub struct ChatApp{
     pub save: Save,
     pub main_view: View,
+    pub markdown: Vec<Vec<markdown::Item>>,
     pub logic : Logic,
 }
 
@@ -41,11 +44,22 @@ pub enum Message{
     ChangeIndent(String),
     SaveToClipboard(String),
     ChangeModel(String),
+    ChangeStart(String),
     ChangeChat(usize),
     RemoveChat(usize),
     Received(Result<String, String>),
+    URLClicked(markdown::Url),
+    ShowSettings,
+    SideBar,
     Submit,
     NewChat,
+}
+
+impl Default for ChatApp{
+    fn default() -> Self {
+        let (app, _) = Self::init();
+        app
+    }
 }
 
 impl ChatApp{
@@ -53,35 +67,33 @@ impl ChatApp{
         match self.save.ai_model.clone().is_empty(){true => "qwen:0.5b".to_string(), _ => self.save.ai_model.clone()}
     }
 
-    fn new_plain() -> Self{
+    fn new() -> Self{
         Self{
             save: Save::new(String::new()),
             main_view: View::new(),
             logic: Logic::new(),
+            markdown: Vec::new(),
         }
     }
-}
 
-impl Application for ChatApp{
-    type Message = Message;
-    type Executor = iced::executor::Default;
-    type Theme = Theme;
-    type Flags = ();
+    fn new_with_save(save : Save) -> Self{
+        Self{
+            save,
+            main_view: View::new(),
+            logic: Logic::new(),
+            markdown: Vec::new(),
+        }
+    }
 
-    fn new(_flags: ()) -> (ChatApp, Command<Message>){
+    fn init() -> (ChatApp, Task<Message>){
         let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
 
-        let mut app = Self::new_plain();
-        
-        match Save::load(SAVE_FILE){
-            Ok(x) => {
-                app.save = x;
-            },
-            Err(..) => {}
-        };
+        let mut app = Self::new_with_save(match Save::load(SAVE_FILE){
+            Ok(x) => x,
+            Err(_) => Save::new(String::new()),
+        });
 
-        let ollama = Arc::clone(&app.logic.ollama);
-        let models = tokio_runtime.block_on(get_models(ollama));
+        let models = tokio_runtime.block_on(get_models(Arc::clone(&app.logic.ollama)));
         app.logic.models = combo_box::State::new(models.clone());
         app.main_view.chats = SideChats::new(app.save.get_chat_previews());
 
@@ -91,41 +103,63 @@ impl Application for ChatApp{
 
         app.main_view.indent = app.save.code_indent.to_string();
 
-        if app.save.ai_model.is_empty(){
+        if app.save.ai_model.is_empty() && !models.is_empty(){
             app.save.ai_model = models[0].clone();
         }
 
-        let chat = app.save.get_current_chat();
-        if let Some(chat) = chat{
+        if let Some(chat) = app.save.get_current_chat(){
             let ollama = Arc::clone(&app.logic.ollama);
-            save::Save::ollama_from_chat(ollama, chat);
+            app.markdown = chat.to_mk();
+            chat::ollama_from_chat(ollama, chat);
         }
 
         app.logic.chat = app.save.get_current_chat_num();
         
-        (app, Command::none())
+        (app, Task::none())
     }
 
     fn title(&self) -> String{
         String::from("Creative Chat")
     }
 
-    fn update(&mut self, message : Message) -> Command<Message>{
+    fn update(&mut self, message : Message) -> Task<Message>{
         match message {
             Message::SaveToClipboard(x) => {
                 println!("Save Clip {}", x);
                 clipboard::write::<Message>(x.clone())
             },
+            Message::ShowSettings => {
+                self.main_view.side = match self.main_view.side{
+                    SideBarState::Settings => SideBarState::Shown,
+                    _ => SideBarState::Settings,
+                };
+                Task::none()
+            },
+            Message::URLClicked(x) => {
+                open::that_in_background(x.to_string()); 
+                Task::none()
+            },
+            Message::SideBar => {
+                self.main_view.side = match self.main_view.side{
+                    SideBarState::Hidden => SideBarState::Shown,
+                    _ => SideBarState::Hidden,
+                };
+                Task::none()
+            },
             Message::Received(x) => {
                 if let Ok(x) = x{
                     return self.received(x.clone());
                 }
-                Command::none()
+                Task::none()
             },
             Message::ChangeModel(x) => {
                 self.save.set_model(x.clone());
                 self.save.save(SAVE_FILE);
-                Command::none()
+                Task::none()
+            },
+            Message::ChangeStart(x) => {
+                self.main_view.start = x;
+                Task::none()
             },
             Message::ChangeChat(x) => {
                 self.change_chat(x)
@@ -138,7 +172,7 @@ impl Application for ChatApp{
             },
             Message::Edit(x) => {
                 self.main_view.input = x.clone();
-                Command::none()
+                Task::none()
             },
             Message::Submit => {
                 self.submit()
@@ -151,14 +185,14 @@ impl Application for ChatApp{
                 if let Ok(size) = x.trim().parse::<usize>(){
                     self.save.code_indent = size;
                 }
-                Command::none()
+                Task::none()
             }
         }
     }
 
-    fn view<'a>(&'a self) -> Element<'_, Message>{       
+    fn view<'a>(&'a self) -> Element<Message>{       
         container(row![
-            self.main_view.chat_side_bar(self),
+            self.main_view.side_bar(self),
             self.main_view.chat_view(self),
         ]).into()
     }

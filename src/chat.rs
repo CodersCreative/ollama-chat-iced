@@ -7,6 +7,8 @@ use std::time::Instant;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
+use crate::save::chats::Chats;
+
 pub fn get_model() -> Ollama{
     return Ollama::new_default_with_history(50);
 }
@@ -26,6 +28,25 @@ pub async fn run_ollama(input : String, ollama : Arc<Mutex<Ollama>>, model : Str
         return Ok(response.into());
     }
     return Err("Failed to run ollama.".to_string());
+}
+
+pub fn ollama_from_chat(ollama : Arc<Mutex<Ollama>>, chat : Chats){
+    let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
+    tokio_runtime.block_on(ollama_chat_async(ollama, chat));
+}
+
+pub async fn ollama_chat_async(ollama : Arc<Mutex<Ollama>>, chat : Chats){
+    let mut o = ollama.lock().await;
+    
+    *o = get_model();
+    
+    for c in chat.0{
+        if c.name.as_str() == "AI"{
+            o.add_assistant_response("default".to_string(), c.message.clone());
+        }else{
+            o.add_user_response("default".to_string(), c.message.clone());
+        }
+    }
 }
 
 pub async fn get_models(ollama : Arc<Mutex<Ollama>>) -> Vec<String>{

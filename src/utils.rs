@@ -1,4 +1,4 @@
-use std::{io::{self, Write}, usize};
+use std::{io::{self, Write}, time::SystemTime};
 use iced::Color;
 use color_art::Color as Colour;
 use text_splitter::TextSplitter;
@@ -51,22 +51,27 @@ pub fn split_text_new_line(text: String) -> String {
     return t;
 }
 
-pub fn get_preview(chat: &Chats) -> String{
+pub fn get_preview(chat: &Chats) -> (String, SystemTime){
     if !chat.0.is_empty(){
         let i = chat.0.len() - 2;
         let prev = split_text(chat.0[i].message.clone().to_string());
         if prev.len() > 0{ 
-            return prev[0].clone();
+            return (prev[0].clone(), chat.2);
         }
     }
 
-    String::from("New")
+    (String::from("New"), SystemTime::now())
 }
 
 pub fn lighten_colour(color : Color, amt : f32) -> Color{
     let colour = color.into_rgba8();
     let colour = Colour::from_rgba(colour[0], colour[1], colour[2], color.a.into()).unwrap().lighten(amt.into());
     return Color::from_rgba(colour.red() as f32 / 255.0, colour.green() as f32 / 255.0, colour.blue() as f32 / 255.0, colour.alpha() as f32);
+}
+
+pub fn change_alpha(color : Color, amt : f32) -> Color{
+    let colour = color.into_rgba8();
+    return Color::from_rgba(colour[0] as f32 / 255.0, colour[1] as f32 / 255.0, colour[2] as f32 / 255.0, amt as f32);
 }
 pub fn darken_colour(color : Color, amt : f32) -> Color{
     let colour = color.into_rgba8();

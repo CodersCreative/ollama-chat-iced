@@ -1,15 +1,13 @@
 pub mod chat;
 pub mod chats;
 
-use iced::{theme::Palette, widget::text};
+use iced::{widget::text};
 use iced::Element;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::time::SystemTime;
 use std::{fs::File, io::Read};
-use ollama_rs::Ollama;
-use tokio::sync::Mutex;
-use std::sync::Arc;
-use crate::Message;
+use crate::{ChatApp, Message};
 use chats::Chats;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -33,10 +31,11 @@ impl Save {
         }
     }
 
-    pub fn view_chat(&self, palette : Palette) -> Element<Message>{
+    pub fn view_chat<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{
         let index = self.get_index(self.last);
+        
         if let Some(index) = index{
-            return self.chats[index].view(palette, self.code_indent);
+            return self.chats[index].view(app);
         }
 
         return text("Failed to get chat").into();
@@ -74,37 +73,17 @@ impl Save {
         return None
     }
 
-    pub fn ollama_from_chat(ollama : Arc<Mutex<Ollama>>, chat : Chats){
-        let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
-        tokio_runtime.block_on(Self::ollama_chat_async(ollama, chat));
-    }
-
-    pub async fn ollama_chat_async(ollama : Arc<Mutex<Ollama>>, chat : Chats){
-        let mut o = ollama.lock().await;
-        for c in chat.0{
-            if c.name.as_str() == "AI"{
-                o.add_assistant_response("default".to_string(), c.message.clone());
-            }else{
-                o.add_user_response("default".to_string(), c.message.clone());
-            }
-        }
-    }
-
     pub fn update_chats(&mut self, chat : Chats){
         let mut new_chats = Vec::new();
         
         let mut found = false;
-            // Iterate through existing chats
         for (i, existing_chat) in self.chats.iter().enumerate() {
-            // Check for matching first message
             if existing_chat.1 == chat.clone().1 {
-                // Update with new chat (converted to SaveChat)
                 new_chats.push(chat.clone());
                 println!("Adding");
                 self.last = i as i32;
                 found = true
             } else {
-                // Existing chat doesn't match, keep existing
                 new_chats.push(existing_chat.clone());
             }
         }
@@ -115,10 +94,10 @@ impl Save {
 
 
         if self.chats.len() <= new_chats.len(){
-            // Update internal chats
             self.chats = new_chats;
         }
     }
+    
     pub fn save(&self, path : &str){
         let writer = File::create(path);
 
@@ -130,8 +109,9 @@ impl Save {
     pub fn replace(&mut self, save : Save){
         *self = save;
     }
+
     pub fn load(path : &str) -> Result<Self, String>{
-        let mut reader = File::open(path);
+        let reader = File::open(path);
 
         if let Ok(mut reader) = reader {
             let mut data = String::new();
@@ -148,14 +128,14 @@ impl Save {
          return Err("Failed to open file".to_string());
     }
 
-    pub fn get_current_preview(&self) -> String{
+    pub fn get_current_preview(&self) -> (String, SystemTime){
         match self.get_current_chat(){
             Some(x) => x.get_preview(),
-            None => "New".to_string(),
+            None => ("New".to_string(), SystemTime::now()),
         }
     }
 
-    pub fn get_chat_previews(&self) -> Vec<String>{
-        self.chats.clone().iter().map(|x| x.get_preview()).collect::<Vec<String>>()
+    pub fn get_chat_previews(&self) -> Vec<(String, SystemTime)>{
+        self.chats.clone().iter().map(|x| x.get_preview()).collect::<Vec<(String, SystemTime)>>()
     }
 }
