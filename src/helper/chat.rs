@@ -3,7 +3,7 @@ use crate::SideChats;
 
 use iced::Task;
 use ollama_rs::generation::chat::ChatMessage;
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use crate::{ChatApp, Message};
 
 impl ChatApp{
@@ -34,10 +34,9 @@ impl ChatApp{
     pub fn received(&mut self, result : ChatMessage) -> Task<Message>{
         self.main_view.loading = false;
         let index = self.save.get_index(self.save.last);
+        
         let images = match result.images{
-            Some(x) => x.iter().map(|x| {
-                PathBuf::from("")
-            }).collect(),
+            Some(_) => Vec::new(),
             None => Vec::new(),
         };
 

@@ -124,7 +124,7 @@ impl View{
 
         let new_button = container(new_button).padding(Padding::from(10)).width(Length::Fill).align_x(Horizontal::Center).align_y(Vertical::Center);
         container(column![
-            self.header("Chats".to_string()),
+            self.header("ochat".to_string()),
             new_button,
             self.view_chats(app),
             vertical_space(),

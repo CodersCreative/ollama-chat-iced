@@ -1,5 +1,5 @@
 use crate::{
-    chat::{get_model}, save::chats::Chats, sidebar::chats::Chats as SideChats, SAVE_FILE
+    chat::get_model, save::chats::Chats, sidebar::chats::Chats as SideChats, SAVE_FILE
 };
 
 use iced::Task;
