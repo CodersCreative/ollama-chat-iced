@@ -52,9 +52,11 @@ impl Chat{
     }
 
     pub fn view_mk<'a>(&'a self, markdown : &'a Vec<markdown::Item>, theme : &Theme) -> Element<'a, Message>{
-        markdown::view(markdown, markdown::Settings::default(), markdown::Style::from_palette(theme.palette()))
-            .map(Message::URLClicked)
-            .into()
+        //markdown::view(markdown, markdown::Settings::default(), markdown::Style::from_palette(theme.palette()))
+        //    .map(Message::URLClicked)
+        //    .into()
+
+        markdown::view_with(markdown, theme, &style::markdown::CustomViewer).into()
     }
 
     pub fn view<'a>(&'a self, markdown : &'a Vec<markdown::Item>, theme: &Theme) -> Element<'a, Message> {
