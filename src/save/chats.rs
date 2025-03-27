@@ -7,7 +7,16 @@ use serde::{Deserialize, Serialize};
 use crate::ChatApp;
 use crate::{utils::get_preview, Message};
 use rand::Rng;
+use std::time::Instant;
+use std::error::Error;
+use tokio::sync::Mutex;
+use std::sync::Arc;
 
+use ollama_rs::{
+    generation::chat::{
+        request::ChatMessageRequest, ChatMessage,
+    }, Ollama
+};
 use super::chat::Chat;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -50,5 +59,11 @@ impl Chats{
 
     pub fn get_preview(&self) -> (String, SystemTime){
         return get_preview(self);
+    }
+
+    pub fn get_chat_messages(&self) -> Vec<ChatMessage>{
+        self.0.iter().map(|x| {
+            x.into()
+        }).collect()
     }
 }

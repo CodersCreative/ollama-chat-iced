@@ -3,6 +3,15 @@ use iced::Color;
 use color_art::Color as Colour;
 use text_splitter::TextSplitter;
 use crate::{save::chats::Chats, PREVIEW_LEN};
+use base64_stream::ToBase64Reader;
+use image::ImageFormat;
+use ollama_rs::generation::images::Image;
+use std::{
+    fs::File,
+    io::{BufReader, Cursor, Read},
+    path::{Path, PathBuf},
+    error::Error
+}; 
 
 pub fn read_input() -> String {
     let mut input = String::new();
@@ -50,7 +59,28 @@ pub fn split_text_new_line(text: String) -> String {
     }
     return t;
 }
+pub fn convert_image(path: &Path) -> Result<Image, Box<dyn Error>> {
+    let f = BufReader::new(File::open(path)?);
 
+    let format = ImageFormat::from_path(path)?;
+    if !matches!(format, ImageFormat::Png | ImageFormat::Jpeg) {
+        //log::debug!("got {format:?} image, converting to png");
+        let img = image::load(f, format)?;
+        let mut buf = Vec::new();
+        img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Png)?;
+        let mut reader = ToBase64Reader::new(buf.as_slice());
+        let mut base64 = String::new();
+        reader.read_to_string(&mut base64)?;
+        //log::debug!("converted to {} bytes of base64", base64.len());
+        return Ok(Image::from_base64(&base64));
+    }
+
+    let mut reader = ToBase64Reader::new(f);
+    let mut base64 = String::new();
+    reader.read_to_string(&mut base64)?;
+    //log::debug!("read image to {} bytes of base64", base64.len());
+    Ok(Image::from_base64(&base64))
+}
 pub fn get_preview(chat: &Chats) -> (String, SystemTime){
     if !chat.0.is_empty(){
         let i = chat.0.len() - 2;

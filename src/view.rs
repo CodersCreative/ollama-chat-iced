@@ -1,11 +1,13 @@
+use std::{path::PathBuf, sync::Arc};
+
 //use color_art::Color;
 use iced::{
-    alignment::{Horizontal, Vertical},widget::{button, column, combo_box, container, horizontal_space, row, scrollable, text, text_input}, Element, Length, Padding, Renderer, Theme
+    alignment::{Horizontal, Vertical},widget::{button, column, combo_box, container, horizontal_space, row, scrollable::{self, Direction, Scrollbar}, text, text_input}, Element, Length, Padding, Renderer, Theme
 };
-use iced_futures::core::Widget;
+use ollama_rs::generation::chat::ChatMessage;
 use crate::{sidebar::SideBarState, start::{self, Section}, style, utils::{change_alpha, lighten_colour}, ChatApp, Message};
 use crate::sidebar::chats::Chats as SideChats;
-
+use iced::widget::image;
 pub struct View{
     pub theme: Theme,
     pub loading : bool,
@@ -14,6 +16,8 @@ pub struct View{
     pub input : String,
     pub indent : String,
     pub chats: SideChats,
+    pub images: Vec<PathBuf>,
+    pub gen_chats : Arc<Vec<ChatMessage>>,
 }
 
 impl View{
@@ -26,6 +30,8 @@ impl View{
             indent: 8.to_string(),
             input: String::new(),
             chats: SideChats::new(Vec::new()),
+            images: Vec::new(),
+            gen_chats: Arc::new(Vec::new()),
         }
     }
     pub fn theme(&self) -> iced::Theme {
@@ -48,23 +54,37 @@ impl View{
             }
         };
 
+        let upload = button(
+            text("^").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(16)
+        )
+        .style(style::button::rounded_primary)
+        .on_press(Message::PickImage)
+        .width(Length::FillPortion(1));
+
         let submit = button(
             text(">").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(16)
         )
         .style(style::button::rounded_primary)
         .on_press(Message::Submit)
         .width(Length::FillPortion(2));
+        let images = container(
+            scrollable::Scrollable::new(row(self.images.iter().map(|x| {
+               button(image(image::Handle::from_path(x)).height(Length::Fixed(100.0))).style(style::button::transparent_text).on_press(Message::RemoveImage(x.clone())).into() 
+            })).align_y(Vertical::Center).spacing(10)).direction(Direction::Horizontal(Scrollbar::new()))
+        ).padding(Padding::from([0, 20])).style(style::container::bottom_input_back);
         
         let bottom = container(
             row![
                 container(
                     combo_box(&app.logic.models, app.save.ai_model.as_str(), None, Message::ChangeModel).input_style(style::text_input::ai_all).padding(Padding::from([5, 20]))
-                ).width(Length::FillPortion(9)).align_y(Vertical::Center),//.padding(Padding::from([10, 20])),
-                submit.width(Length::FillPortion(1))
-            ].align_y(Vertical::Center).spacing(50),
+                ).width(Length::FillPortion(17)).align_y(Vertical::Center),//.padding(Padding::from([10, 20])),
+                upload,
+                submit
+            ].align_y(Vertical::Center).spacing(20),
         ).padding(Padding::from([0, 20])).style(style::container::bottom_input_back);
 
         let input = container(column![
+            images,
             input,
             bottom, 
         ])
@@ -125,7 +145,7 @@ impl View{
     }
 
     fn view_chat<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{
-        container(scrollable(app.save.view_chat(app)).width(Length::Fill))
+        container(scrollable::Scrollable::new(app.save.view_chat(app)).width(Length::Fill))
         .width(Length::Fill)
         .height(Length::Fill)
         .padding(20)

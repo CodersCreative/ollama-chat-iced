@@ -7,32 +7,44 @@ pub mod helper;
 pub mod update;
 pub mod style;
 pub mod start;
+pub mod options;
 
 use crate::{
     save::Save,
     sidebar::chats::Chats as SideChats,
+    options::Options,
     chat::get_models
 };
 
 use iced::{
-    clipboard, widget::{combo_box, container, markdown, row}, Element, Task, Theme
+    clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Task, Theme
 };
 
+use ollama_rs::generation::chat::ChatMessage;
 use update::Logic;
 use sidebar::SideBarState;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use crate::view::View;
+use std::error::Error;
 
+pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
 const SAVE_FILE: &str = "chat.json";
 const PREVIEW_LEN: usize = 20;
 
 fn main() -> iced::Result{
-    iced::application(ChatApp::title, ChatApp::update, ChatApp::view).theme(ChatApp::theme).run()
+    let font = Font{
+        family: iced::font::Family::Name("Roboto"),
+        style: iced::font::Style::Normal,
+        stretch: iced::font::Stretch::Normal,
+        weight: iced::font::Weight::Normal,
+    };
+    iced::application(ChatApp::title, ChatApp::update, ChatApp::view).theme(ChatApp::theme).font(FONT).default_font(font).run()
 }
 
 pub struct ChatApp{
     pub save: Save,
     pub main_view: View,
+    pub options : Options,
     pub markdown: Vec<Vec<markdown::Item>>,
     pub logic : Logic,
 }
@@ -43,11 +55,15 @@ pub enum Message{
     ChangeTheme(Theme),
     ChangeIndent(String),
     SaveToClipboard(String),
+    Regenerate,
     ChangeModel(String),
     ChangeStart(String),
     ChangeChat(usize),
     RemoveChat(usize),
-    Received(Result<String, String>),
+    Received(Result<ChatMessage, String>),
+    PickedImage(Result<Vec<PathBuf>, String>),
+    PickImage,
+    RemoveImage(PathBuf),
     URLClicked(markdown::Url),
     ShowSettings,
     SideBar,
@@ -68,12 +84,7 @@ impl ChatApp{
     }
 
     fn new() -> Self{
-        Self{
-            save: Save::new(String::new()),
-            main_view: View::new(),
-            logic: Logic::new(),
-            markdown: Vec::new(),
-        }
+        Self::new_with_save(Save::new(String::new()))
     }
 
     fn new_with_save(save : Save) -> Self{
@@ -82,6 +93,7 @@ impl ChatApp{
             main_view: View::new(),
             logic: Logic::new(),
             markdown: Vec::new(),
+            options: Options::new(),
         }
     }
 
@@ -108,9 +120,9 @@ impl ChatApp{
         }
 
         if let Some(chat) = app.save.get_current_chat(){
-            let ollama = Arc::clone(&app.logic.ollama);
+            //let ollama = Arc::clone(&app.logic.ollama);
             app.markdown = chat.to_mk();
-            chat::ollama_from_chat(ollama, chat);
+            //chat::ollama_from_chat(ollama, chat);
         }
 
         app.logic.chat = app.save.get_current_chat_num();
@@ -128,6 +140,14 @@ impl ChatApp{
                 println!("Save Clip {}", x);
                 clipboard::write::<Message>(x.clone())
             },
+            Message::Regenerate => {
+                if let Some(i) = self.save.get_index(self.save.last){
+                    self.save.chats[i].0.pop();
+                    return self.submit(false);
+                }
+
+                Task::none()
+            },
             Message::ShowSettings => {
                 self.main_view.side = match self.main_view.side{
                     SideBarState::Settings => SideBarState::Shown,
@@ -139,6 +159,12 @@ impl ChatApp{
                 open::that_in_background(x.to_string()); 
                 Task::none()
             },
+            Message::RemoveImage(x) => {
+                if let Ok(x) = self.main_view.images.binary_search(&x){
+                    self.main_view.images.remove(x);
+                }
+                Task::none()
+            },
             Message::SideBar => {
                 self.main_view.side = match self.main_view.side{
                     SideBarState::Hidden => SideBarState::Shown,
@@ -146,6 +172,12 @@ impl ChatApp{
                 };
                 Task::none()
             },
+            Message::PickedImage(x) => {
+                if let Ok(mut x) = x{
+                    self.main_view.images.append(&mut x);
+                }
+                Task::none()
+            }
             Message::Received(x) => {
                 if let Ok(x) = x{
                     return self.received(x.clone());
@@ -175,8 +207,11 @@ impl ChatApp{
                 Task::none()
             },
             Message::Submit => {
-                self.submit()
+                self.submit(true)
             },
+            Message::PickImage => {
+                Self::pick_images()
+            }
             Message::ChangeTheme(x) => {
                 self.change_theme(x.clone())
             },

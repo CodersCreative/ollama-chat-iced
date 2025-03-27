@@ -1,46 +1,63 @@
-use crate::{
-    save::{chat::Chat, chats::Chats},
-    sidebar::chats::Chats as SideChats,
-    chat::run_ollama,
-    SAVE_FILE
-};
+use crate::{ chat::run_ollama, save::{chat::{Chat, Role},chats::Chats}, SAVE_FILE};
+use crate::SideChats;
 
-use iced::{widget::markdown, Task};
-use std::sync::Arc;
+use iced::{widget::{markdown, Image}, Task};
+use ollama_rs::generation::{chat::{ChatMessage, MessageRole}, images::{self, Image as OImage}};
+use std::{path::PathBuf, sync::Arc};
 use crate::{ChatApp, Message};
 
 impl ChatApp{
-    pub fn submit(&mut self) -> Task<Message>{
+    pub fn submit(&mut self, new : bool) -> Task<Message>{
         let ollama = Arc::clone(&self.logic.ollama);
-        let input = self.main_view.input.clone();
+
         self.main_view.loading = true;
-        Task::perform(run_ollama(input, ollama, self.get_model()), Message::Received)
+        if new{
+            let chat = Chat{
+                role: Role::User,
+                message: self.main_view.input.clone(),
+                images: self.main_view.images.clone(), 
+            };
+            self.markdown.push(Chat::generate_mk(&chat.message));
+            let index = self.save.get_index(self.save.last).unwrap();
+            self.save.chats[index].0.push(chat);
+        }
+        
+
+        let chat = self.save.get_current_chat().unwrap();
+        self.main_view.gen_chats = Arc::new(chat.get_chat_messages());
+        let chat = Arc::clone(&self.main_view.gen_chats);
+        
+        Task::perform(run_ollama(chat ,ollama, self.get_model()), Message::Received)
     }
 
-    pub fn received(&mut self, result : String) -> Task<Message>{
+    pub fn received(&mut self, result : ChatMessage) -> Task<Message>{
         self.main_view.loading = false;
         let index = self.save.get_index(self.save.last);
+        let images = match result.images{
+            Some(x) => x.iter().map(|x| {
+                PathBuf::from("")
+            }).collect(),
+            None => Vec::new(),
+        };
 
-        let chats = vec![Chat{
-            name : "User".to_owned(),
-            message : self.main_view.input.clone(),
-        },
-        Chat{
-            name : "AI".to_owned(),
-            message : result.trim().to_string(),
-        }];
+        let chat = Chat{
+            role: Role::AI,
+            message: result.content.trim().to_string(),
+            images, 
+        };
 
         match index{
             Some(x) => {
-                self.save.chats[x].0.extend(chats.clone());
-                let mut chats : Vec<Vec<markdown::Item>> = chats.iter().map(|x| Chat::generate_mk(&x.message)).collect();
-                self.markdown.append(&mut chats);
+                self.markdown.push(Chat::generate_mk(&chat.message));
+                self.save.chats[x].0.push(chat);
             },
             None => {
-                self.save.chats.push(Chats::new_with_chats(chats))
+                self.save.chats.push(Chats::new_with_chats(vec![chat]))
             },
         }
+
         self.main_view.input = String::new();
+        self.main_view.images = Vec::new();
         self.save.save(SAVE_FILE);
         self.main_view.chats = SideChats::new(self.save.get_chat_previews());
 

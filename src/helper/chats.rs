@@ -1,5 +1,5 @@
 use crate::{
-    chat::{get_model, ollama_from_chat}, save::chats::Chats, sidebar::chats::Chats as SideChats, SAVE_FILE
+    chat::{get_model}, save::chats::Chats, sidebar::chats::Chats as SideChats, SAVE_FILE
 };
 
 use iced::Task;
@@ -13,9 +13,9 @@ impl ChatApp{
         self.logic.chat = Some(index);
         let chat = self.save.get_current_chat();
         if let Some(chat) = chat{
-            let ollama = Arc::clone(&self.logic.ollama);
+            //let ollama = Arc::clone(&self.logic.ollama);
             self.markdown = chat.to_mk();
-            ollama_from_chat(ollama, chat);
+            //ollama_from_chat(ollama, chat);
 
         }
         self.save.save(SAVE_FILE);

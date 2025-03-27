@@ -18,9 +18,12 @@ serde = { version = "1.0.201", features = ["derive"] }
 serde_json = "1.0.117"
 text-splitter = "0.10.0"
 tokio = { version = "1.37.0", features = ["full"] }
-iced = { version = "0.13.1", features = ["tokio", "markdown"] }
+iced = { version = "0.13.1", features = ["tokio", "markdown", "image"] }
 iced_futures = { version = "0.13.0", features = ["tokio"] }
 color-art = "0.3.8"
 cli-clipboard = "0.4.0"
 open = "5.3.2"
 time = "0.3.41"
+image = "0.25.6"
+base64-stream = "4.0.0"
+rfd = "0.15.3"

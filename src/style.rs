@@ -85,7 +85,7 @@ pub mod text_input{
             placeholder: change_alpha(theme.palette().text.clone(), 0.4),
             value: theme.palette().text.clone(),
             selection: theme.palette().primary.clone(),
-            icon: theme.palette().text.clone()
+            icon: theme.palette().text.clone(),
         }
     }
     pub fn ai_all(theme: &Theme, _status: Status) -> Style{

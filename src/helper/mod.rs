@@ -1,5 +1,6 @@
 pub mod chat;
 pub mod chats;
+pub mod image;
 
 use iced::{Task, Theme};
 use crate::{ChatApp, Message, SAVE_FILE};
