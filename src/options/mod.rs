@@ -3,10 +3,9 @@ pub mod convert;
 pub mod doc;
 use doc::DOCS;
 use serde::{Deserialize, Serialize};
-use crate::{style::{self}, utils::convert_image, Message};
-use iced::{alignment::{Horizontal, Vertical}, widget::{self, button, column, container, row, text, text_input, toggler}, Element, Length};
+use crate::{style::{self}, Message};
+use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, container, row, text, text_input, toggler}, Element, Length};
 use serde_json;
-use std::time::SystemTime;
 use std::{fs::File, io::Read};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]

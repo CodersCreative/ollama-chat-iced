@@ -1,14 +1,12 @@
 
 pub mod markdown{
     use iced::widget::{
-        button, center_x, container, horizontal_space, hover, image,
-        markdown, pop, right, text,
+        button, container, hover,
+        markdown, right, text,
     };
-    use iced::{
-        Element,
-    };
-
+    use iced::Element;
     use crate::Message;
+    
     pub struct CustomViewer;
 
     impl<'a> markdown::Viewer<'a, Message> for CustomViewer {
@@ -42,7 +40,6 @@ pub mod markdown{
 
 pub mod container{
     use iced::{widget::container::Style, Theme};
-
     use crate::utils::{change_alpha, darken_colour};
 
     pub fn side_bar(theme: &Theme) -> Style{
@@ -107,7 +104,7 @@ pub mod container{
             ..Default::default()
         }
     }
-    pub fn bottom_input_back(theme: &Theme) -> Style{
+    pub fn bottom_input_back(_theme: &Theme) -> Style{
         Style{
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
             ..Default::default()
@@ -116,8 +113,7 @@ pub mod container{
 }
 
 pub mod text_input{
-    use iced::{widget::{text_input::{Style, Status}}, Theme};
-
+    use iced::{widget::text_input::{Style, Status}, Theme};
     use crate::utils::change_alpha;
 
     pub fn input(theme: &Theme, _status: Status) -> Style{
@@ -143,7 +139,7 @@ pub mod text_input{
 }
 
 pub mod button{
-    use iced::{border::Radius, widget::{button::{Style, Status}}, Theme};
+    use iced::{border::Radius, widget::button::{Style, Status}, Theme};
     use crate::utils::{change_alpha, darken_colour, lighten_colour};
     
     pub fn rounded_primary(theme: &Theme, _status: Status) -> Style{

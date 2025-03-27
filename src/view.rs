@@ -1,6 +1,5 @@
 use std::{path::PathBuf, sync::Arc};
 
-//use color_art::Color;
 use iced::{
     alignment::{Horizontal, Vertical},widget::{button, column, combo_box, container, horizontal_space, row, scrollable::{self, Direction, Scrollbar}, text, text_input}, Element, Length, Padding, Renderer, Theme
 };
@@ -8,6 +7,7 @@ use ollama_rs::generation::chat::ChatMessage;
 use crate::{sidebar::SideBarState, start::{self, Section}, style, utils::{change_alpha, lighten_colour}, ChatApp, Message};
 use crate::sidebar::chats::Chats as SideChats;
 use iced::widget::image;
+
 pub struct View{
     pub theme: Theme,
     pub loading : bool,
@@ -69,7 +69,7 @@ impl View{
         .width(Length::FillPortion(2));
         let images = container(
             scrollable::Scrollable::new(row(self.images.iter().map(|x| {
-               button(image(image::Handle::from_path(x)).height(Length::Fixed(100.0))).style(style::button::transparent_text).on_press(Message::RemoveImage(x.clone())).into() 
+               button(image(image::Handle::from_path(x)).height(Length::Fixed(150.0))).style(style::button::transparent_text).on_press(Message::RemoveImage(x.clone())).into() 
             })).align_y(Vertical::Center).spacing(10)).direction(Direction::Horizontal(Scrollbar::new()))
         ).padding(Padding::from([0, 20])).style(style::container::bottom_input_back);
         
@@ -77,7 +77,7 @@ impl View{
             row![
                 container(
                     combo_box(&app.logic.models, app.save.ai_model.as_str(), None, Message::ChangeModel).input_style(style::text_input::ai_all).padding(Padding::from([5, 20]))
-                ).width(Length::FillPortion(17)).align_y(Vertical::Center),//.padding(Padding::from([10, 20])),
+                ).width(Length::FillPortion(17)).align_y(Vertical::Center),
                 upload,
                 submit
             ].align_y(Vertical::Center).spacing(20),
@@ -101,7 +101,6 @@ impl View{
 
         container(column![
             body,
-            //vertical_space(),
             input,
         ]).width(Length::FillPortion(50)).into()
     }

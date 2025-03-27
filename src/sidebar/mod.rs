@@ -1,11 +1,9 @@
 use std::time::{Duration, SystemTime};
-
 use crate::sidebar::chat::Chat;
 use iced::{
     alignment::{Horizontal, Vertical},widget::{button, column, combo_box, container,pick_list, row, scrollable, text, vertical_space}, Element, Length, Padding, Renderer, Theme
 };
 use crate::{style, ChatApp, Message};
-
 use crate::view::View;
 
 pub mod chats;
@@ -26,7 +24,7 @@ impl View{
         }
     }
     
-    pub fn hidden_side_bar<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
+    pub fn hidden_side_bar<'a>(&'a self, _app : &'a ChatApp) -> Element<Message>{
         let show = Self::hide_button(">")
         .width(Length::FillPortion(2));
         
@@ -129,18 +127,12 @@ impl View{
             self.header("Chats".to_string()),
             new_button,
             self.view_chats(app),
-            //container(app.main_view.chats.view(app.logic.chat)).height(Length::Fill),
             vertical_space(),
         ]).width(Length::FillPortion(10))
         .style(style::container::side_bar).into()
     }
 
     pub fn view_chats<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
-        let chats_within = app.main_view.chats.clone();
-        let chats_out = app.main_view.chats.clone();
-        //chats_within.chats = chats_within.chats.into_iter().filter(|x| x.time.duration_since(SystemTime::now()).unwrap().as_secs() < 2629746).collect();
-        //chats_out.chats = chats_out.chats.into_iter().filter(|x| x.time.duration_since(SystemTime::now()).unwrap().as_secs() > 2629746).collect();
-
         let txt = |title : String, color : iced::Color| -> Element<Message>{
             text(title)
             .color(color)
@@ -162,7 +154,6 @@ impl View{
                 view((&app.main_view.chats.chats).iter().filter(|x| x.time.duration_since(SystemTime::now()).unwrap_or(Duration::new(0, 0)).as_secs() < 2629746).collect::<Vec<&Chat>>()),
                 txt("Old".to_string(), self.theme().palette().primary),
                 view((&app.main_view.chats.chats).iter().filter(|x| x.time.duration_since(SystemTime::now()).unwrap_or(Duration::new(0, 0)).as_secs() > 2629746).collect::<Vec<&Chat>>()),
-                //container(chats_out.view(app.logic.chat)),
             ].into()
         }else{
             return column![

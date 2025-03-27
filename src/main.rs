@@ -15,19 +15,15 @@ use crate::{
     options::Options,
     chat::get_models
 };
-
 use iced::{
     clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Task, Theme
 };
-
-use ollama_rs::generation::{chat::ChatMessage, options::GenerationOptions};
+use ollama_rs::generation::chat::ChatMessage;
 use options::OptionKey;
 use update::Logic;
 use sidebar::SideBarState;
 use std::{path::PathBuf, sync::Arc};
 use crate::view::View;
-use tokio::sync::Mutex;
-use std::error::Error;
 
 pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
 const SAVE_FILE: &str = "chat.json";
@@ -133,9 +129,7 @@ impl ChatApp{
         }
 
         if let Some(chat) = app.save.get_current_chat(){
-            //let ollama = Arc::clone(&app.logic.ollama);
             app.markdown = chat.to_mk();
-            //chat::ollama_from_chat(ollama, chat);
         }
 
         app.logic.chat = app.save.get_current_chat_num();

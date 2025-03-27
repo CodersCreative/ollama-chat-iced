@@ -1,8 +1,8 @@
 use crate::{ chat::run_ollama, save::{chat::{Chat, Role},chats::Chats}, SAVE_FILE};
 use crate::SideChats;
 
-use iced::{widget::{markdown, Image}, Task};
-use ollama_rs::generation::{chat::{ChatMessage, MessageRole}, images::{self, Image as OImage}};
+use iced::Task;
+use ollama_rs::generation::chat::ChatMessage;
 use std::{path::PathBuf, sync::Arc};
 use crate::{ChatApp, Message};
 

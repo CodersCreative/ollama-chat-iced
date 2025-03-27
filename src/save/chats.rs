@@ -7,16 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::ChatApp;
 use crate::{utils::get_preview, Message};
 use rand::Rng;
-use std::time::Instant;
-use std::error::Error;
-use tokio::sync::Mutex;
-use std::sync::Arc;
 
-use ollama_rs::{
-    generation::chat::{
-        request::ChatMessageRequest, ChatMessage,
-    }, Ollama
-};
+use ollama_rs::generation::chat::ChatMessage;
 use super::chat::Chat;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

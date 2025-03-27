@@ -41,6 +41,20 @@ cargo run --release
 cargo run
 ```
 
+## Gallery
+
+![Ochat's home screen.](/media/home.png)
+
+![Ochat handling images.](/media/image.png)
+
+![Ochat's model options.](/media/options.png)
+
+![Ochat's code handling.](/media/code.png)
+
+![Ochat's theme showcase.](/media/theme.png)
+
+![Another ochat theme showcase.](/media/theme2.png)
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first

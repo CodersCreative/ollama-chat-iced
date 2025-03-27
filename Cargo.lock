@@ -2931,7 +2931,7 @@ dependencies = [
 
 [[package]]
 name = "ochat"
-version = "0.2.0"
+version = "0.2.5"
 dependencies = [
  "base64-stream",
  "bitflags 2.9.0",

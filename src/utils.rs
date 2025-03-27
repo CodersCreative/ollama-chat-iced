@@ -9,7 +9,7 @@ use ollama_rs::generation::images::Image;
 use std::{
     fs::File,
     io::{BufReader, Cursor, Read},
-    path::{Path, PathBuf},
+    path::Path,
     error::Error
 }; 
 
@@ -28,7 +28,7 @@ pub fn write_read(message: String) -> String {
 
 pub fn write_read_line(message: String) -> String{
     print!("{}", message);
-    io::stdout().flush().unwrap();  // Flush to display the prompt
+    io::stdout().flush().unwrap(); 
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
     return input;
@@ -64,21 +64,18 @@ pub fn convert_image(path: &Path) -> Result<Image, Box<dyn Error>> {
 
     let format = ImageFormat::from_path(path)?;
     if !matches!(format, ImageFormat::Png | ImageFormat::Jpeg) {
-        //log::debug!("got {format:?} image, converting to png");
         let img = image::load(f, format)?;
         let mut buf = Vec::new();
         img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Png)?;
         let mut reader = ToBase64Reader::new(buf.as_slice());
         let mut base64 = String::new();
         reader.read_to_string(&mut base64)?;
-        //log::debug!("converted to {} bytes of base64", base64.len());
         return Ok(Image::from_base64(&base64));
     }
 
     let mut reader = ToBase64Reader::new(f);
     let mut base64 = String::new();
     reader.read_to_string(&mut base64)?;
-    //log::debug!("read image to {} bytes of base64", base64.len());
     Ok(Image::from_base64(&base64))
 }
 pub fn get_preview(chat: &Chats) -> (String, SystemTime){

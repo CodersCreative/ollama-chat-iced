@@ -13,9 +13,7 @@ impl ChatApp{
         self.logic.chat = Some(index);
         let chat = self.save.get_current_chat();
         if let Some(chat) = chat{
-            //let ollama = Arc::clone(&self.logic.ollama);
             self.markdown = chat.to_mk();
-            //ollama_from_chat(ollama, chat);
 
         }
         self.save.save(SAVE_FILE);

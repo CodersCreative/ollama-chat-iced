@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, container, horizontal_space, image, markdown, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Theme};
+use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, container, image, markdown, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Theme};
 use iced::{Element, Length};
 use ollama_rs::generation::chat::ChatMessage;
 use serde::{Deserialize, Serialize};
@@ -52,10 +52,6 @@ impl Chat{
     }
 
     pub fn view_mk<'a>(&'a self, markdown : &'a Vec<markdown::Item>, theme : &Theme) -> Element<'a, Message>{
-        //markdown::view(markdown, markdown::Settings::default(), markdown::Style::from_palette(theme.palette()))
-        //    .map(Message::URLClicked)
-        //    .into()
-
         markdown::view_with(markdown, theme, &style::markdown::CustomViewer).into()
     }
 
@@ -85,7 +81,7 @@ impl Chat{
         
         let images = container(
             scrollable::Scrollable::new(row(self.images.iter().map(|x| {
-               button(image(image::Handle::from_path(x)).height(Length::Fixed(100.0))).style(style::button::transparent_text).on_press(Message::RemoveImage(x.clone())).into() 
+               button(image(image::Handle::from_path(x)).height(Length::Fixed(200.0))).style(style::button::transparent_text).on_press(Message::RemoveImage(x.clone())).into() 
             })).align_y(Vertical::Center).spacing(10)).direction(Direction::Horizontal(Scrollbar::new()))
         ).padding(Padding::from([0, 20])).style(style::container::bottom_input_back);
         let mark = container(self.view_mk(markdown, theme)).padding(20);

@@ -1,15 +1,15 @@
 use ollama_rs::{
-    generation::{chat::{
+    generation::chat::{
         request::ChatMessageRequest, ChatMessage,
-    }, options::GenerationOptions}, Ollama
+    }, Ollama
 };
 use tokio::sync::Mutex;
 use std::{sync::Arc, time::Instant};
 
-use crate::options::{ModelOptions, Options};
+use crate::options::ModelOptions;
 
 pub fn get_model() -> Ollama{
-    return Ollama::new_default_with_history(50);
+    return Ollama::default();
 }
 
 pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>, model : String) -> Result<ChatMessage, String>{
@@ -23,7 +23,6 @@ pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ol
         if result.message.is_none(){
             return Err("No Result".to_string());
         }
-        //let response = result.message.unwrap();
         return Ok(result.message.unwrap());
     }
     return Err("Failed to run ollama.".to_string());
