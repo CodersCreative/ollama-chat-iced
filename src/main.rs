@@ -16,8 +16,9 @@ use crate::{
     chat::get_models
 };
 use iced::{
-    clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Task, Theme
+    clipboard, widget::{combo_box, container, row, markdown}, Element, Font, Task, Theme
 };
+
 use ollama_rs::generation::chat::ChatMessage;
 use options::OptionKey;
 use update::Logic;
