@@ -6,13 +6,13 @@ use ollama_rs::{
 use tokio::sync::Mutex;
 use std::{sync::Arc, time::Instant};
 
-use crate::options::Options;
+use crate::options::{ModelOptions, Options};
 
 pub fn get_model() -> Ollama{
     return Ollama::new_default_with_history(50);
 }
 
-pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : Options, ollama : Arc<Mutex<Ollama>>, model : String) -> Result<ChatMessage, String>{
+pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>, model : String) -> Result<ChatMessage, String>{
     let now = Instant::now();
     let o = ollama.lock().await;
     let request = ChatMessageRequest::new(model, chats.to_vec()).options(options.into());

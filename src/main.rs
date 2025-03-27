@@ -101,7 +101,7 @@ impl ChatApp{
             main_view: View::new(),
             logic: Logic::new(),
             markdown: Vec::new(),
-            options: Options::new(),
+            options: Options::default(),
         }
     }
 
@@ -162,47 +162,55 @@ impl ChatApp{
                 Task::none()
             },
             Message::ChangeOptionBool(x) => {
-                let index = self.options.get_key_index(x.1);
-                self.options.0[index].bool_value = x.0;
+                let m_index = self.options.get_create_model_options_index(self.get_model());
+                let index = self.options.0[m_index].get_key_index(x.1);
+                self.options.0[m_index].0[index].bool_value = x.0;
                 self.options.save(SETTINGS_FILE);
                 Task::none()
             },
             Message::ChangeOptionNum(x) => {
-                let index = self.options.get_key_index(x.1);
-                self.options.0[index].temp = x.0;
+                let m_index = self.options.get_create_model_options_index(self.get_model());
+                let index = self.options.0[m_index].get_key_index(x.1);
+                self.options.0[m_index].0[index].temp = x.0;
                 Task::none()
             },
             Message::SubmitOptionNum(x) => {
-                let index = self.options.get_key_index(x);
-                if let Ok(num) = self.options.0[index].temp.parse::<f32>(){
-                    let mut value = self.options.0[index].num_value.unwrap();
+                let m_index = self.options.get_create_model_options_index(self.get_model());
+                let index = self.options.0[m_index].get_key_index(x);
+                if let Ok(num) = self.options.0[m_index].0[index].temp.parse::<f32>(){
+                    let mut value = self.options.0[m_index].0[index].num_value.unwrap();
                     value.0 = num;
-                    self.options.0[index].num_value = Some(value);
+                    self.options.0[m_index].0[index].num_value = Some(value);
                     self.options.save(SETTINGS_FILE);
                 }else{
-                    self.options.0[index].temp = self.options.0[index].num_value.unwrap().0.to_string();
+                    self.options.0[m_index].0[index].temp = self.options.0[m_index].0[index].num_value.unwrap().0.to_string();
                 }
                 Task::none()
             },
             Message::ResetOption(x) => {
-                let index = self.options.get_key_index(x);
-                let mut value = self.options.0[index].num_value.unwrap();
+                let m_index = self.options.get_create_model_options_index(self.get_model());
+                let index = self.options.0[m_index].get_key_index(x);
+                let mut value = self.options.0[m_index].0[index].num_value.unwrap();
                 value.0 = value.1;
-                self.options.0[index].num_value = Some(value);
-                self.options.0[index].temp = value.1.to_string();
-                self.options.0[index].bool_value = false;
+                self.options.0[m_index].0[index].num_value = Some(value);
+                self.options.0[m_index].0[index].temp = value.1.to_string();
+                self.options.0[m_index].0[index].bool_value = false;
                 self.options.save(SETTINGS_FILE);
                 Task::none()
             },
             Message::ClickedOption(x) => {
-                let index = self.options.get_key_index(x);
-                self.options.0[index].shown = !self.options.0[index].shown;
+                let m_index = self.options.get_create_model_options_index(self.get_model());
+                let index = self.options.0[m_index].get_key_index(x);
+                self.options.0[m_index].0[index].shown = !self.options.0[m_index].0[index].shown;
                 Task::none()
             },
             Message::ShowSettings => {
                 self.main_view.side = match self.main_view.side{
                     SideBarState::Settings => SideBarState::Shown,
-                    _ => SideBarState::Settings,
+                    _ => {
+                        let _ = self.options.get_create_model_options_index(self.get_model());
+                        SideBarState::Settings
+                    },
                 };
                 Task::none()
             },
@@ -238,6 +246,7 @@ impl ChatApp{
             Message::ChangeModel(x) => {
                 self.save.set_model(x.clone());
                 self.save.save(SAVE_FILE);
+                let _ = self.options.get_create_model_options_index(self.get_model());
                 Task::none()
             },
             Message::ChangeStart(x) => {

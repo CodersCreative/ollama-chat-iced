@@ -1,7 +1,7 @@
 use super::*;
 
-impl Options{
-    pub fn new() -> Self{
+impl ModelOptions{
+    pub fn new(model: String) -> Self{
         Self(vec![
             GenOption::new(
                 "Mirostat",
@@ -93,6 +93,8 @@ impl Options{
                 Some((0.9, 0.9)),
                 None
             ),
-        ])
+        ],
+        model,
+        )
     }
 }

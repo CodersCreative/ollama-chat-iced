@@ -55,7 +55,7 @@ impl View{
             .align_y(Vertical::Center)
             .align_x(Horizontal::Center),
             container(combo_box(&app.logic.models, app.save.ai_model.as_str(), None, Message::ChangeModel)).padding(10),
-            container(app.options.view()),
+            container(app.options.view(app.options.get_model_options_index(app.get_model()).unwrap())),
             vertical_space(),
             container(
                 pick_list(

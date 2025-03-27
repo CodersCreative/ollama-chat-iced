@@ -7,14 +7,34 @@ use iced::{alignment::{Horizontal, Vertical}, widget::{self, button, column, con
 use serde_json;
 use std::time::SystemTime;
 use std::{fs::File, io::Read};
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct Options (pub Vec<GenOption>);
 
-impl Default for Options {
-    fn default() -> Self {
-        Self::new()
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct Options (pub Vec<ModelOptions>);
+
+impl Options{
+    pub fn get_model_options_index(&self, model : String) -> Option<usize>{
+        for i in 0..self.0.len(){
+            if self.0[i].1 == model{
+                return Some(i);
+            }
+        }
+
+        None
+    }
+
+    pub fn get_create_model_options_index(&mut self, model : String) -> usize{
+        let index = self.get_model_options_index(model.clone());
+        if let None = index{
+            self.0.push(ModelOptions::new(model));
+            return self.0.len() - 1;
+        }
+
+        index.unwrap()
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ModelOptions (pub Vec<GenOption>, pub String);
 
 impl Options{
     pub fn save(&self, path : &str){
@@ -43,6 +63,12 @@ impl Options{
          return Err("Failed to open file".to_string());
     }
 
+    pub fn view(&self, index : usize) -> Element<Message>{
+        self.0[index].view()
+    }
+}
+
+impl ModelOptions{
     pub fn view(&self) -> Element<Message>{
         column(self.0.iter().map(|x| {
             x.view()

@@ -26,8 +26,9 @@ impl ChatApp{
         let chat = self.save.get_current_chat().unwrap();
         self.main_view.gen_chats = Arc::new(chat.get_chat_messages());
         let chat = Arc::clone(&self.main_view.gen_chats);
+        let index = self.options.get_create_model_options_index(self.get_model());
         
-        Task::perform(run_ollama(chat, self.options.clone(), ollama, self.get_model()), Message::Received)
+        Task::perform(run_ollama(chat, self.options.0[index].clone(), ollama, self.get_model()), Message::Received)
     }
 
     pub fn received(&mut self, result : ChatMessage) -> Task<Message>{

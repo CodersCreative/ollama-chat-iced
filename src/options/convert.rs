@@ -1,7 +1,7 @@
 use super::*;
 use ollama_rs::generation::options::GenerationOptions;
 
-impl Options {
+impl ModelOptions {
     pub fn get_key_index(&self, key : OptionKey) -> usize{
         for i in 0..self.0.len(){
             if self.0[i].key == key{
@@ -21,7 +21,7 @@ impl Options {
     }
 }
 
-impl Into<GenerationOptions> for Options{
+impl Into<GenerationOptions> for ModelOptions{
     fn into(self) -> GenerationOptions {
         let mut options = GenerationOptions::default();
         
@@ -100,11 +100,6 @@ impl Into<GenerationOptions> for Options{
             options = options.top_p(x.num_value.unwrap().0);
         }
 
-
-        //let x = self.get_key(OptionKey::StopSequence);
-        //if x.bool_value{
-        //    options = options.stop(x.num_value.unwrap().0 as i32);
-        //}
         options
     }
 } 
