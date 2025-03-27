@@ -1,6 +1,7 @@
 pub mod values;
 pub mod convert;
 pub mod doc;
+use doc::DOCS;
 use serde::{Deserialize, Serialize};
 use crate::{style::{self}, utils::convert_image, Message};
 use iced::{alignment::{Horizontal, Vertical}, widget::{self, button, column, container, row, text, text_input, toggler}, Element, Length};
@@ -99,7 +100,7 @@ pub enum OptionKey{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GenOption{
     pub name: String,
-    pub doc : String,
+    //pub doc : String,
     pub shown: bool,
     pub key: OptionKey,
     num_type: NumType,
@@ -120,7 +121,7 @@ impl GenOption{
     fn new(name: &str, key : OptionKey, num_value : Option<(f32, f32)>, text_value : Option<(String, String)>) -> Self{
         Self{
             name: name.to_string(),
-            doc: key.get_doc(),
+            //doc: key.get_doc(),
             num_type: NumType::Whole,
             temp: num_value.unwrap().0.to_string(),
             key,
@@ -138,7 +139,8 @@ impl GenOption{
     pub fn view<'a>(&'a self) -> Element<Message>{
         if self.shown{
             let name = button(text(&self.name).center().size(16)).on_press(Message::ClickedOption(self.key.clone())).style(style::button::chosen_chat);
-            let doc = container(text(&self.doc).center().size(12)).padding(5).style(style::container::code);
+            let index = self.key.get_doc_index();
+            let doc = container(text(DOCS[index]).center().size(12)).padding(5).style(style::container::code);
             let mut widgets : Vec<Element<Message>> = vec![
                 row![
                     toggler(self.bool_value).label("Activated").on_toggle(|x| Message::ChangeOptionBool((x, self.key.clone()))).width(Length::FillPortion(3)),
