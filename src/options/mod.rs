@@ -1,5 +1,6 @@
 pub mod values;
 pub mod convert;
+pub mod doc;
 use serde::{Deserialize, Serialize};
 use crate::{style::{self}, utils::convert_image, Message};
 use iced::{alignment::{Horizontal, Vertical}, widget::{self, button, column, container, row, text, text_input, toggler}, Element, Length};
@@ -90,10 +91,10 @@ enum NumType{
 
 impl GenOption{
 
-    fn new(name: &str, doc : &str, key : OptionKey, num_value : Option<(f32, f32)>, text_value : Option<(String, String)>) -> Self{
+    fn new(name: &str, key : OptionKey, num_value : Option<(f32, f32)>, text_value : Option<(String, String)>) -> Self{
         Self{
             name: name.to_string(),
-            doc: doc.to_string(),
+            doc: key.get_doc(),
             num_type: NumType::Whole,
             temp: num_value.unwrap().0.to_string(),
             key,
