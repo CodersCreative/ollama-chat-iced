@@ -111,6 +111,7 @@ impl GenOption{
     pub fn view<'a>(&'a self) -> Element<Message>{
         if self.shown{
             let name = button(text(&self.name).center().size(16)).on_press(Message::ClickedOption(self.key.clone())).style(style::button::chosen_chat);
+            let doc = container(text(&self.doc).center().size(12)).padding(5).style(style::container::code);
             let mut widgets : Vec<Element<Message>> = vec![
                 row![
                     toggler(self.bool_value).label("Activated").on_toggle(|x| Message::ChangeOptionBool((x, self.key.clone()))).width(Length::FillPortion(3)),
@@ -131,6 +132,7 @@ impl GenOption{
 
             container(column![
                 name,
+                doc,
                 settings,
             ]).style(style::container::code_darkened).padding(10).into()
         }else{

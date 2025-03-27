@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::{button, text};
+use iced::widget::{button, row, text};
 use iced::{ Element, Length, Padding};
 use crate::{style, Message};
 
@@ -27,12 +27,22 @@ impl Chat{
             false => style::button::not_chosen_chat,
         };
         
-        button(
+        let title = button(
             text(&self.title).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(20)
         )
         .style(style)
         .on_press(Message::ChangeChat(self.id))
-        .width(Length::Fill).padding(Padding::from(10))
-        .into()
+        .width(Length::FillPortion(7)).padding(Padding::from(10));
+
+        let remove = button(
+            text("x").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(20)
+        )
+        .style(style)
+        .on_press(Message::RemoveChat(self.id))
+        .width(Length::FillPortion(1)).padding(Padding::from(10));
+        row![
+            title,
+            remove,
+        ].padding(5).into()
     }
 }
