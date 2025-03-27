@@ -20,15 +20,18 @@ use iced::{
     clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Task, Theme
 };
 
-use ollama_rs::generation::chat::ChatMessage;
+use ollama_rs::generation::{chat::ChatMessage, options::GenerationOptions};
+use options::OptionKey;
 use update::Logic;
 use sidebar::SideBarState;
 use std::{path::PathBuf, sync::Arc};
 use crate::view::View;
+use tokio::sync::Mutex;
 use std::error::Error;
 
 pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
 const SAVE_FILE: &str = "chat.json";
+const SETTINGS_FILE: &str = "settings.json";
 const PREVIEW_LEN: usize = 20;
 
 fn main() -> iced::Result{
@@ -62,6 +65,11 @@ pub enum Message{
     RemoveChat(usize),
     Received(Result<ChatMessage, String>),
     PickedImage(Result<Vec<PathBuf>, String>),
+    ChangeOptionNum((String, OptionKey)),
+    SubmitOptionNum(OptionKey),
+    ChangeOptionBool((bool, OptionKey)),
+    ClickedOption(OptionKey),
+    ResetOption(OptionKey),
     PickImage,
     RemoveImage(PathBuf),
     URLClicked(markdown::Url),
@@ -105,6 +113,11 @@ impl ChatApp{
             Err(_) => Save::new(String::new()),
         });
 
+        app.options = match Options::load(SETTINGS_FILE) {
+            Ok(x) => x,
+            Err(_) => Options::default(),
+        };
+
         let models = tokio_runtime.block_on(get_models(Arc::clone(&app.logic.ollama)));
         app.logic.models = combo_box::State::new(models.clone());
         app.main_view.chats = SideChats::new(app.save.get_chat_previews());
@@ -146,6 +159,44 @@ impl ChatApp{
                     return self.submit(false);
                 }
 
+                Task::none()
+            },
+            Message::ChangeOptionBool(x) => {
+                let index = self.options.get_key_index(x.1);
+                self.options.0[index].bool_value = x.0;
+                self.options.save(SETTINGS_FILE);
+                Task::none()
+            },
+            Message::ChangeOptionNum(x) => {
+                let index = self.options.get_key_index(x.1);
+                self.options.0[index].temp = x.0;
+                Task::none()
+            },
+            Message::SubmitOptionNum(x) => {
+                let index = self.options.get_key_index(x);
+                if let Ok(num) = self.options.0[index].temp.parse::<f32>(){
+                    let mut value = self.options.0[index].num_value.unwrap();
+                    value.0 = num;
+                    self.options.0[index].num_value = Some(value);
+                    self.options.save(SETTINGS_FILE);
+                }else{
+                    self.options.0[index].temp = self.options.0[index].num_value.unwrap().0.to_string();
+                }
+                Task::none()
+            },
+            Message::ResetOption(x) => {
+                let index = self.options.get_key_index(x);
+                let mut value = self.options.0[index].num_value.unwrap();
+                value.0 = value.1;
+                self.options.0[index].num_value = Some(value);
+                self.options.0[index].temp = value.1.to_string();
+                self.options.0[index].bool_value = false;
+                self.options.save(SETTINGS_FILE);
+                Task::none()
+            },
+            Message::ClickedOption(x) => {
+                let index = self.options.get_key_index(x);
+                self.options.0[index].shown = !self.options.0[index].shown;
                 Task::none()
             },
             Message::ShowSettings => {

@@ -6,16 +6,16 @@ use ollama_rs::{
 use tokio::sync::Mutex;
 use std::{sync::Arc, time::Instant};
 
-use crate::save::chats::Chats;
+use crate::options::Options;
 
 pub fn get_model() -> Ollama{
     return Ollama::new_default_with_history(50);
 }
 
-pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, ollama : Arc<Mutex<Ollama>>, model : String) -> Result<ChatMessage, String>{
+pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : Options, ollama : Arc<Mutex<Ollama>>, model : String) -> Result<ChatMessage, String>{
     let now = Instant::now();
     let o = ollama.lock().await;
-    let request = ChatMessageRequest::new(model, chats.to_vec());
+    let request = ChatMessageRequest::new(model, chats.to_vec()).options(options.into());
     let result = o.send_chat_messages(request).await;
     println!("LLM Time: {}", now.elapsed().as_secs());
 
@@ -29,23 +29,6 @@ pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, ollama : Arc<Mutex<Ollama>
     return Err("Failed to run ollama.".to_string());
 }
 
-//pub fn ollama_from_chat(ollama : Arc<Mutex<Ollama>>, chat : Chats){
-//    let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
-//    tokio_runtime.block_on(ollama_chat_async(ollama, chat));
-//}
-//
-//pub async fn ollama_chat_async(ollama : Arc<Mutex<Ollama>>, chat : Chats){
-//    let mut o = ollama.lock().await;
-//    //*o = get_model();
-//
-//    for c in chat.0{
-//        if c.name.as_str() == "AI"{
-//            o.add_assistant_response("default".to_string(), c.message.clone());
-//        }else{
-//            o.add_user_response("default".to_string(), c.message.clone());
-//        }
-//    }
-//}
 
 pub async fn get_models(ollama : Arc<Mutex<Ollama>>) -> Vec<String>{
     let o = ollama.lock().await;

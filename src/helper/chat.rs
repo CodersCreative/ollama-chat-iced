@@ -9,8 +9,8 @@ use crate::{ChatApp, Message};
 impl ChatApp{
     pub fn submit(&mut self, new : bool) -> Task<Message>{
         let ollama = Arc::clone(&self.logic.ollama);
-
         self.main_view.loading = true;
+        
         if new{
             let chat = Chat{
                 role: Role::User,
@@ -27,7 +27,7 @@ impl ChatApp{
         self.main_view.gen_chats = Arc::new(chat.get_chat_messages());
         let chat = Arc::clone(&self.main_view.gen_chats);
         
-        Task::perform(run_ollama(chat ,ollama, self.get_model()), Message::Received)
+        Task::perform(run_ollama(chat, self.options.clone(), ollama, self.get_model()), Message::Received)
     }
 
     pub fn received(&mut self, result : ChatMessage) -> Task<Message>{

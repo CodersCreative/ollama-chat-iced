@@ -48,8 +48,15 @@ impl View{
     pub fn settings_side_bar<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
         container(column![
             self.header("Settings".to_string()),
-            vertical_space(),
+            text("Model Options")
+            .color(self.theme().palette().primary)
+            .size(16)
+            .width(Length::FillPortion(6))
+            .align_y(Vertical::Center)
+            .align_x(Horizontal::Center),
             container(combo_box(&app.logic.models, app.save.ai_model.as_str(), None, Message::ChangeModel)).padding(10),
+            container(app.options.view()),
+            vertical_space(),
             container(
                 pick_list(
                     Theme::ALL,
