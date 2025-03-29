@@ -46,6 +46,13 @@ impl View{
     pub fn settings_side_bar<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
         container(column![
             self.header("Settings".to_string()),
+            container(
+                pick_list(
+                    Theme::ALL,
+                    Some(self.theme()),
+                    Message::ChangeTheme,
+                ).width(Length::Fill)
+            ).padding(10),
             text("Model Options")
             .color(self.theme().palette().primary)
             .size(16)
@@ -55,13 +62,6 @@ impl View{
             container(combo_box(&app.logic.models, app.save.ai_model.as_str(), None, Message::ChangeModel)).padding(10),
             container(app.options.view(app.options.get_model_options_index(app.get_model()).unwrap())),
             vertical_space(),
-            container(
-                pick_list(
-                    Theme::ALL,
-                    Some(self.theme()),
-                    Message::ChangeTheme,
-                ).width(Length::Fill)
-            ).padding(10),
         ]).width(Length::FillPortion(10))
         .style(style::container::side_bar).into()
     }

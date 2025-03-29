@@ -239,9 +239,11 @@ impl ChatApp{
                 Task::none()
             },
             Message::ChangeModel(x) => {
-                self.save.set_model(x.clone());
-                self.save.save(SAVE_FILE);
-                let _ = self.options.get_create_model_options_index(self.get_model());
+                if !self.main_view.loading{
+                    self.save.set_model(x.clone());
+                    self.save.save(SAVE_FILE);
+                    let _ = self.options.get_create_model_options_index(self.get_model());
+                }
                 Task::none()
             },
             Message::ChangeStart(x) => {
@@ -249,13 +251,22 @@ impl ChatApp{
                 Task::none()
             },
             Message::ChangeChat(x) => {
-                self.change_chat(x)
+                if !self.main_view.loading{
+                    return self.change_chat(x);
+                }
+                Task::none()
             },
             Message::NewChat => {
-                self.new_chat()
+                if !self.main_view.loading{
+                    return self.new_chat()
+                }
+                Task::none()
             },
             Message::RemoveChat(x) => {
-                self.remove_chat(x)
+                if !self.main_view.loading{
+                    return self.remove_chat(x)
+                }
+                Task::none()
             },
             Message::Edit(x) => {
                 self.main_view.input = x.clone();

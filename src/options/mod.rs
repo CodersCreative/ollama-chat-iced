@@ -4,7 +4,7 @@ pub mod doc;
 use doc::DOCS;
 use serde::{Deserialize, Serialize};
 use crate::{style::{self}, Message};
-use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, container, row, text, text_input, toggler}, Element, Length};
+use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, container, row, scrollable, text, text_input, toggler}, Element, Length};
 use serde_json;
 use std::{fs::File, io::Read};
 
@@ -70,9 +70,9 @@ impl Options{
 
 impl ModelOptions{
     pub fn view(&self) -> Element<Message>{
-        column(self.0.iter().map(|x| {
+        scrollable(column(self.0.iter().map(|x| {
             x.view()
-        })).into()
+        }))).into()
     }
 }
 
