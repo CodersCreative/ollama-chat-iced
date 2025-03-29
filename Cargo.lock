@@ -3195,7 +3195,7 @@ dependencies = [
 
 [[package]]
 name = "ochat"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "base64-stream",
  "bitflags 2.9.0",
@@ -3213,6 +3213,7 @@ dependencies = [
  "text-splitter",
  "time",
  "tokio",
+ "url",
 ]
 
 [[package]]
