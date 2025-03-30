@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::time::SystemTime;
 use std::{fs::File, io::Read};
+use crate::utils::get_path_settings;
 use crate::{ChatApp, Message};
 use chats::{Chats, SavedChats};
 
@@ -86,6 +87,7 @@ impl Save {
     }
     
     pub fn save(&self, path : &str){
+        let path = get_path_settings(path.to_string());
         let writer = File::create(path);
 
         if let Ok(writer) = writer {
@@ -98,6 +100,7 @@ impl Save {
     }
 
     pub fn load(path : &str) -> Result<Self, String>{
+        let path = get_path_settings(path.to_string());
         let reader = File::open(path);
 
         if let Ok(mut reader) = reader {

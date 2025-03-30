@@ -14,6 +14,7 @@ use iced::{
 use std::sync::Arc;
 
 use crate::chat::download;
+use crate::utils::get_path_settings;
 use crate::{style, utils::generate_id, ChatApp, Message};
 
 const MODELS_PATH : &str = "models.json";
@@ -185,6 +186,7 @@ pub struct SaveableModels{
 
 impl SaveableModels{
     pub fn save(&self, path : &str){
+        let path = get_path_settings(path.to_string());
         let writer = File::create(path);
 
         if let Ok(writer) = writer {
@@ -193,6 +195,7 @@ impl SaveableModels{
     }
 
     pub fn load(path : &str) -> Result<Self, String>{
+        let path = get_path_settings(path.to_string());
         let reader = File::open(path);
 
         if let Ok(mut reader) = reader {

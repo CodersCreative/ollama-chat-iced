@@ -1,14 +1,15 @@
-use std::{io::{self, Write}, time::SystemTime};
+use std::{env, io::{self, Write}, time::SystemTime};
 use iced::Color;
 use color_art::Color as Colour;
 use rand::Rng;
+use tantivy::Directory;
 use text_splitter::TextSplitter;
 use crate::{save::chats::SavedChats, PREVIEW_LEN};
 use base64_stream::ToBase64Reader;
 use image::ImageFormat;
 use ollama_rs::generation::images::Image;
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{BufReader, Cursor, Read},
     path::Path,
     error::Error
@@ -41,17 +42,30 @@ pub fn get_path_src(path : String) -> String{
     return new_path;
 }
 
+pub fn get_path_settings(path : String) -> String{
+    let mut new_path = env::var("XDG_CONFIG_HOME").or_else(|_| env::var("HOME")).unwrap();
+    new_path.push_str(&format!("/.config/ochat"));
+    if !fs::exists(&new_path).unwrap_or(true){
+        fs::create_dir(&new_path).unwrap();
+    }
+
+    new_path.push_str(&format!("/{}", path));
+    println!("{}", &new_path);
+    return new_path;
+}
 
 pub fn get_path_assets(path : String) -> String{
     let mut new_path = env!("CARGO_MANIFEST_DIR").to_string();
     new_path.push_str(&format!("/assets/{}", path));
     return new_path;
 }
+
 pub fn get_path_dir(path : String) -> String{
     let mut new_path = env!("CARGO_MANIFEST_DIR").to_string();
     new_path.push_str(&format!("/{}", path));
     return new_path;
 }
+
 pub fn split_text(text: String) -> Vec<String> {
     let max_characters = PREVIEW_LEN.clone();
 
