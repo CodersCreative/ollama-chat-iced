@@ -1,7 +1,7 @@
 use ollama_rs::{
     generation::chat::{
         request::ChatMessageRequest, ChatMessage,
-    }, Ollama
+    }, models::pull::PullModelStatus, Ollama
 };
 use tokio::sync::Mutex;
 use std::{sync::Arc, time::Instant};
@@ -26,4 +26,10 @@ pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ol
         return Ok(result.message.unwrap());
     }
     return Err("Failed to run ollama.".to_string());
+}
+
+
+pub async fn download(model : String, ollama : Arc<Mutex<Ollama>>) -> Result<PullModelStatus, String>{
+    let o = ollama.lock().await;
+    o.pull_model(model, false).await.map_err(|x| x.to_string())
 }

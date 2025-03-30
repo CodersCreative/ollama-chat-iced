@@ -1,6 +1,6 @@
 [package]
 name = "ochat"
-version = "0.2.6"
+version = "0.3.0"
 edition = "2021"
 authors = ["Creative Coders <officialccoders@gmail.com>"]
 description = "A chatbot application that uses Ollama AIs."
@@ -19,7 +19,7 @@ serde_json = "1.0.117"
 bitflags = "2.9.0"
 text-splitter = "0.10.0"
 tokio = { version = "1.37.0", features = ["full"] }
-iced = { version = "0.13.1", features = ["tokio", "image", "markdown"]}
+iced = { version = "0.13.1", features = ["tokio", "image", "markdown", "svg"]}
 iced_futures = { version = "0.13.0", features = ["tokio"]}
 color-art = "0.3.8"
 cli-clipboard = "0.4.0"
@@ -31,3 +31,4 @@ rfd = "0.15.3"
 url = "2.5.4"
 reqwest = "0.12.15"
 regex = "1.11.1"
+tantivy = "0.22.0"

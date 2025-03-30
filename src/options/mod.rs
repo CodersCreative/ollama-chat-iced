@@ -3,7 +3,7 @@ pub mod convert;
 pub mod doc;
 use doc::DOCS;
 use serde::{Deserialize, Serialize};
-use crate::{save::chats::Chats, style::{self}, utils::generate_id, ChatApp, Message};
+use crate::{style, utils::generate_id, ChatApp, Message};
 use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, combo_box, container, row, scrollable, text, text_input, toggler}, Element, Length, Padding, Task};
 use serde_json;
 use std::{fs::File, io::Read};

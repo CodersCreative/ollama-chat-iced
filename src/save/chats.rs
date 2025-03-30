@@ -2,20 +2,9 @@ use std::time::SystemTime;
 
 use iced::alignment::Horizontal;
 use iced::alignment::Vertical;
-use iced::widget::button;
-use iced::widget::column;
-use iced::widget::combo_box;
-use iced::widget::container;
-use iced::widget::horizontal_space;
-use iced::widget::image;
+use iced::widget::{button, column, combo_box, container, horizontal_space, image, row, scrollable, text, markdown, keyed_column, text_input, svg};
 use iced::widget::scrollable::Direction;
-use iced::widget::row;
-use iced::widget::scrollable;
 use iced::widget::scrollable::Scrollbar;
-use iced::widget::text;
-use iced::widget::markdown;
-use iced::widget::keyed_column;
-use iced::widget::text_input;
 use iced::Element;
 use iced::Length;
 use iced::Padding;
@@ -23,17 +12,16 @@ use iced::Task;
 use iced::Theme;
 use iced::widget::Renderer;
 use serde::{Deserialize, Serialize};
-//use crate::sidebar::chats::Chats;
 use crate::start;
 use crate::start::Section;
 use crate::style;
 use crate::utils::change_alpha;
 use crate::utils::generate_id;
+use crate::utils::get_path_assets;
 use crate::utils::lighten_colour;
 use crate::ChatApp;
 use crate::SAVE_FILE;
 use crate::{utils::get_preview, Message};
-use rand::Rng;
 use std::{path::PathBuf, sync::Arc};
 
 use ollama_rs::generation::chat::ChatMessage;
@@ -131,7 +119,6 @@ impl ChatsMessage{
                 Task::none()
             },
             Self::NewChat => {
-                //let index = Chats::get_index(app, chats.id.clone());
                 if !chats.loading{
                     return Self::new_chat(app, chats.id)
                 }
@@ -244,27 +231,27 @@ impl Chats{
                 .size(20)
                 .padding(Padding::from(20))
                 .style(style::text_input::input)
-                .width(Length::FillPortion(22))
+                .width(Length::Fill)
                 .into()
             },
             true => {
-                container(text("Awaiting Response...").color(app.theme().palette().primary).size(20)).padding(20).width(Length::FillPortion(22)).style(container::transparent).into()
+                container(text("Awaiting Response...").color(app.theme().palette().primary).size(20)).padding(20).width(Length::Fill).style(container::transparent).into()
             }
         };
 
         let upload = button(
-            text("^").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(16)
+            svg(svg::Handle::from_path(get_path_assets("upload.svg".to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
         )
-        .style(style::button::rounded_primary)
+        .style(style::button::chosen_chat)
         .on_press(Message::Chats(ChatsMessage::PickImage, self.id))
-        .width(Length::FillPortion(1));
+        .width(Length::Fixed(48.0));
 
         let submit = button(
-            text(">").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(16)
+            svg(svg::Handle::from_path(get_path_assets("send.svg".to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
         )
-        .style(style::button::rounded_primary)
+        .style(style::button::chosen_chat)
         .on_press(Message::Chats(ChatsMessage::Submit, self.id))
-        .width(Length::FillPortion(2));
+        .width(Length::Fixed(48.0));
         
         let images = container(
             scrollable::Scrollable::new(row(self.images.iter().map(|x| {
@@ -291,7 +278,6 @@ impl Chats{
                 )
                 .input_style(style::text_input::ai_all)
                 .size(12.0)
-                //.padding(Padding::from([5, 20]))
             ).width(Length::Fill).align_y(Vertical::Center).style(style::container::bottom_input_back),
             bottom, 
         ])
@@ -340,12 +326,14 @@ impl Chats{
         }).collect::<Vec<Element<Message>>>());
         
         container(row![
-            column![
+            horizontal_space().width(Length::FillPortion(5)),
+            container(column![
                 title,
                 header,
                 prompts
-            ].spacing(20).align_x(Horizontal::Left),
-        ]).align_y(Vertical::Center).center_x(Length::Fill).center_y(Length::Fill).into()
+            ].spacing(20).align_x(Horizontal::Left)).width(Length::FillPortion(20)),
+            horizontal_space().width(Length::FillPortion(5))
+        ]).center_x(Length::Fill).center_y(Length::Fill).into()
     }
 
     fn view_chat<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{

@@ -45,15 +45,13 @@ cargo run
 
 ![Ochat's home screen.](/media/home.png)
 
-![Ochat handling images.](/media/image.png)
+![Ochat handling images.](/media/images.png)
 
-![Ochat's model options.](/media/options.png)
+![Ochat's model options.](/media/models.png)
 
 ![Ochat's code handling.](/media/code.png)
 
-![Ochat's theme showcase.](/media/theme.png)
-
-![Another ochat theme showcase.](/media/theme2.png)
+![Ochat's theme showcase.](/media/options.png)
 
 ## Contributing
 

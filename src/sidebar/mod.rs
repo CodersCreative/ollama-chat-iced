@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime};
-use crate::{save::chats::ChatsMessage, sidebar::chat::Chat};
+use crate::{save::chats::ChatsMessage, sidebar::chat::Chat, utils::get_path_assets};
 use iced::{
-    alignment::{Horizontal, Vertical},widget::{button, column, combo_box, container,pick_list, row, scrollable, text, vertical_space}, Element, Length, Padding, Renderer, Theme
+    alignment::{Horizontal, Vertical},widget::{svg, button, column, container,pick_list, row, scrollable, text, vertical_space}, Element, Length, Padding, Renderer, Theme
 };
 use crate::{style, ChatApp, Message};
 use crate::view::View;
@@ -25,21 +25,21 @@ impl View{
     }
     
     pub fn hidden_side_bar<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
-        let show = Self::hide_button(">")
-        .width(Length::FillPortion(2));
+        let show = Self::hide_button("panel_open.svg")
+        .width(Length::Fill);
         
         let settings = Self::settings_button()
-        .width(Length::FillPortion(2));
+        .width(Length::Fill);
         
         let new = Self::add_button(app)
-        .width(Length::FillPortion(2));
+        .width(Length::Fill);
         
         container(column![
             show,
             vertical_space(),
             new,
             settings,
-        ]).width(Length::FillPortion(1)).height(Length::Fill).align_y(iced::alignment::Vertical::Bottom)
+        ]).width(Length::Fixed(48.0)).height(Length::Fill).align_y(iced::alignment::Vertical::Bottom).align_x(Horizontal::Center)
         .style(style::container::side_bar).into()
     }
 
@@ -53,6 +53,11 @@ impl View{
                     Message::ChangeTheme,
                 ).width(Length::Fill)
             ).padding(10),
+            Self::txt("Downloading".to_string(), self.theme().palette().primary),
+            Self::txt(match &app.main_view.downloading {
+                Some(x) => x.to_string(),
+                None => "None".to_string()
+            }, self.theme().palette().text),
             vertical_space(),
         ]).width(Length::FillPortion(10))
         .style(style::container::side_bar).into()
@@ -60,7 +65,7 @@ impl View{
 
     fn hide_button<'a>(title: &'a str) -> button::Button<'a, Message, Theme, Renderer>{
         button(
-            text(title).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(24)
+            svg(svg::Handle::from_path(get_path_assets(title.to_string()))).style(style::svg::white).width(24.0).height(24.0),
         )
         .style(style::button::transparent_text)
         .on_press(Message::SideBar)
@@ -68,7 +73,7 @@ impl View{
 
     fn settings_button<'a>() -> button::Button<'a, Message, Theme, Renderer>{
         button(
-            text("=").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(24)
+            svg(svg::Handle::from_path(get_path_assets("settings.svg".to_string()))).style(style::svg::white).width(24.0).height(24.0),
         )
         .style(style::button::transparent_text)
         .on_press(Message::ShowSettings)
@@ -76,7 +81,7 @@ impl View{
     
     fn add_button<'a>(app : &'a ChatApp) -> button::Button<'a, Message, Theme, Renderer>{
         button(
-            text("+").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(24)
+            svg(svg::Handle::from_path(get_path_assets("add_chat.svg".to_string()))).style(style::svg::white).width(24.0).height(24.0),
         )
         .style(style::button::transparent_text)
         .on_press(Message::Chats(ChatsMessage::NewChat, app.panes.last_chat))
@@ -85,7 +90,7 @@ impl View{
     fn header<'a>(&'a self, title: String) -> Element<Message>{
         let palette = self.theme().palette();
         
-        let hide = Self::hide_button("<")
+        let hide = Self::hide_button("panel_close.svg")
         .width(Length::FillPortion(2));
         
         let settings = Self::settings_button()
@@ -124,33 +129,32 @@ impl View{
         .style(style::container::side_bar).into()
     }
 
+    fn txt<'a>(title : String, color : iced::Color) -> Element<'a, Message>{
+        text(title)
+        .color(color)
+        .size(16)
+        .width(Length::FillPortion(6))
+        .align_y(Vertical::Center)
+        .align_x(Horizontal::Center)
+        .into()
+    }
     pub fn view_chats<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
-        let txt = |title : String, color : iced::Color| -> Element<Message>{
-            text(title)
-            .color(color)
-            .size(16)
-            .width(Length::FillPortion(6))
-            .align_y(Vertical::Center)
-            .align_x(Horizontal::Center)
-            .into()
-        };
         if app.main_view.side_chats.chats.len() >= 8{
-            let chosen = app.logic.chat.unwrap_or(usize::MAX);
             let view = |chats : Vec<&'a Chat>| -> Element<Message>{
-                let chats : Vec<Element<Message>> = chats.iter().enumerate().map(|(i, x)| x.view(app, i == chosen)).clone().collect();
+                let chats : Vec<Element<Message>> = chats.iter().map(|x| x.view(app)).clone().collect();
                 return scrollable(column(chats).spacing(2)).into();
             };
 
             return column![
-                txt("This Month".to_string(), self.theme().palette().primary),
+                Self::txt("This Month".to_string(), self.theme().palette().primary),
                 view((&app.main_view.side_chats.chats).iter().filter(|x| x.time.duration_since(SystemTime::now()).unwrap_or(Duration::new(0, 0)).as_secs() < 2629746).collect::<Vec<&Chat>>()),
-                txt("Old".to_string(), self.theme().palette().primary),
+                Self::txt("Old".to_string(), self.theme().palette().primary),
                 view((&app.main_view.side_chats.chats).iter().filter(|x| x.time.duration_since(SystemTime::now()).unwrap_or(Duration::new(0, 0)).as_secs() > 2629746).collect::<Vec<&Chat>>()),
             ].into()
         }else{
             return column![
-                txt("All".to_string(), self.theme().palette().primary),
-                container(app.main_view.side_chats.view(app, app.logic.chat)),
+                Self::txt("All".to_string(), self.theme().palette().primary),
+                container(app.main_view.side_chats.view(app)),
             ].into()
         }
     }

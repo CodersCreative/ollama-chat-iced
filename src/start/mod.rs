@@ -4,7 +4,7 @@ pub struct Section<'a>{
     pub prompts : [&'a str; 4]
 }
 
-pub const SECTIONS : [Section; 5] = [
+pub const SECTIONS : [Section; 4] = [
     Section{
         title : "General",
         prompts : [
@@ -41,14 +41,14 @@ pub const SECTIONS : [Section; 5] = [
             "Write code to parse a struct to json in Rust"
         ]
     },
-    Section{
-        title : "Learn",
-        prompts : [
-            "What is a garbage collector",
-            "Best ways to learn to code",
-            "Explain lifetimes in Rust",
-            "Why is open-source better"
-        ]
-    },
+    //Section{
+    //    title : "Learn",
+    //    prompts : [
+    //        "What is a garbage collector",
+    //        "Best ways to learn to code",
+    //        "Explain lifetimes in Rust",
+    //        "Why is open-source better"
+    //    ]
+    //},
 ];
 

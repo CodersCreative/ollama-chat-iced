@@ -22,12 +22,8 @@ impl Chat{
             id,
         };
     }
-    pub fn view(&self, app : &ChatApp, chosen : bool) -> Element<Message>{
-        let style = match chosen{
-            true => style::button::chosen_chat,
-            false => style::button::not_chosen_chat,
-        };
-        
+    pub fn view(&self, app : &ChatApp) -> Element<Message>{
+        let style = style::button::side_bar_chat;
         let title = button(
             text(&self.title).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(20)
         )

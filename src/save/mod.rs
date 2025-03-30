@@ -1,7 +1,6 @@
 pub mod chat;
 pub mod chats;
 
-use iced::{widget::text};
 use iced::Element;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -30,17 +29,7 @@ impl Save {
     }
 
     pub fn view_chat<'a>(&'a self, chat : &'a Chats, app : &'a ChatApp) -> Element<'a, Message>{
-        //let index = chat.get_saved_index(app);
-        //chat.v
-        ////let index = self.get_index(self.last);
-        //
-        //if let Some(index) = index{
-        //    return self.chats[index].view(app);
-        //}
-        //
         chat.view(app)
-
-        //return text("Failed to get chat").into();
     }
 
     pub fn get_current_chat(&self) -> Option<SavedChats>{

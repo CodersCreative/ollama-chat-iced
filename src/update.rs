@@ -2,7 +2,7 @@ use iced::widget::combo_box;
 use ollama_rs::Ollama;
 use tokio::sync::Mutex as TMutex;
 use std::sync::Arc;
-use crate::chat::{get_model,};
+use crate::chat::get_model;
 
 pub struct Logic{
     pub combo_models: combo_box::State<String>,

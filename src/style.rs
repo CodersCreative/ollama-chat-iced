@@ -99,6 +99,30 @@ pub mod text_input{
     }
 }
 
+pub mod svg{
+    use iced::{widget::svg::{Style, Status}, Theme};
+    
+    pub fn white(theme: &Theme, _status: Status) -> Style{
+        Style{
+            color: Some(theme.palette().text.clone()),
+            ..Default::default()
+        }
+    }
+
+    pub fn background(theme: &Theme, _status: Status) -> Style{
+        Style{
+            color: Some(theme.palette().background.clone()),
+            ..Default::default()
+        }
+    }
+
+    pub fn primary(theme: &Theme, _status: Status) -> Style{
+        Style{
+            color: Some(theme.palette().primary.clone()),
+            ..Default::default()
+        }
+    }
+}
 pub mod button{
     use iced::{border::Radius, widget::button::{Style, Status}, Theme};
     use crate::utils::{change_alpha, darken_colour, lighten_colour};
@@ -164,6 +188,15 @@ pub mod button{
     pub fn chosen_chat(theme: &Theme, _status: Status) -> Style{
         Style{
             background: Some(iced::Background::Color(theme.palette().background.clone())),
+            text_color: theme.palette().text.clone(),
+            ..Default::default()
+        }
+    }
+
+
+    pub fn side_bar_chat(theme: &Theme, _status: Status) -> Style{
+        Style{
+            background: Some(iced::Background::Color(darken_colour(theme.palette().background.clone(), 0.01))),
             text_color: theme.palette().text.clone(),
             ..Default::default()
         }

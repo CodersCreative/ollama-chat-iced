@@ -16,18 +16,16 @@ use crate::{
     sidebar::chats::Chats as SideChats,
 };
 use iced::{
-    clipboard, widget::{combo_box, container, markdown, pane_grid, row}, Element, Font, Task, Theme
+    clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Task, Theme
 };
 
-use models::{Models, SavedModels};
-use ollama_rs::generation::chat::ChatMessage;
-use options::{Options ,OptionKey, OptionMessage, SavedOptions};
+use models::{Models, ModelsMessage, SavedModels};
+use options::{Options, OptionMessage, SavedOptions};
 use panes::Panes;
 use save::chats::{ChatsMessage, SavedChats};
 use update::Logic;
 use sidebar::SideBarState;
-use std::{path::PathBuf, sync::Arc};
-use crate::panes::PaneMessage;
+use panes::PaneMessage;
 use crate::view::View;
 
 pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
@@ -56,6 +54,7 @@ pub struct ChatApp{
 #[derive(Debug, Clone)]
 pub enum Message{
     Pane(PaneMessage),
+    Models(ModelsMessage, i32),
     Option(OptionMessage, i32),
     Chats(ChatsMessage, i32),
     ChangeTheme(Theme),
@@ -135,6 +134,9 @@ impl ChatApp{
         match message {
             Message::Option(x, i) => {
                 x.handle(Options::get_from_id(self, i).clone(), self)
+            },
+            Message::Models(x, i) => {
+                x.handle(Models::get_from_id(self, i).clone(), self)
             },
             Message::SaveToClipboard(x) => {
                 println!("Save Clip {}", x);

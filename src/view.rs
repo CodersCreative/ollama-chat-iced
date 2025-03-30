@@ -1,7 +1,6 @@
 
 use iced::Theme;
-
-use crate::{models::Models, options::Options, save::chats::Chats, sidebar::SideBarState, start::{self, Section}, style, utils::{change_alpha, lighten_colour}, ChatApp, Message};
+use crate::{models::Models, options::Options, save::chats::Chats, sidebar::SideBarState};
 use crate::sidebar::chats::Chats as SideChats;
 
 pub struct View{
@@ -11,6 +10,7 @@ pub struct View{
     pub options : Vec<Options>,
     pub chats : Vec<Chats>,
     pub models : Vec<Models>,
+    pub downloading : Option<String>,
 }
 
 impl View{
@@ -22,6 +22,7 @@ impl View{
             options: Vec::new(),
             chats: Vec::new(),
             models: Vec::new(),
+            downloading: None,
         }
     }
     pub fn theme(&self) -> iced::Theme {

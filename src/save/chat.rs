@@ -1,11 +1,9 @@
 use std::path::PathBuf;
-
-use iced::{alignment::{Horizontal, Vertical}, widget::{button, markdown, column, container, image, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Theme};
+use iced::{alignment::{Horizontal, Vertical}, widget::{svg, button, markdown, column, container, image, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Theme};
 use iced::{Element, Length};
 use ollama_rs::generation::chat::ChatMessage;
 use serde::{Deserialize, Serialize};
-use crate::{style::{self}, utils::convert_image, Message};
-
+use crate::{style::{self}, utils::{convert_image, get_path_assets}, Message};
 use super::chats::{Chats, ChatsMessage};
 
 #[derive(Serialize, Deserialize, Debug,Clone, PartialEq, Default)]
@@ -68,9 +66,9 @@ impl Chat{
             false => style::container::chat,
         };
 
-        let copy = button(text("Copy").size(16).align_x(Horizontal::Right).align_y(Vertical::Center)).style(style::button::transparent_text).on_press(Message::SaveToClipboard(self.message.clone()));
+        let copy = button(svg(svg::Handle::from_path(get_path_assets("copy.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::SaveToClipboard(self.message.clone()));
 
-        let regenerate = button(text("Regen").size(16).align_x(Horizontal::Right).align_y(Vertical::Center)).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::Regenerate, chats.id));
+        let regenerate = button(svg(svg::Handle::from_path(get_path_assets("restart.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::Regenerate, chats.id));
         
         let name = container(
             row![

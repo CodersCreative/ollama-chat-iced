@@ -1,3 +1,4 @@
 /target
+/index/*
 *.json
 chat.json

@@ -35,6 +35,23 @@ pub fn write_read_line(message: String) -> String{
     return input;
 }
 
+pub fn get_path_src(path : String) -> String{
+    let mut new_path = env!("CARGO_MANIFEST_DIR").to_string();
+    new_path.push_str(&format!("/src/{}", path));
+    return new_path;
+}
+
+
+pub fn get_path_assets(path : String) -> String{
+    let mut new_path = env!("CARGO_MANIFEST_DIR").to_string();
+    new_path.push_str(&format!("/assets/{}", path));
+    return new_path;
+}
+pub fn get_path_dir(path : String) -> String{
+    let mut new_path = env!("CARGO_MANIFEST_DIR").to_string();
+    new_path.push_str(&format!("/{}", path));
+    return new_path;
+}
 pub fn split_text(text: String) -> Vec<String> {
     let max_characters = PREVIEW_LEN.clone();
 

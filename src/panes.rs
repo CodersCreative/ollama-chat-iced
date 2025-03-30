@@ -1,6 +1,6 @@
-use iced::{alignment::{Horizontal, Vertical}, widget::{button, center, column, container, horizontal_space, image, markdown, mouse_area, pane_grid, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Pixels, Renderer, Task, Theme};
+use iced::{alignment::{Horizontal, Vertical}, widget::{svg, button, center, column, container, horizontal_space,mouse_area, pane_grid, row, text}, Padding,Renderer, Task, Theme};
 use iced::{Element, Length};
-use crate::{models::Models, options::Options, save::chats::Chats, style::{self}, utils::{convert_image, generate_id}, ChatApp, Message};
+use crate::{models::Models, options::Options, save::chats::Chats, style::{self}, utils::{generate_id, get_path_assets}, ChatApp, Message};
 
 #[derive(Debug, Clone)]
 pub enum Pane{
@@ -18,7 +18,7 @@ impl Pane {
     }
 
     pub fn new_models(app : &mut ChatApp) -> Self{
-        let model = Models::new();
+        let model = Models::new(app);
         app.main_view.models.push(model.clone());
         return Self::Models(model.0);
     }
@@ -50,7 +50,7 @@ impl Panes {
 
 fn window_button<'a>(title : &'a str, size : u16) -> button::Button<'a, Message, Theme, Renderer>{
     button(
-        text(title).align_x(Horizontal::Center).align_y(Vertical::Center).size(Pixels::from(size))
+        svg(svg::Handle::from_path(get_path_assets(title.to_string()))).style(style::svg::white).width(Length::Fixed(size as f32)),
     )
     .style(style::button::transparent_text)
 }
@@ -58,9 +58,9 @@ fn window_button<'a>(title : &'a str, size : u16) -> button::Button<'a, Message,
 pub fn add_to_window<'a>(app : &'a ChatApp, pane : pane_grid::Pane, state : Pane, title : &'a str, picking : Option<Pane>, child : Element<'a, Message>) -> Element<'a, Message>{
     if let Some(pick) = picking{
         return container(center(row![
-            window_button("|", 48).on_press(Message::Pane(PaneMessage::Split(pane_grid::Axis::Vertical, pane, pick.clone()))),
-            window_button("x", 48).on_press(Message::Pane(PaneMessage::UnPick)),
-            window_button("-", 48).on_press(Message::Pane(PaneMessage::Split(pane_grid::Axis::Horizontal, pane, pick.clone()))),
+            window_button("vertical.svg", 48).on_press(Message::Pane(PaneMessage::Split(pane_grid::Axis::Vertical, pane, pick.clone()))),
+            window_button("close.svg", 48).on_press(Message::Pane(PaneMessage::UnPick)),
+            window_button("horizontal.svg", 48).on_press(Message::Pane(PaneMessage::Split(pane_grid::Axis::Horizontal, pane, pick.clone()))),
         ])).style(style::container::chat_back_ai).into()
     }
 
@@ -71,10 +71,10 @@ pub fn add_to_window<'a>(app : &'a ChatApp, pane : pane_grid::Pane, state : Pane
         .align_y(Vertical::Center)
         .align_x(Horizontal::Left),
         horizontal_space(),
-        window_button("+", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Chat(app.panes.last_chat)))),
-        window_button("-", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Models(0)))),
-        window_button("=", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Settings(0)))),
-        window_button("x", 16).on_press(Message::Pane(PaneMessage::Close(pane)))
+        window_button("add_chat.svg", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Chat(app.panes.last_chat)))),
+        window_button("star.svg", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Models(0)))),
+        window_button("settings.svg", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Settings(0)))),
+        window_button("close.svg", 16).on_press(Message::Pane(PaneMessage::Close(pane)))
     ].align_y(Vertical::Center)).padding(Padding::default().top(5).bottom(5).left(30).right(30));
     mouse_area(
         column![
