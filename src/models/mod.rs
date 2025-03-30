@@ -3,7 +3,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use iced::{
-    alignment::{Horizontal, Vertical}, clipboard, widget::{column, combo_box, container, markdown, pane_grid, row, text}, Element, Font, Length, Task, Theme
+    alignment::{Horizontal, Vertical}, clipboard, widget::{column, combo_box, container, keyed_column, markdown, pane_grid, row, scrollable, text}, Element, Font, Length, Task, Theme
 };
 
 use crate::{style, utils::generate_id, ChatApp, Message};
@@ -30,6 +30,12 @@ pub struct ModelInfo {
     pub languages: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub enum ModelsMessage {
+    Expand(String),
+    Pull(String)
+}
+
 impl ModelInfo{
     fn view<'a>(&'a self, app : &'a ChatApp, expand : bool) -> Element<'a, Message>{
         let mut widgets : Vec<Element<Message>> = Vec::new();
@@ -48,6 +54,16 @@ impl ModelInfo{
             .width(Length::Fill)
             .align_y(Vertical::Center)
             .align_x(Horizontal::Left).into());
+        }
+
+        if expand{
+            widgets.push(text("hello").into());
+            //let title = button(
+            //    text(&self.title).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(20)
+            //)
+            //.style(style)
+            //.on_press(Message::Chats(ChatsMessage::ChangeChat(self.id), app.panes.last_chat))
+            //.width(Length::FillPortion(7)).padding(Padding::from(10));
         }
 
 
@@ -74,8 +90,8 @@ pub struct SavedModels{
     pub descriptions : HashMap<String, String>,
 }
 
-#[derive(Debug)]
-pub struct Models(i32, Option<String>);
+#[derive(Debug, Clone)]
+pub struct Models(pub i32, pub Option<String>);
 
 impl Models{
     pub fn new() -> Self{
@@ -83,6 +99,48 @@ impl Models{
             generate_id(),
             None,
         )
+    }
+
+    pub fn get_from_id<'a>(app: &'a ChatApp, id : i32) -> &'a Self{
+        app.main_view.models.iter().find(|x| x.0 == id).unwrap()
+    }
+
+    pub fn get_index<'a>(app : &'a ChatApp, id : i32) -> usize{
+        for i in 0..app.main_view.models.len(){
+            if app.main_view.models[i].0 == id{
+                return i
+            }
+        }
+        0
+    }
+    pub fn view_models<'a>(&'a self, app : &'a ChatApp,) -> Element<'a, Message>{
+        keyed_column(
+            app.model_info.models
+                .iter()
+                .enumerate()
+                .map(|(i, model)| {
+                    let mut expand = false;
+                    
+                    if let Some(x) = &self.1{
+                        expand = x == &model.name;
+                    }
+
+                    (
+                        0,
+                        model.view(app, expand)
+                    )
+                }),
+        )
+        .spacing(10)
+        .into()
+    }
+
+    pub fn view<'a>(&'a self, app : &'a ChatApp,) -> Element<'a, Message>{
+        container(scrollable::Scrollable::new(self.view_models(app)).width(Length::Fill))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding(20)
+        .into()
     }
 }
 
@@ -157,7 +215,7 @@ fn extract_model_description(python_code: &str) -> Result<HashMap<String, String
         .trim_end_matches("}");
 
     // Split the string into key-value pairs
-    let pairs: Vec<&str> = code_without_prefix.split(",").map(|s| s.trim()).collect();
+    let pairs: Vec<&str> = code_without_prefix.split(",\n").map(|s| s.trim()).collect();
 
     let key_regex = Regex::new(r"'([^']+)'").unwrap();
     let value_regex = Regex::new(r#"_\("([^"]+)"\)"#).unwrap();
@@ -171,10 +229,12 @@ fn extract_model_description(python_code: &str) -> Result<HashMap<String, String
         let value_capture = value_regex.captures(pair);
 
         if let (Some(key_caps), Some(value_caps)) = (key_capture, value_capture) {
-            let key = key_caps.get(1).map_or("", |m| m.as_str()).to_string();
-            let value = value_caps.get(1).map_or("", |m| m.as_str()).to_string();
+            let key = key_caps.get(1).map_or("", |m| m.as_str()).trim().to_string();
+            let value = value_caps.get(1).map_or("", |m| m.as_str()).trim().to_string();
+            //println!("{:?}", value);
             result.insert(key, value);
         } else {
+            //c
             return Err(format!("Failed to parse pair: {}", pair));
         }
     }

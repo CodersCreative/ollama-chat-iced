@@ -1,11 +1,12 @@
 use iced::{alignment::{Horizontal, Vertical}, widget::{button, center, column, container, horizontal_space, image, markdown, mouse_area, pane_grid, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Pixels, Renderer, Task, Theme};
 use iced::{Element, Length};
-use crate::{options::Options, save::chats::Chats, style::{self}, utils::{convert_image, generate_id}, ChatApp, Message};
+use crate::{models::Models, options::Options, save::chats::Chats, style::{self}, utils::{convert_image, generate_id}, ChatApp, Message};
 
 #[derive(Debug, Clone)]
 pub enum Pane{
     Settings(i32),
     Chat(i32),
+    Models(i32),
     NoModel,
 }
 
@@ -14,6 +15,12 @@ impl Pane {
         let model = Options::new(model.clone());
         app.main_view.options.push(model.clone());
         return Self::Settings(model.1);
+    }
+
+    pub fn new_models(app : &mut ChatApp) -> Self{
+        let model = Models::new();
+        app.main_view.models.push(model.clone());
+        return Self::Models(model.0);
     }
 }
 
@@ -65,6 +72,7 @@ pub fn add_to_window<'a>(app : &'a ChatApp, pane : pane_grid::Pane, state : Pane
         .align_x(Horizontal::Left),
         horizontal_space(),
         window_button("+", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Chat(app.panes.last_chat)))),
+        window_button("-", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Models(0)))),
         window_button("=", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Settings(0)))),
         window_button("x", 16).on_press(Message::Pane(PaneMessage::Close(pane)))
     ].align_y(Vertical::Center)).padding(Padding::default().top(5).bottom(5).left(30).right(30));
@@ -129,6 +137,7 @@ impl PaneMessage{
                         app.main_view.chats.push(chat);
                         Pane::Chat(id)
                     },
+                    Pane::Models(x) => Pane::new_models(app),
                     _ => Pane::NoModel,
                 };
                 if app.save.use_panes{
@@ -194,6 +203,10 @@ impl Panes{
                 Pane::Chat(x) => {
                     let index = Chats::get_index(app, x.clone());
                     add_to_window(app, pane, state.clone(), "Chat", pick, app.main_view.chats[index.clone()].chat_view(app, x.clone()))
+                },
+                Pane::Models(x) => {
+                    let index = Models::get_index(app, x.clone());
+                    add_to_window(app, pane, state.clone(), "Models", pick, app.main_view.models[index.clone()].view(app))
                 },
                 Pane::NoModel => text("Please install Ollama to use this app.").into(),
             })
