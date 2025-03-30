@@ -1,7 +1,5 @@
-use iced::{alignment::{Horizontal, Vertical}, widget::{button, center, column, container, horizontal_space, image, markdown, pane_grid, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Pixels, Renderer, Task, Theme};
+use iced::{alignment::{Horizontal, Vertical}, widget::{button, center, column, container, horizontal_space, image, markdown, mouse_area, pane_grid, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Pixels, Renderer, Task, Theme};
 use iced::{Element, Length};
-use ollama_rs::generation::chat::ChatMessage;
-use serde::{Deserialize, Serialize};
 use crate::{options::Options, save::chats::Chats, style::{self}, utils::{convert_image, generate_id}, ChatApp, Message};
 
 #[derive(Debug, Clone)]
@@ -30,7 +28,6 @@ pub struct Panes{
 
 impl Panes {
     pub fn new(pane: Pane) -> Self{
-        //let (panes, _) = pane_grid::State::new(Pane::Chat(0));
         let (panes, _) = pane_grid::State::new(pane);
         Self{
             focus: None,
@@ -49,9 +46,9 @@ fn window_button<'a>(title : &'a str, size : u16) -> button::Button<'a, Message,
         text(title).align_x(Horizontal::Center).align_y(Vertical::Center).size(Pixels::from(size))
     )
     .style(style::button::transparent_text)
-    //.on_press(Message::ShowSettings)
 }
-pub fn add_to_window<'a>(app : &'a ChatApp, pane : pane_grid::Pane, title : &'a str, picking : Option<Pane>, child : Element<'a, Message>) -> Element<'a, Message>{
+
+pub fn add_to_window<'a>(app : &'a ChatApp, pane : pane_grid::Pane, state : Pane, title : &'a str, picking : Option<Pane>, child : Element<'a, Message>) -> Element<'a, Message>{
     if let Some(pick) = picking{
         return container(center(row![
             window_button("|", 48).on_press(Message::Pane(PaneMessage::Split(pane_grid::Axis::Vertical, pane, pick.clone()))),
@@ -71,16 +68,17 @@ pub fn add_to_window<'a>(app : &'a ChatApp, pane : pane_grid::Pane, title : &'a 
         window_button("=", 16).on_press(Message::Pane(PaneMessage::Pick(pane, Pane::Settings(0)))),
         window_button("x", 16).on_press(Message::Pane(PaneMessage::Close(pane)))
     ].align_y(Vertical::Center)).padding(Padding::default().top(5).bottom(5).left(30).right(30));
-
-    column![
-        header,
-        child,
-    ].into()
+    mouse_area(
+        column![
+            header,
+            child,
+        ]
+    ).on_press(Message::Pane(PaneMessage::Clicked(pane, state))).into()
 }
 
 #[derive(Debug, Clone)]
 pub enum PaneMessage{
-    Clicked(pane_grid::Pane),
+    Clicked(pane_grid::Pane, Pane),
     Pick(pane_grid::Pane, Pane),
     UnPick,
     Close(pane_grid::Pane),
@@ -92,11 +90,11 @@ pub enum PaneMessage{
 impl PaneMessage{
     pub fn handle(&self, app : &mut ChatApp) -> Task<Message>{
         match self{
-            Self::Clicked(pane) => {
+            Self::Clicked(pane, state) => {
                 app.panes.focus = Some(*pane);
-                //if let Pane::Chat(x) = pane{
-                //
-                //}
+                if let Pane::Chat(x) = state{
+                    app.panes.last_chat = x.clone();
+                }
                 Task::none()
             },
             Self::Close(pane) => {
@@ -122,7 +120,7 @@ impl PaneMessage{
                 Task::none()
             },
             Self::Pick(grid_pane, pane) => {
-                app.panes.pick = Some((grid_pane.clone(), match pane {
+                let value = match pane {
                     Pane::Settings(_) => Pane::new_settings(app, app.logic.models.first().unwrap().clone()),
                     Pane::Chat(x) => {
                         let mut chat = Chats::get_from_id(app, x.clone()).clone();
@@ -132,7 +130,23 @@ impl PaneMessage{
                         Pane::Chat(id)
                     },
                     _ => Pane::NoModel,
-                }));
+                };
+                if app.save.use_panes{
+                    app.panes.pick = Some((grid_pane.clone(), value));
+                }else{
+                    let result = app.panes.panes.split(pane_grid::Axis::Vertical, *grid_pane, value.clone());
+
+                    if let Some((pane, _)) = result {
+                        app.panes.focus = Some(pane);
+                    }
+
+                    app.panes.pick = None;
+                    
+                    if let Pane::Chat(x) = pane{
+                        app.panes.last_chat = *x;
+                    }
+                    app.panes.panes.close(*grid_pane);
+                }
                 Task::none()
             },
             Self::UnPick => {
@@ -159,7 +173,7 @@ impl PaneMessage{
 
 impl Panes{
     pub fn view<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{
-        pane_grid(&self.panes, |pane, state, is_maximized| {
+        pane_grid(&self.panes, |pane, state, _is_maximized| {
             let pick = match &app.panes.pick{
                 Some(x) => {
                     if pane == x.0{
@@ -176,11 +190,10 @@ impl Panes{
             };
 
             pane_grid::Content::new(match state{
-                Pane::Settings(x) => add_to_window(app, pane, "Settings", pick, options_view(*x)),
+                Pane::Settings(x) => add_to_window(app, pane, state.clone(), "Settings", pick, options_view(*x)),
                 Pane::Chat(x) => {
                     let index = Chats::get_index(app, x.clone());
-                    //app.main_view.chats.
-                    add_to_window(app, pane, "Chat", pick, app.main_view.chats[index.clone()].chat_view(app))
+                    add_to_window(app, pane, state.clone(), "Chat", pick, app.main_view.chats[index.clone()].chat_view(app, x.clone()))
                 },
                 Pane::NoModel => text("Please install Ollama to use this app.").into(),
             })

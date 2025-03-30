@@ -13,6 +13,7 @@ use chats::{Chats, SavedChats};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Save {
     pub theme : Option<usize>,
+    pub use_panes : bool,
     pub chats : Vec<SavedChats>,
     pub last: i32,
 }
@@ -22,6 +23,7 @@ impl Save {
         let chat = SavedChats::new();
         Self{
             theme : None,
+            use_panes : true,
             chats: vec![chat.clone()],
             last: chat.1,
         }

@@ -235,7 +235,7 @@ impl SavedChats{
 }
 
 impl Chats{
-    pub fn chat_view<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{
+    pub fn chat_view<'a>(&'a self, app : &'a ChatApp, id : i32) -> Element<'a, Message>{
         let input : Element<Message> = match self.loading {
             false => {
                 text_input::<Message, Theme, Renderer>("Enter your message", &self.input)
@@ -244,10 +244,11 @@ impl Chats{
                 .size(20)
                 .padding(Padding::from(20))
                 .style(style::text_input::input)
+                .width(Length::FillPortion(22))
                 .into()
             },
             true => {
-                container(text("Awaiting Response...").color(app.theme().palette().primary).size(20)).padding(20).style(container::transparent).into()
+                container(text("Awaiting Response...").color(app.theme().palette().primary).size(20)).padding(20).width(Length::FillPortion(22)).style(container::transparent).into()
             }
         };
 
@@ -264,32 +265,41 @@ impl Chats{
         .style(style::button::rounded_primary)
         .on_press(Message::Chats(ChatsMessage::Submit, self.id))
         .width(Length::FillPortion(2));
+        
         let images = container(
             scrollable::Scrollable::new(row(self.images.iter().map(|x| {
-               button(image(image::Handle::from_path(x)).height(Length::Fixed(150.0))).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::RemoveImage(x.clone()), self.id)).into() 
-            })).align_y(Vertical::Center).spacing(10)).direction(Direction::Horizontal(Scrollbar::new()))
-        ).padding(Padding::from([0, 20])).style(style::container::bottom_input_back);
+               button(image(image::Handle::from_path(x)).height(Length::Fixed(100.0))).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::RemoveImage(x.clone()), self.id)).into() 
+            })).align_y(Vertical::Center).spacing(5)).direction(Direction::Horizontal(Scrollbar::new()))
+        ).style(style::container::bottom_input_back);
         
         let bottom = container(
             row![
-                //container(
-                //    combo_box(&app.logic.combo_models, self.model.as_str(), None, |x| Message::Chats(ChatsMessage::ChangeModel(x), self.id)).input_style(style::text_input::ai_all).padding(Padding::from([5, 20]))
-                //).width(Length::FillPortion(17)).align_y(Vertical::Center),
                 upload,
+                input,
                 submit
-            ].align_y(Vertical::Center).spacing(20),
-        ).padding(Padding::from([0, 20])).style(style::container::bottom_input_back);
+            ].align_y(Vertical::Center).spacing(5),
+        );
 
         let input = container(column![
             images,
-            input,
+            container(
+                combo_box(
+                    &app.logic.combo_models, 
+                    self.model.as_str(), 
+                    None,
+                    move |x| Message::Chats(ChatsMessage::ChangeModel(x), id)
+                )
+                .input_style(style::text_input::ai_all)
+                .size(12.0)
+                //.padding(Padding::from([5, 20]))
+            ).width(Length::Fill).align_y(Vertical::Center).style(style::container::bottom_input_back),
             bottom, 
         ])
         .width(Length::FillPortion(10))
-        .padding(Padding::from(20))
+        .padding(Padding::from([10, 20]))
         .style(style::container::input_back);
 
-        let input = container(input).padding(Padding::default().top(5).bottom(15).left(30).right(30));
+        let input = container(input).padding(10);
 
         let body = match self.markdown.is_empty(){
             true => self.view_start(app),
@@ -316,8 +326,8 @@ impl Chats{
             };
 
             button(
-                text(x.title).color(colour()).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(16)
-            ).width(Length::FillPortion(1)).padding(10).style(style).on_press(Message::Chats(ChatsMessage::ChangeStart(x.title.to_string()), self.id)).into()
+                text(x.title).color(colour()).align_x(Horizontal::Center).align_y(Vertical::Center).size(16)
+            ).padding(10).style(style).on_press(Message::Chats(ChatsMessage::ChangeStart(x.title.to_string()), self.id)).into()
         }).collect::<Vec<Element<Message>>>()).spacing(10);
 
         let section : Vec<Section> = start::SECTIONS.into_iter().filter(|x| x.title == self.start).collect();
@@ -326,16 +336,15 @@ impl Chats{
         let prompts = column(section.prompts.iter().map(|x| {
             button(
                 text(x.clone()).color(colour()).align_x(Horizontal::Left).width(Length::Fill).size(16)
-            ).width(Length::Fill).padding(10).style(style::button::transparent_translucent).on_press(Message::Chats(ChatsMessage::Edit(x.to_string()), self.id)).into()
+            ).padding(10).style(style::button::transparent_translucent).on_press(Message::Chats(ChatsMessage::Edit(x.to_string()), self.id)).into()
         }).collect::<Vec<Element<Message>>>());
+        
         container(row![
-            horizontal_space(),
             column![
                 title,
                 header,
                 prompts
             ].spacing(20).align_x(Horizontal::Left),
-            horizontal_space(),
         ]).align_y(Vertical::Center).center_x(Length::Fill).center_y(Length::Fill).into()
     }
 

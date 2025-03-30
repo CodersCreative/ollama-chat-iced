@@ -9,16 +9,17 @@ pub mod style;
 pub mod start;
 pub mod options;
 pub mod panes;
+pub mod models;
 
 use crate::{
     save::Save,
     sidebar::chats::Chats as SideChats,
-    chat::get_models
 };
 use iced::{
     clipboard, widget::{combo_box, container, markdown, pane_grid, row}, Element, Font, Task, Theme
 };
 
+use models::{Models, SavedModels};
 use ollama_rs::generation::chat::ChatMessage;
 use options::{Options ,OptionKey, OptionMessage, SavedOptions};
 use panes::Panes;
@@ -47,6 +48,7 @@ pub struct ChatApp{
     pub save: Save,
     pub main_view: View,
     pub options : SavedOptions,
+    pub model_info : SavedModels, 
     pub logic : Logic,
     pub panes : Panes
 }
@@ -60,6 +62,7 @@ pub enum Message{
     SaveToClipboard(String),
     RemoveChat(usize),
     URLClicked(markdown::Url),
+    ShowSettings,
     SideBar,
 }
 
@@ -81,14 +84,12 @@ impl ChatApp{
             panes: Panes::new(panes::Pane::Chat(0)),
             main_view: View::new(),
             logic: Logic::new(),
-
+            model_info : SavedModels::init().unwrap(),
             options: SavedOptions::default(),
         }
     }
 
     fn init() -> (ChatApp, Task<Message>){
-        //let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
-
         let mut app = Self::new_with_save(match Save::load(SAVE_FILE){
             Ok(x) => x,
             Err(_) => Save::new(),
@@ -120,12 +121,7 @@ impl ChatApp{
             app.panes.last_chat = first.id;
             app.main_view.chats.push(first);
             app.options.get_create_model_options_index(models.first().unwrap().clone());
-            //app.save.ai_model = models[0].clone();
         }
-        //if let Some(chat) = app.save.get_current_chat(){
-        //    app.markdown = chat.to_mk();
-        //}
-
         app.logic.chat = app.save.get_current_chat_num();
         
         (app, Task::none())
@@ -154,7 +150,13 @@ impl ChatApp{
                 open::that_in_background(x.to_string()); 
                 Task::none()
             },
-
+            Message::ShowSettings => {
+                self.main_view.side = match self.main_view.side{
+                    SideBarState::Settings => SideBarState::Shown,
+                    _ => SideBarState::Settings,
+                };
+                Task::none()
+            },
             Message::SideBar => {
                 self.main_view.side = match self.main_view.side{
                     SideBarState::Hidden => SideBarState::Shown,
@@ -162,20 +164,16 @@ impl ChatApp{
                 };
                 Task::none()
             },
-
-
             Message::RemoveChat(x) => {
                 return self.remove_chat(x)
             },
-
-
             Message::ChangeTheme(x) => {
                 self.change_theme(x.clone())
             },
         }
     }
 
-    fn view<'a>(&'a self) -> Element<Message>{
+    fn view<'a>(&'a self) -> Element<'a, Message>{
         container(row![
             self.main_view.side_bar(self),
             self.panes.view(self),

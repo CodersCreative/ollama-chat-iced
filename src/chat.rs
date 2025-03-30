@@ -27,10 +27,3 @@ pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ol
     }
     return Err("Failed to run ollama.".to_string());
 }
-
-
-pub async fn get_models(ollama : Arc<Mutex<Ollama>>) -> Vec<String>{
-    let o = ollama.lock().await;
-    return o.list_local_models().await.unwrap().iter().map(|x| x.name.clone()).collect::<Vec<String>>();
-}
-

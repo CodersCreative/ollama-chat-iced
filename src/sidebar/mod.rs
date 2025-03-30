@@ -12,6 +12,7 @@ pub mod chat;
 pub enum SideBarState {
     Hidden,
     Shown,
+    Settings
 }
 
 impl View{
@@ -19,6 +20,7 @@ impl View{
         match app.main_view.side{
             SideBarState::Shown => self.full_side_bar(app),
             SideBarState::Hidden => self.hidden_side_bar(app),
+            SideBarState::Settings => self.settings_side_bar(app)
         }
     }
     
@@ -26,8 +28,8 @@ impl View{
         let show = Self::hide_button(">")
         .width(Length::FillPortion(2));
         
-        //let settings = Self::settings_button()
-        //.width(Length::FillPortion(2));
+        let settings = Self::settings_button()
+        .width(Length::FillPortion(2));
         
         let new = Self::add_button(app)
         .width(Length::FillPortion(2));
@@ -36,33 +38,25 @@ impl View{
             show,
             vertical_space(),
             new,
-            //settings,
+            settings,
         ]).width(Length::FillPortion(1)).height(Length::Fill).align_y(iced::alignment::Vertical::Bottom)
         .style(style::container::side_bar).into()
     }
 
-    //pub fn settings_side_bar<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
-    //    container(column![
-    //        self.header("Settings".to_string()),
-    //        container(
-    //            pick_list(
-    //                Theme::ALL,
-    //                Some(self.theme()),
-    //                Message::ChangeTheme,
-    //            ).width(Length::Fill)
-    //        ).padding(10),
-    //        text("Model Options")
-    //        .color(self.theme().palette().primary)
-    //        .size(16)
-    //        .width(Length::FillPortion(6))
-    //        .align_y(Vertical::Center)
-    //        .align_x(Horizontal::Center),
-    //        container(combo_box(&app.logic.models, app.save.ai_model.as_str(), None, Message::ChangeModel)).padding(10),
-    //        //container(app.options.view_with_index(app.options.get_model_options_index(app.get_model()).unwrap())),
-    //        vertical_space(),
-    //    ]).width(Length::FillPortion(10))
-    //    .style(style::container::side_bar).into()
-    //}
+    pub fn settings_side_bar<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
+        container(column![
+            self.header("Settings".to_string()),
+            container(
+                pick_list(
+                    Theme::ALL,
+                    Some(self.theme()),
+                    Message::ChangeTheme,
+                ).width(Length::Fill)
+            ).padding(10),
+            vertical_space(),
+        ]).width(Length::FillPortion(10))
+        .style(style::container::side_bar).into()
+    }
 
     fn hide_button<'a>(title: &'a str) -> button::Button<'a, Message, Theme, Renderer>{
         button(
@@ -72,13 +66,13 @@ impl View{
         .on_press(Message::SideBar)
     }
 
-    //fn settings_button<'a>() -> button::Button<'a, Message, Theme, Renderer>{
-    //    button(
-    //        text("=").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(24)
-    //    )
-    //    .style(style::button::transparent_text)
-    //    .on_press(Message::ShowSettings)
-    //}
+    fn settings_button<'a>() -> button::Button<'a, Message, Theme, Renderer>{
+        button(
+            text("=").align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(24)
+        )
+        .style(style::button::transparent_text)
+        .on_press(Message::ShowSettings)
+    }
     
     fn add_button<'a>(app : &'a ChatApp) -> button::Button<'a, Message, Theme, Renderer>{
         button(
@@ -94,8 +88,8 @@ impl View{
         let hide = Self::hide_button("<")
         .width(Length::FillPortion(2));
         
-        //let settings = Self::settings_button()
-        //.width(Length::FillPortion(2));
+        let settings = Self::settings_button()
+        .width(Length::FillPortion(2));
 
         return container(
             row![
@@ -106,7 +100,7 @@ impl View{
                 .width(Length::FillPortion(6))
                 .align_y(Vertical::Center)
                 .align_x(Horizontal::Center),
-                //settings,
+                settings,
             ].align_y(Vertical::Center)
         ).width(Length::Fill).center_x(Length::Fill).into();
 
