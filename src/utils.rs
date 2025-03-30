@@ -50,7 +50,6 @@ pub fn get_path_settings(path : String) -> String{
     }
 
     new_path.push_str(&format!("/{}", path));
-    println!("{}", &new_path);
     return new_path;
 }
 

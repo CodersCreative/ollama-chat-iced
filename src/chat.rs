@@ -17,7 +17,6 @@ pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ol
     let o = ollama.lock().await;
     let request = ChatMessageRequest::new(model, chats.to_vec()).options(options.into());
     let result = o.send_chat_messages(request).await;
-    println!("LLM Time: {}", now.elapsed().as_secs());
 
     if let Ok(result) = result{
         if result.message.is_none(){
