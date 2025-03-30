@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use iced::Task;
 
-use crate::{ChatApp, Message};
+use crate::{save::chats::ChatsMessage, ChatApp, Message};
 
 const IMAGE_FORMATS: &[&str] = &[
     "bmp", "dds", "ff", "gif", "hdr", "ico", "jpeg", "jpg", "exr", "png", "pnm", "qoi", "tga",
@@ -10,10 +10,10 @@ const IMAGE_FORMATS: &[&str] = &[
 ];
 
 impl ChatApp{
-    pub fn pick_images() -> Task<Message>{
-        Task::perform(Self::load_images(), Message::PickedImage)
+    pub fn pick_images(id : i32) -> Task<Message>{
+        Task::perform(Self::load_images(id), move |x| Message::Chats(ChatsMessage::PickedImage(x), id))
     }
-    async fn load_images() -> Result<Vec<PathBuf>, String> {
+    async fn load_images(id : i32) -> Result<Vec<PathBuf>, String> {
         let files = rfd::AsyncFileDialog::new()
         .add_filter("Image", IMAGE_FORMATS)
         .pick_files()

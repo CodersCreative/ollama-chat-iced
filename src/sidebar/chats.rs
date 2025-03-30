@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use iced::widget::{column, scrollable};
 use iced::Element;
-use crate::Message;
+use crate::{ChatApp, Message};
 use super::chat::Chat;
 
 #[derive(Clone)]
@@ -23,8 +23,8 @@ impl Chats{
         Self{chats}
     }
 
-    pub fn view(&self, chosen : Option<usize>) -> Element<Message>{
-        let chats : Vec<Element<Message>> = self.chats.iter().enumerate().map(|(i, x)| x.view(i == chosen.unwrap_or(usize::MAX))).clone().collect();
+    pub fn view(&self, app : &ChatApp, chosen : Option<usize>) -> Element<Message>{
+        let chats : Vec<Element<Message>> = self.chats.iter().enumerate().map(|(i, x)| x.view(app, i == chosen.unwrap_or(usize::MAX))).clone().collect();
         return scrollable(column(chats).spacing(2)).into();
     }
 }

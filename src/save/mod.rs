@@ -8,40 +8,40 @@ use serde_json;
 use std::time::SystemTime;
 use std::{fs::File, io::Read};
 use crate::{ChatApp, Message};
-use chats::Chats;
+use chats::{Chats, SavedChats};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Save {
-    pub ai_model : String,
     pub theme : Option<usize>,
-    pub chats : Vec<Chats>,
+    pub chats : Vec<SavedChats>,
     pub last: i32,
-    pub code_indent : usize, 
 }
 
 impl Save {
-    pub fn new(model : String) -> Self{
-        let chat = Chats::new();
+    pub fn new() -> Self{
+        let chat = SavedChats::new();
         Self{
-            ai_model: model,
             theme : None,
             chats: vec![chat.clone()],
             last: chat.1,
-            code_indent: 8,
         }
     }
 
-    pub fn view_chat<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{
-        let index = self.get_index(self.last);
-        
-        if let Some(index) = index{
-            return self.chats[index].view(app);
-        }
+    pub fn view_chat<'a>(&'a self, chat : &'a Chats, app : &'a ChatApp) -> Element<'a, Message>{
+        //let index = chat.get_saved_index(app);
+        //chat.v
+        ////let index = self.get_index(self.last);
+        //
+        //if let Some(index) = index{
+        //    return self.chats[index].view(app);
+        //}
+        //
+        chat.view(app)
 
-        return text("Failed to get chat").into();
+        //return text("Failed to get chat").into();
     }
 
-    pub fn get_current_chat(&self) -> Option<Chats>{
+    pub fn get_current_chat(&self) -> Option<SavedChats>{
         let index = self.get_index(self.last);
         if let Some(index) = index{
             return Some(self.chats[index].clone());
@@ -56,11 +56,7 @@ impl Save {
         return index;
     }
 
-    pub fn set_model(&mut self, model : String){
-        self.ai_model = model;
-    }
-
-    pub fn set_chats(&mut self, chats : Vec<Chats>){
+    pub fn set_chats(&mut self, chats : Vec<SavedChats>){
         self.chats = chats;
     }
 
@@ -73,7 +69,7 @@ impl Save {
         return None
     }
 
-    pub fn update_chats(&mut self, chat : Chats){
+    pub fn update_chats(&mut self, chat : SavedChats){
         let mut new_chats = Vec::new();
         
         let mut found = false;

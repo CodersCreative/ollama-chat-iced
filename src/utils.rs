@@ -1,8 +1,9 @@
 use std::{io::{self, Write}, time::SystemTime};
 use iced::Color;
 use color_art::Color as Colour;
+use rand::Rng;
 use text_splitter::TextSplitter;
-use crate::{save::chats::Chats, PREVIEW_LEN};
+use crate::{save::chats::SavedChats, PREVIEW_LEN};
 use base64_stream::ToBase64Reader;
 use image::ImageFormat;
 use ollama_rs::generation::images::Image;
@@ -46,6 +47,10 @@ pub fn split_text(text: String) -> Vec<String> {
     return chunks.iter().map(|x| x.to_string()).collect::<Vec<String>>();
 }
 
+pub fn generate_id() -> i32{
+    let num = rand::thread_rng().gen_range(0..100000);
+    return num;
+}
 pub fn split_text_new_line(text: String) -> String {
     let split = split_text(text.clone());
     let mut t = String::new();
@@ -78,7 +83,7 @@ pub fn convert_image(path: &Path) -> Result<Image, Box<dyn Error>> {
     reader.read_to_string(&mut base64)?;
     Ok(Image::from_base64(&base64))
 }
-pub fn get_preview(chat: &Chats) -> (String, SystemTime){
+pub fn get_preview(chat: &SavedChats) -> (String, SystemTime){
     if !chat.0.is_empty(){
         if chat.0.len() > 1{
             let i = chat.0.len() - 2;

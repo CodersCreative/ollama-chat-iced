@@ -6,6 +6,8 @@ use ollama_rs::generation::chat::ChatMessage;
 use serde::{Deserialize, Serialize};
 use crate::{style::{self}, utils::convert_image, Message};
 
+use super::chats::{Chats, ChatsMessage};
+
 #[derive(Serialize, Deserialize, Debug,Clone, PartialEq, Default)]
 pub struct Chat{
     pub role: Role,
@@ -58,7 +60,7 @@ impl Chat{
         //markdown::view_with(markdown, theme, &style::markdown::CustomViewer).into()
     }
 
-    pub fn view<'a>(&'a self, markdown : &'a Vec<markdown::Item>, theme: &Theme) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, chats : &Chats,markdown : &'a Vec<markdown::Item>, theme: &Theme) -> Element<'a, Message> {
         let is_ai = self.role == Role::AI;
         
         let style = match is_ai{
@@ -68,7 +70,7 @@ impl Chat{
 
         let copy = button(text("Copy").size(16).align_x(Horizontal::Right).align_y(Vertical::Center)).style(style::button::transparent_text).on_press(Message::SaveToClipboard(self.message.clone()));
 
-        let regenerate = button(text("Regen").size(16).align_x(Horizontal::Right).align_y(Vertical::Center)).style(style::button::transparent_text).on_press(Message::Regenerate);
+        let regenerate = button(text("Regen").size(16).align_x(Horizontal::Right).align_y(Vertical::Center)).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::Regenerate, chats.id));
         
         let name = container(
             row![
@@ -84,7 +86,7 @@ impl Chat{
         
         let images = container(
             scrollable::Scrollable::new(row(self.images.iter().map(|x| {
-               button(image(image::Handle::from_path(x)).height(Length::Fixed(200.0))).style(style::button::transparent_text).on_press(Message::RemoveImage(x.clone())).into() 
+               button(image(image::Handle::from_path(x)).height(Length::Fixed(200.0))).style(style::button::transparent_text).into() 
             })).align_y(Vertical::Center).spacing(10)).direction(Direction::Horizontal(Scrollbar::new()))
         ).padding(Padding::from([0, 20])).style(style::container::bottom_input_back);
         let mark = container(self.view_mk(markdown, theme)).padding(20);

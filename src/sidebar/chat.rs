@@ -3,7 +3,8 @@ use std::time::SystemTime;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{button, row, text};
 use iced::{ Element, Length, Padding};
-use crate::{style, Message};
+use crate::save::chats::ChatsMessage;
+use crate::{style, ChatApp, Message};
 
 #[derive(Clone)]
 pub struct Chat{
@@ -21,7 +22,7 @@ impl Chat{
             id,
         };
     }
-    pub fn view(&self, chosen : bool) -> Element<Message>{
+    pub fn view(&self, app : &ChatApp, chosen : bool) -> Element<Message>{
         let style = match chosen{
             true => style::button::chosen_chat,
             false => style::button::not_chosen_chat,
@@ -31,7 +32,7 @@ impl Chat{
             text(&self.title).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(20)
         )
         .style(style)
-        .on_press(Message::ChangeChat(self.id))
+        .on_press(Message::Chats(ChatsMessage::ChangeChat(self.id), app.panes.last_chat))
         .width(Length::FillPortion(7)).padding(Padding::from(10));
 
         let remove = button(

@@ -1,4 +1,4 @@
-use crate::{ chat::run_ollama, save::{chat::{Chat, Role},chats::Chats}, SAVE_FILE};
+use crate::{ chat::run_ollama, save::{chat::{Chat, Role},chats::{Chats, ChatsMessage, SavedChats}}, SAVE_FILE};
 use crate::SideChats;
 
 use iced::Task;
@@ -6,34 +6,36 @@ use ollama_rs::generation::chat::ChatMessage;
 use std::sync::Arc;
 use crate::{ChatApp, Message};
 
-impl ChatApp{
-    pub fn submit(&mut self, new : bool) -> Task<Message>{
-        let ollama = Arc::clone(&self.logic.ollama);
-        self.main_view.loading = true;
+impl ChatsMessage{
+    pub fn submit(&self, chats : Chats, app : &mut ChatApp, new : bool) -> Task<Message>{
+        let index = Chats::get_index(app, chats.id.clone());
+        let ollama = Arc::clone(&app.logic.ollama);
+        app.main_view.chats[index].loading = true;
         
+        let s_index = chats.get_saved_index(app).unwrap();
         if new{
             let chat = Chat{
                 role: Role::User,
-                message: self.main_view.input.clone(),
-                images: self.main_view.images.clone(), 
+                message: chats.input.clone(),
+                images: chats.images.clone(), 
             };
-            self.markdown.push(Chat::generate_mk(&chat.message));
-            let index = self.save.get_index(self.save.last).unwrap();
-            self.save.chats[index].0.push(chat);
+            app.main_view.chats[index].markdown.push(Chat::generate_mk(&chat.message));
+            app.save.chats[s_index].0.push(chat);
         }
         
 
-        let chat = self.save.get_current_chat().unwrap();
-        self.main_view.gen_chats = Arc::new(chat.get_chat_messages());
-        let chat = Arc::clone(&self.main_view.gen_chats);
-        let index = self.options.get_create_model_options_index(self.get_model());
+        let chat = app.save.chats[s_index].clone();
+        app.main_view.chats[index].gen_chats = Arc::new(chat.get_chat_messages());
+        let chat = Arc::clone(&app.main_view.chats[index].gen_chats);
+        let index = app.options.get_create_model_options_index(chats.model.clone());
         
-        Task::perform(run_ollama(chat, self.options.0[index].clone(), ollama, self.get_model()), Message::Received)
+        Task::perform(run_ollama(chat, app.options.0[index].clone(), ollama, chats.model), move |x| Message::Chats(ChatsMessage::Received(x), chats.id))
     }
 
-    pub fn received(&mut self, result : ChatMessage) -> Task<Message>{
-        self.main_view.loading = false;
-        let index = self.save.get_index(self.save.last);
+    pub fn received(&self, app : &mut ChatApp, id: i32, result : ChatMessage) -> Task<Message>{
+        let index = Chats::get_index(app, id);
+        app.main_view.chats[index].loading = false;
+        let s_index = app.main_view.chats[index].get_saved_index(app);
         
         let images = match result.images{
             Some(_) => Vec::new(),
@@ -46,20 +48,20 @@ impl ChatApp{
             images, 
         };
 
-        match index{
+        match s_index{
             Some(x) => {
-                self.markdown.push(Chat::generate_mk(&chat.message));
-                self.save.chats[x].0.push(chat);
+                app.main_view.chats[index].markdown.push(Chat::generate_mk(&chat.message));
+                app.save.chats[x].0.push(chat);
             },
             None => {
-                self.save.chats.push(Chats::new_with_chats(vec![chat]))
+                app.save.chats.push(SavedChats::new_with_chats(vec![chat]))
             },
         }
 
-        self.main_view.input = String::new();
-        self.main_view.images = Vec::new();
-        self.save.save(SAVE_FILE);
-        self.main_view.chats = SideChats::new(self.save.get_chat_previews());
+        app.main_view.chats[index].input = String::new();
+        app.main_view.chats[index].images = Vec::new();
+        app.save.save(SAVE_FILE);
+        app.main_view.side_chats = SideChats::new(app.save.get_chat_previews());
 
         Task::none()
     }
