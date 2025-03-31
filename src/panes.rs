@@ -59,6 +59,7 @@ pub fn add_to_window<'a>(app : &'a ChatApp, pane : pane_grid::Pane, state : Pane
     if let Some(pick) = picking{
         return container(center(row![
             window_button("vertical.svg", 48).on_press(Message::Pane(PaneMessage::Split(pane_grid::Axis::Vertical, pane, pick.clone()))),
+            window_button("restart.svg", 48).on_press(Message::Pane(PaneMessage::Replace(pane, pick.clone()))),
             window_button("close.svg", 48).on_press(Message::Pane(PaneMessage::UnPick)),
             window_button("horizontal.svg", 48).on_press(Message::Pane(PaneMessage::Split(pane_grid::Axis::Horizontal, pane, pick.clone()))),
         ])).style(style::container::chat_back_ai).into()
@@ -93,6 +94,7 @@ pub enum PaneMessage{
     PaneDragged(pane_grid::DragEvent),
     PaneResized(pane_grid::ResizeEvent),
     Split(pane_grid::Axis, pane_grid::Pane, Pane),
+    Replace(pane_grid::Pane, Pane),
 }
 
 impl PaneMessage{
@@ -126,6 +128,36 @@ impl PaneMessage{
             Self::PaneResized(pane_grid::ResizeEvent { split, ratio }) => {
                 app.panes.panes.resize(*split, *ratio);
                 Task::none()
+            },
+            Self::Replace(grid_pane, pane) => {
+                let value = match pane {
+                    Pane::Settings(_) => Pane::new_settings(app, app.logic.models.first().unwrap().clone()),
+                    Pane::Chat(x) => {
+                        let mut chat = Chats::get_from_id(app, x.clone()).clone();
+                        let id = generate_id();
+                        chat.id = id;
+                        app.main_view.chats.push(chat);
+                        Pane::Chat(id)
+                    },
+                    Pane::Models(x) => Pane::new_models(app),
+                    _ => Pane::NoModel,
+                };
+                
+                let result = app.panes.panes.split(pane_grid::Axis::Vertical, *grid_pane, value.clone());
+
+                if let Some((pane, _)) = result {
+                    app.panes.focus = Some(pane);
+                }
+
+                app.panes.pick = None;
+                
+                if let Pane::Chat(x) = pane{
+                    app.panes.last_chat = *x;
+                }
+                app.panes.panes.close(*grid_pane);
+                
+                Task::none()
+
             },
             Self::Pick(grid_pane, pane) => {
                 let value = match pane {

@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime};
 use crate::{save::chats::ChatsMessage, sidebar::chat::Chat, utils::get_path_assets};
 use iced::{
-    alignment::{Horizontal, Vertical},widget::{svg, button, column, container,pick_list, row, scrollable, text, vertical_space}, Element, Length, Padding, Renderer, Theme
+    alignment::{Horizontal, Vertical},widget::{button, column, container, pick_list, progress_bar, row, scrollable, svg, text, vertical_space}, Element, Length, Padding, Renderer, Theme
 };
 use crate::{style, ChatApp, Message};
 use crate::view::View;
@@ -53,14 +53,20 @@ impl View{
                     Message::ChangeTheme,
                 ).width(Length::Fill)
             ).padding(10),
-            Self::txt("Downloading".to_string(), self.theme().palette().primary),
-            Self::txt(match &app.main_view.downloading {
-                Some(x) => x.to_string(),
-                None => "None".to_string()
-            }, self.theme().palette().text),
+            Self::txt("Downloads".to_string(), app.theme().palette().primary),
+            self.get_downloads(app),
             vertical_space(),
         ]).width(Length::FillPortion(10))
         .style(style::container::side_bar).into()
+    }
+
+    fn get_downloads<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{
+        if app.main_view.downloads.is_empty(){
+            return Self::txt("None".to_string(), self.theme().palette().text);
+        }
+
+
+        column(app.main_view.downloads.iter().map(|x| x.view(app))).into()
     }
 
     fn hide_button<'a>(title: &'a str) -> button::Button<'a, Message, Theme, Renderer>{

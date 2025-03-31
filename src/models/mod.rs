@@ -13,7 +13,7 @@ use iced::{
 };
 use std::sync::Arc;
 //use iced::task::{Straw, sipper};
-use crate::chat::download;
+//use crate::download::{ DownloadProgress};
 use crate::utils::get_path_settings;
 use crate::{style, utils::generate_id, ChatApp, Message};
 
@@ -42,10 +42,11 @@ pub struct ModelInfo {
 #[derive(Debug, Clone)]
 pub enum ModelsMessage {
     Expand(String),
-    Pull(String),
-    Pulled(Result<PullModelStatus, String>),
+    //Delete(String),
+    //Pulled(Result<PullModelStatus, String>),
     Search,
     Input(String)
+
 }
 
 impl ModelsMessage{
@@ -60,24 +61,13 @@ impl ModelsMessage{
                 }
                 Task::none()
             },
-            Self::Pull(x) => {
-                if let None = app.main_view.downloading{
-                    app.main_view.downloading = Some(x.clone());
-                    let ollama = Arc::clone(&app.logic.ollama);
-                    return Task::perform(download(x.clone(), ollama), move |x| Message::Models(ModelsMessage::Pulled(x), models.0));
 
-                }
-                //Task::stream(async move |mut progres| {
-                //
-                //})
-                Task::none()
-            },
-            Self::Pulled(_) => {
-                let models = app.logic.get_models();
-                app.logic.models = models.clone();
-                app.logic.combo_models = combo_box::State::new(models.clone());
-                Task::none()
-            },
+            //Self::Pulled(_) => {
+            //    let models = app.logic.get_models();
+            //    app.logic.models = models.clone();
+            //    app.logic.combo_models = combo_box::State::new(models.clone());
+            //    Task::none()
+            //},
             Self::Input(x) => {
                 let index = Models::get_index(app, models.0);
                 app.main_view.models[index].2 = x.clone();
@@ -127,7 +117,8 @@ impl ModelInfo{
                     ]
                 )
                 .style(style::button::not_chosen_chat)
-                .on_press(Message::Models(ModelsMessage::Pull(format!("{}:{}", self.name, tag[0])), id))
+                //.on_press(Message::Models(ModelsMessage::Pull(), id))
+                .on_press(Message::Pull(format!("{}:{}", self.name, tag[0])))
                 .width(Length::FillPortion(7)).padding(10).into());
             } 
 

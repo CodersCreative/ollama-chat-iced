@@ -211,42 +211,42 @@ pub mod button{
     }
 }
 
-pub mod markdown{
-    use iced::widget::{
-        button, container, hover,
-        text,
-    };
-    use iced::Element;
-    use crate::Message;
-    use crate::markdown;
-
-    pub struct CustomViewer;
-
-    impl<'a> markdown::Viewer<'a, Message> for CustomViewer {
-        fn on_link_click(url: markdown::Url) -> Message {
-            Message::URLClicked(url)
-        }
-
-        fn code_block(
-            &self,
-            settings: markdown::Settings,
-            _language: Option<&'a str>,
-            code: &'a str,
-            lines: &'a [markdown::Text],
-        ) -> Element<'a, Message> {
-            let code_block =
-                markdown::code_block(settings, lines, Message::URLClicked);
-
-            let copy = button(text("Copy").size(12))
-                .padding(2)
-                .on_press_with(|| Message::SaveToClipboard(code.to_owned()))
-                .style(button::text);
-
-            hover(
-                code_block,
-                container(copy).style(container::dark)
-                    .padding(settings.spacing / 2),
-            )
-        }
-    }
-}
+//pub mod markdown{
+//    use iced::widget::{
+//        button, container, hover,
+//        text,
+//    };
+//    use iced::Element;
+//    use crate::Message;
+//    use crate::markdown;
+//
+//    pub struct CustomViewer;
+//
+//    impl<'a> markdown::Viewer<'a, Message> for CustomViewer {
+//        fn on_link_click(url: markdown::Url) -> Message {
+//            Message::URLClicked(url)
+//        }
+//
+//        fn code_block(
+//            &self,
+//            settings: markdown::Settings,
+//            _language: Option<&'a str>,
+//            code: &'a str,
+//            lines: &'a [markdown::Text],
+//        ) -> Element<'a, Message> {
+//            let code_block =
+//                markdown::code_block(settings, lines, Message::URLClicked);
+//
+//            let copy = button(text("Copy").size(12))
+//                .padding(2)
+//                .on_press_with(|| Message::SaveToClipboard(code.to_owned()))
+//                .style(button::text);
+//
+//            hover(
+//                code_block,
+//                container(copy).style(container::dark)
+//                    .padding(settings.spacing / 2),
+//            )
+//        }
+//    }
+//}

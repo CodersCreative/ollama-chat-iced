@@ -10,11 +10,13 @@ pub mod start;
 pub mod options;
 pub mod panes;
 pub mod models;
+pub mod download;
 
 use crate::{
     save::Save,
     sidebar::chats::Chats as SideChats,
 };
+use download::{Download, DownloadProgress};
 use iced::{
     clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Subscription, Task, Theme
 };
@@ -39,7 +41,7 @@ fn main() -> iced::Result{
         stretch: iced::font::Stretch::Normal,
         weight: iced::font::Weight::Normal,
     };
-    iced::application(ChatApp::title, ChatApp::update, ChatApp::view).theme(ChatApp::theme).font(FONT).default_font(font).run()
+    iced::application(ChatApp::title, ChatApp::update, ChatApp::view).theme(ChatApp::theme).font(FONT).default_font(font).subscription(ChatApp::subscription).run()
 }
 
 pub struct ChatApp{
@@ -63,6 +65,9 @@ pub enum Message{
     URLClicked(markdown::Url),
     ShowSettings,
     SideBar,
+    Pulling((usize, Result<DownloadProgress, String>)),
+    Pull(String),
+    StopPull(usize),
 }
 
 impl Default for ChatApp{
@@ -152,6 +157,15 @@ impl ChatApp{
                 open::that_in_background(x.to_string()); 
                 Task::none()
             },
+            Message::StopPull(id) => {
+                for (i, x) in self.main_view.downloads.iter().enumerate(){
+                    if x.id == id{
+                        self.main_view.downloads.remove(i);
+                        break;
+                    }
+                }
+                Task::none()
+            },
             Message::ShowSettings => {
                 self.main_view.side = match self.main_view.side{
                     SideBarState::Settings => SideBarState::Shown,
@@ -172,6 +186,30 @@ impl ChatApp{
             Message::ChangeTheme(x) => {
                 self.change_theme(x.clone())
             },
+
+            Message::Pull(x) => {
+                //if let None = self.main_view.downloading{
+                //    self.main_view.downloading = Some((0, x.clone(), DownloadProgress::Downloading(0.0, String::new())));
+                //}
+                self.main_view.downloads.push(Download::new(self.main_view.id, x.clone()));
+                self.main_view.id += 1;
+                Task::none()
+            },
+            Message::Pulling((id, progress)) => {
+                if let Some(download) = self.main_view.downloads.iter_mut().find(|download| download.id == id){
+                    download.progress(progress);
+                }
+                //if let Some(x) = &self.main_view.downloading{
+                //    if let Ok(progress) = progress{
+                //        self.main_view.downloading = Some((x.0, x.1.clone(), progress));
+                //    }else{
+                //        self.main_view.downloading = Some((0, x.1.clone(), DownloadProgress::Downloading(0.0, String::new())));
+                //    }
+                //
+                //}
+                
+                Task::none()
+            }
         }
     }
 
@@ -187,8 +225,9 @@ impl ChatApp{
         self.main_view.theme.clone()
     }
 
-    //fn subscription(&self) -> Subscription<Message>{
-    //
-    //}
+    fn subscription(&self) -> Subscription<Message> {
+        let actions = self.main_view.downloads.iter().map(|x| x.subscription(self));
+        Subscription::batch(actions)
+    }
 }
 

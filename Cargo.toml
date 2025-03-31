@@ -20,7 +20,7 @@ serde_json = "1.0.117"
 bitflags = "2.9.0"
 text-splitter = "0.10.0"
 tokio = { version = "1.37.0", features = ["full"] }
-iced = { version = "0.14.0-dev", git = "https://github.com/iced-rs/iced.git", rev="ced4276a5e37b17a1ac7a7886ab4a10c179d3216", features = ["tokio", "image", "markdown", "svg", "advanced"]}
+iced = { version = "0.13.1", features = ["tokio", "image", "markdown", "svg", "advanced", ]}
 color-art = "0.3.8"
 cli-clipboard = "0.4.0"
 open = "5.3.2"
