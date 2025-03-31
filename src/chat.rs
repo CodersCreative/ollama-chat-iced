@@ -1,3 +1,4 @@
+use iced::{futures::TryFutureExt, Task};
 use ollama_rs::{
     generation::chat::{
         request::ChatMessageRequest, ChatMessage,
@@ -6,7 +7,7 @@ use ollama_rs::{
 use tokio::sync::Mutex;
 use std::{sync::Arc, time::Instant};
 
-use crate::options::ModelOptions;
+use crate::{options::ModelOptions, Message};
 
 pub fn get_model() -> Ollama{
     return Ollama::default();
@@ -27,6 +28,14 @@ pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ol
     return Err("Failed to run ollama.".to_string());
 }
 
+//pub fn download_test(model : String, ollama : &Ollama) -> Task<Message>{
+//    Task::stream(move |x| {
+//        //let o = ollama.lock().await;
+//        let y = ollama.pull_model_stream(model, false).unwrap_or_else(|_| {todo!()});
+//        y
+//        y
+//    })
+//}
 
 pub async fn download(model : String, ollama : Arc<Mutex<Ollama>>) -> Result<PullModelStatus, String>{
     let o = ollama.lock().await;

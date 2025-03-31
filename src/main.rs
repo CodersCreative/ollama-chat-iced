@@ -16,7 +16,7 @@ use crate::{
     sidebar::chats::Chats as SideChats,
 };
 use iced::{
-    clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Task, Theme
+    clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Subscription, Task, Theme
 };
 
 use models::{Models, ModelsMessage, SavedModels};
@@ -186,5 +186,9 @@ impl ChatApp{
     fn theme(&self) -> iced::Theme {
         self.main_view.theme.clone()
     }
+
+    //fn subscription(&self) -> Subscription<Message>{
+    //
+    //}
 }
 

@@ -1,5 +1,4 @@
 use std::time::SystemTime;
-
 use iced::widget::{column, scrollable};
 use iced::Element;
 use crate::{ChatApp, Message};

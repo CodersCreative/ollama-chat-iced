@@ -1,6 +1,6 @@
 [package]
 name = "ochat"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Creative Coders <officialccoders@gmail.com>"]
 description = "A chatbot application that uses Ollama AIs."
@@ -11,16 +11,16 @@ keywords = ["ai", "iced", "chat", "chatbot", "ollama"]
 categories = ["gui", "accessibility"]
 license = "MIT"
 
+
 [dependencies]
-ollama-rs = { version = "0.1.8", features = ["chat-history"] }
+ollama-rs = { version = "0.1.8", features = ["chat-history", "stream"] }
 rand = "0.8.5"
 serde = { version = "1.0.201", features = ["derive"] }
 serde_json = "1.0.117"
 bitflags = "2.9.0"
 text-splitter = "0.10.0"
 tokio = { version = "1.37.0", features = ["full"] }
-iced = { version = "0.13.1", features = ["tokio", "image", "markdown", "svg"]}
-iced_futures = { version = "0.13.0", features = ["tokio"]}
+iced = { git = "https://github.com/iced-rs/iced.git", rev="ced4276a5e37b17a1ac7a7886ab4a10c179d3216", features = ["tokio", "image", "markdown", "svg", "advanced"]}
 color-art = "0.3.8"
 cli-clipboard = "0.4.0"
 open = "5.3.2"
@@ -32,3 +32,4 @@ url = "2.5.4"
 reqwest = "0.12.15"
 regex = "1.11.1"
 tantivy = "0.22.0"
+thiserror = "2.0"

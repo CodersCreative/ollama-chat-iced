@@ -12,7 +12,7 @@ use iced::{
     alignment::{Horizontal, Vertical},widget::{button, column, combo_box, container, keyed_column, row, scrollable, text, text_input, Renderer}, Element, Length, Task, Theme
 };
 use std::sync::Arc;
-
+//use iced::task::{Straw, sipper};
 use crate::chat::download;
 use crate::utils::get_path_settings;
 use crate::{style, utils::generate_id, ChatApp, Message};
@@ -67,6 +67,9 @@ impl ModelsMessage{
                     return Task::perform(download(x.clone(), ollama), move |x| Message::Models(ModelsMessage::Pulled(x), models.0));
 
                 }
+                //Task::stream(async move |mut progres| {
+                //
+                //})
                 Task::none()
             },
             Self::Pulled(_) => {
