@@ -99,6 +99,23 @@ pub mod text_input{
     }
 }
 
+pub mod text_editor{
+    use iced::{widget::text_editor::{Style, Status}, Theme};
+    use crate::utils::change_alpha;
+
+    pub fn input(theme: &Theme, _status: Status) -> Style{
+        Style{
+            border: iced::Border::default().rounded(0),
+            //background: iced::Background::Color(theme.palette().primary.clone()),
+            background: iced::Background::Color(iced::Color::TRANSPARENT),
+            placeholder: change_alpha(theme.palette().text.clone(), 0.4),
+            value: theme.palette().text.clone(),
+            selection: theme.palette().primary.clone(),
+            icon: theme.palette().text.clone(),
+        }
+    }
+}
+
 pub mod svg{
     use iced::{widget::svg::{Style, Status}, Theme};
     

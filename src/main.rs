@@ -68,6 +68,7 @@ pub enum Message{
     Pulling((usize, Result<DownloadProgress, String>)),
     Pull(String),
     StopPull(usize),
+    None,
 }
 
 impl Default for ChatApp{
@@ -143,12 +144,13 @@ impl ChatApp{
             Message::Models(x, i) => {
                 x.handle(Models::get_from_id(self, i).clone(), self)
             },
+            Message::None => Task::none(),
             Message::SaveToClipboard(x) => {
                 println!("Save Clip {}", x);
                 clipboard::write::<Message>(x.clone())
             },
             Message::Chats(x, i) => {
-                x.handle(save::chats::Chats::get_from_id(self, i).clone(), self)
+                x.handle(i, self)
             }
             Message::Pane(x) => {
                 x.handle(self)

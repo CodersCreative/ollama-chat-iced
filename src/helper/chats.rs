@@ -6,15 +6,18 @@ use iced::Task;
 use crate::{ChatApp, Message};
 
 impl ChatsMessage{
-    pub fn change_chat(&self, o_index : usize, chats : Chats, app : &mut ChatApp,) -> Task<Message>{
-        let index = Chats::get_index(app, chats.id);
-        app.main_view.chats[index].saved_id = app.save.chats[o_index].1;
-        app.logic.chat = Some(index);
-        app.main_view.chats[index].markdown = app.save.chats[o_index].to_mk();
-        app.save.save(SAVE_FILE);
-
-        Task::none()
-    }
+    //pub fn change_chat(&self, o_index : usize, id : i32, app : &mut ChatApp,) -> Task<Message>{
+    //    let mut chats = Chats::get_from_id_mut(app, id);
+    //
+    //    if !chats.loading{
+    //        chats.saved_id = app.save.chats[o_index].1;
+    //        chats.markdown = app.save.chats[o_index].to_mk();
+    //        app.logic.chat = Some(Chats::get_index(app, id));
+    //        app.save.save(SAVE_FILE);
+    //    }
+    //
+    //    Task::none()
+    //}
 
 
 

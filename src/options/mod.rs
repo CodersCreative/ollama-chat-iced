@@ -3,8 +3,8 @@ pub mod convert;
 pub mod doc;
 use doc::DOCS;
 use serde::{Deserialize, Serialize};
-use crate::{style, utils::{generate_id, get_path_settings}, ChatApp, Message};
-use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, combo_box, container, row, scrollable, text, text_input, toggler}, Element, Length, Padding, Task};
+use crate::{chat::delete_model, style, utils::{generate_id, get_path_assets, get_path_settings}, ChatApp, Message};
+use iced::{alignment::{Horizontal, Vertical}, widget::{svg, button, column, combo_box, container, row, scrollable, text, text_input, toggler}, Element, Length, Padding, Task};
 use serde_json;
 use std::{fs::File, io::Read};
 
@@ -33,12 +33,13 @@ pub enum OptionMessage{
     ClickedOption(OptionKey),
     ResetOption(OptionKey),
     ChangeModel(String),
+    DeleteModel,
 }
 
 
 
 impl OptionMessage{
-    pub fn handle(&self, options : Options, app : &mut ChatApp) -> Task<Message>{
+    pub fn handle<'a>(&'a self, options : Options, app : &'a mut ChatApp) -> Task<Message>{
         match self{
             Self::ChangeOptionBool(x) => {
                 let m_index = app.options.get_create_model_options_index(options.0.clone());
@@ -50,6 +51,18 @@ impl OptionMessage{
             Self::ChangeModel(x) => {
                 let index = Options::get_index(app, options.1);
                 app.main_view.options[index].0 = x.clone();
+                Task::none()
+            },
+            Self::DeleteModel => {
+                let index = Options::get_index(app, options.1);
+                let model = app.main_view.options[index].0.clone();
+                if let Ok(i) = app.logic.models.binary_search(&model){
+                    app.logic.models.remove(i);
+                    if let Some(m) = app.logic.models.first(){
+                        app.main_view.options[index].0 = m.clone();
+                        return Task::perform(delete_model(app.logic.ollama.clone(), model.clone()), move |_| Message::None);
+                    }
+                }
                 Task::none()
             },
             Self::ChangeOptionNum(x) => {
@@ -189,7 +202,16 @@ impl Options{
 
     pub fn view_with_index<'a>(&'a self, app : &'a ChatApp, index : usize, id : i32, model : &'a str) -> Element<'a, Message>{
         container(column![
-            container(combo_box(&app.logic.combo_models, model, None, move |x| Message::Option(OptionMessage::ChangeModel(x), id))).padding(10),
+            container(
+                row![
+                    combo_box(&app.logic.combo_models, model, None, move |x| Message::Option(OptionMessage::ChangeModel(x), id)),
+                    button(
+                        svg(svg::Handle::from_path(get_path_assets("delete.svg".to_string()))).style(style::svg::white).width(24.0).height(24.0),
+                    )
+                    .style(style::button::transparent_text)
+                    .on_press(Message::Option(OptionMessage::DeleteModel, id))
+                ]
+            ).padding(10),
             container(app.options.0[index].view(self)).padding(Padding::default().left(20).right(20).top(5).bottom(5))
         ]).into()
     }

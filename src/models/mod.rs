@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::{error::Error, fs::File, io::Read};
 use ollama_rs::models::pull::PullModelStatus;
 use regex::Regex;
@@ -7,6 +8,7 @@ use tantivy::query::QueryParser;
 use tantivy::schema::{Field, OwnedValue, Schema, STORED, TEXT};
 use tantivy::index::Index;
 use tantivy::{doc, DocAddress,IndexWriter, Score, TantivyDocument};
+use url::Url;
 use std::collections::HashMap;
 use iced::{
     alignment::{Horizontal, Vertical},widget::{button, column, combo_box, container, keyed_column, row, scrollable, text, text_input, Renderer}, Element, Length, Task, Theme
@@ -97,6 +99,13 @@ impl ModelInfo{
             ).style(style::button::transparent_back).on_press(Message::Models(ModelsMessage::Expand(self.name.clone()), id)).into()
         );
 
+        widgets.push(text(&self.author)
+        .color(app.theme().palette().danger)
+        .size(20)
+        .width(Length::Fill)
+        .align_y(Vertical::Center)
+        .align_x(Horizontal::Left).into());
+
         if let Some(x) = app.model_info.descriptions.get(&self.name){
             widgets.push(text(x)
             .color(app.theme().palette().text)
@@ -107,7 +116,9 @@ impl ModelInfo{
         }
 
         if expand{
-            widgets.push(text("hello").into());
+            widgets.push(
+                button(text(&self.url).size(16)).style(style::button::chosen_chat).on_press(Message::URLClicked(Url::from_str(&self.url).unwrap())).into()
+            );
             for tag in &self.tags{
                 //let name = format!("{}:{}", self.name, tag[0]);
                 widgets.push(button(
@@ -119,7 +130,7 @@ impl ModelInfo{
                 .style(style::button::not_chosen_chat)
                 //.on_press(Message::Models(ModelsMessage::Pull(), id))
                 .on_press(Message::Pull(format!("{}:{}", self.name, tag[0])))
-                .width(Length::FillPortion(7)).padding(10).into());
+                .width(Length::Fill).padding(10).into());
             } 
 
         }

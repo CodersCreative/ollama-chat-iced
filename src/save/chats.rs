@@ -2,6 +2,8 @@ use std::time::SystemTime;
 
 use iced::alignment::Horizontal;
 use iced::alignment::Vertical;
+use iced::padding;
+use iced::widget::text_editor;
 use iced::widget::{button, column, combo_box, container, horizontal_space, image, row, scrollable, text, markdown, keyed_column, text_input, svg};
 use iced::widget::scrollable::Direction;
 use iced::widget::scrollable::Scrollbar;
@@ -32,14 +34,15 @@ pub struct SavedChats ( pub Vec<Chat>, pub i32, pub SystemTime);
 
 
 
-#[derive(Debug, Clone,)]
+#[derive(Debug)]
 pub struct Chats {
     pub markdown: Vec<Vec<markdown::Item>>,
     pub images: Vec<PathBuf>,
     pub gen_chats : Arc<Vec<ChatMessage>>,
     pub loading : bool,
     pub start : String,
-    pub input : String,
+    pub input : text_editor::Content,
+    input_height: f32,
     pub saved_id : i32,
     pub model : String,
     pub id : i32,
@@ -51,7 +54,7 @@ pub enum ChatsMessage{
     Submit,
     Received(Result<ChatMessage, String>),
     ChangeModel(String),
-    Edit(String),
+    Action(text_editor::Action),
     ChangeStart(String),
     ChangeChat(usize),
     NewChat,
@@ -61,26 +64,27 @@ pub enum ChatsMessage{
 }
 
 impl ChatsMessage{
-    pub fn handle(&self, chats : Chats, app : &mut ChatApp) -> Task<Message>{
+    pub fn handle(&self, id : i32, app : &mut ChatApp) -> Task<Message>{
         match self{
 
             Self::Regenerate => {
-                if let Some(i) = chats.get_saved_index(app){
+                let index = Chats::get_index(app, id);
+                if let Some(i) = app.main_view.chats[index].get_saved_index(app){
                     app.save.chats[i].0.pop();
-                    return self.submit(chats, app, false);
+                    return self.submit(id, app, false);
                 }
 
                 Task::none()
             },
             Self::RemoveImage(x) => {
-                let index = Chats::get_index(app, chats.id.clone());
+                let index = Chats::get_index(app, id);
                 if let Ok(x) = app.main_view.chats[index].images.binary_search(&x){
                     app.main_view.chats[index].images.remove(x);
                 }
                 Task::none()
             },
             Self::PickedImage(x) => {
-                let index = Chats::get_index(app, chats.id.clone());
+                let index = Chats::get_index(app, id);
                 if let Ok(x) = x{
                     let mut x = x.clone();
                     app.main_view.chats[index].images.append(&mut x);
@@ -89,13 +93,13 @@ impl ChatsMessage{
             }
             Self::Received(x) => {
                 if let Ok(x) = x{
-                    return self.received(app, chats.id, x.clone());
+                    return self.received(app, id, x.clone());
                 }
                 Task::none()
             },
             Self::ChangeModel(x) => {
-                let index = Chats::get_index(app, chats.id.clone());
-                if !chats.loading{
+                let index = Chats::get_index(app, id);
+                if !app.main_view.chats[index].loading{
                     app.main_view.chats[index].model = x.clone();
                     app.save.save(SAVE_FILE);
                     let _ = app.options.get_create_model_options_index(x.clone());
@@ -103,32 +107,39 @@ impl ChatsMessage{
                 Task::none()
             },
             Self::ChangeStart(x) => {
-                let index = Chats::get_index(app, chats.id.clone());
+                let index = Chats::get_index(app, id);
                 app.main_view.chats[index].start = x.clone();
                 Task::none()
             },
             Self::ChangeChat(x) => {
-                if !chats.loading{
-                    return self.change_chat(*x, chats, app,);
+                let index = Chats::get_index(app, id);
+                
+                if !app.main_view.chats[index].loading{
+                    app.main_view.chats[index].saved_id = app.save.chats[x.clone()].1;
+                    app.main_view.chats[index].markdown = app.save.chats[*x].to_mk();
+                    app.logic.chat = Some(Chats::get_index(app, id));
+                    app.save.save(SAVE_FILE);
                 }
+
                 Task::none()
             },
-            Self::Edit(x) => {
-                let index = Chats::get_index(app, chats.id.clone());
-                app.main_view.chats[index].input = x.clone();
+            Self::Action(x) => {
+                let index = Chats::get_index(app, id);
+                app.main_view.chats[index].input.perform(x.clone());
                 Task::none()
             },
             Self::NewChat => {
+                let chats = Chats::get_from_id(app, id);
                 if !chats.loading{
-                    return Self::new_chat(app, chats.id)
+                    return Self::new_chat(app, id)
                 }
                 Task::none()
             },
             Self::Submit => {
-                self.submit(chats, app, true)
+                self.submit(id, app, true)
             },
             Self::PickImage => {
-                ChatApp::pick_images(chats.id)
+                ChatApp::pick_images(id)
             }
         }
     }
@@ -144,7 +155,8 @@ impl Chats{
             markdown,
             start : "General".to_string(),
             loading: false,
-            input: String::new(),
+            input: text_editor::Content::new(),
+            input_height: 50.0,
             images: Vec::new(),
             gen_chats: Arc::new(Vec::new()),
         }
@@ -152,6 +164,11 @@ impl Chats{
 
     pub fn get_from_id<'a>(app: &'a ChatApp, id : i32) -> &'a Self{
         app.main_view.chats.iter().find(|x| x.id == id).unwrap()
+    }
+
+
+    pub fn get_from_id_mut<'a>(app: &'a mut ChatApp, id : i32) -> &'a mut Self{
+        app.main_view.chats.iter_mut().find(|x| x.id == id).unwrap()
     }
 
     pub fn get_index<'a>(app : &'a ChatApp, id : i32) -> usize{
@@ -225,14 +242,23 @@ impl Chats{
     pub fn chat_view<'a>(&'a self, app : &'a ChatApp, id : i32) -> Element<'a, Message>{
         let input : Element<Message> = match self.loading {
             false => {
-                text_input::<Message, Theme, Renderer>("Enter your message", &self.input)
-                .on_input(|x| Message::Chats(ChatsMessage::Edit(x), self.id))
-                .on_submit(Message::Chats(ChatsMessage::Submit, self.id))
-                .size(20)
+                text_editor(&self.input)
+                .placeholder("Type your message here...")
+                .on_action(|action| Message::Chats(ChatsMessage::Action(action), self.id))
                 .padding(Padding::from(20))
-                .style(style::text_input::input)
-                .width(Length::Fill)
-                .into()
+                .size(20)
+                .style(style::text_editor::input)
+                .key_binding(|key_press| {
+                    let modifiers = key_press.modifiers;
+
+                    match text_editor::Binding::from_key_press(key_press) {
+                        Some(text_editor::Binding::Enter) if !modifiers.shift() => {
+                            Some(text_editor::Binding::Custom(Message::Chats(ChatsMessage::Submit, self.id)))
+                        }
+                        binding => binding,
+                    }
+                })
+                .into()  
             },
             true => {
                 container(text("Awaiting Response...").color(app.theme().palette().primary).size(20)).padding(20).width(Length::Fill).style(container::transparent).into()
@@ -322,7 +348,7 @@ impl Chats{
         let prompts = column(section.prompts.iter().map(|x| {
             button(
                 text(x.clone()).color(colour()).align_x(Horizontal::Left).width(Length::Fill).size(16)
-            ).padding(10).style(style::button::transparent_translucent).on_press(Message::Chats(ChatsMessage::Edit(x.to_string()), self.id)).into()
+            ).padding(10).style(style::button::transparent_translucent).on_press(Message::Chats(ChatsMessage::Action(text_editor::Action::Edit(text_editor::Edit::Paste(Arc::new(x.to_string())))), self.id)).into()
         }).collect::<Vec<Element<Message>>>());
         
         container(row![

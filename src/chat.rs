@@ -38,6 +38,12 @@ pub async fn run_ollama(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ol
 }
 
 
+pub async fn delete_model(ollama : Arc<Mutex<Ollama>>, model : String){
+    let now = Instant::now();
+    let o = ollama.lock().await;
+    let _ = o.delete_model(model).await;
+}
+
 
 pub fn run_ollama_stream(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>, model : String) -> impl Stream<Item = Result<ChatProgress, String>>{
     try_channel(1, move |mut output| async move{
@@ -86,7 +92,7 @@ impl ChatStream{
         let s_index = chats.get_saved_index(app).unwrap();
         let chat = Chat{
             role: crate::save::chat::Role::User,
-            message: chats.input.clone(),
+            message: chats.input.text(),
             images: chats.images.clone(), 
         };
         app.main_view.chats[index].markdown.push(Chat::generate_mk(&chat.message));
