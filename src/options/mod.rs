@@ -128,7 +128,11 @@ impl SavedOptions{
             return self.0.len() - 1;
         }
 
-        index.unwrap()
+        if index.unwrap_or(0) > self.0.len() - 1{
+            return 0;
+        }
+
+        index.unwrap_or(0)
     }
 }
 
@@ -166,19 +170,6 @@ impl SavedOptions{
 }
 
 impl Options{
-    //pub fn save(&self, path : &str){
-    //    self.1.save(path);
-    //}
-    //
-    //pub fn load(path : &str) -> Result<Self, String>{
-    //    Ok(Self(
-    //        "".to_string(),
-    //        SavedOptions::load(path)?,
-    //    ))
-    //
-    //
-    //}
-    //
     pub fn get_from_id<'a>(app: &'a ChatApp, id : i32) -> &'a Self{
         app.main_view.options.iter().find(|x| x.1 == id).unwrap()
     }

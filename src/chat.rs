@@ -45,10 +45,10 @@ pub async fn delete_model(ollama : Arc<Mutex<Ollama>>, model : String){
 }
 
 
-pub fn run_ollama_stream(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>, model : String) -> impl Stream<Item = Result<ChatProgress, String>>{
+pub fn run_ollama_stream(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>) -> impl Stream<Item = Result<ChatProgress, String>>{
     try_channel(1, move |mut output| async move{
         let ollama = ollama.lock().await;
-        let request = ChatMessageRequest::new(model, chats.to_vec()).options(options.into());
+        let request = ChatMessageRequest::new(options.1.clone(), chats.to_vec()).options(options.into());
         let mut y = ollama.send_chat_messages_stream(request).await.map_err(|x|x.to_string())?;
         let _ = output.send(ChatProgress::Generating(ChatMessage { role: ollama_rs::generation::chat::MessageRole::Assistant, content: String::new(), images: None })).await;
 
@@ -70,7 +70,6 @@ pub struct ChatStream {
     pub state: State,
     pub chats: Arc<Vec<ChatMessage>>, 
     pub options : ModelOptions, 
-    pub model : String
 }
 
 #[derive(Debug)]
@@ -80,38 +79,18 @@ pub enum State {
     Errored,
 }
 
-pub fn chat(id : i32, chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>, model : String) -> iced::Subscription<(i32, Result<ChatProgress, String>)>{
-    Subscription::run_with_id(id, run_ollama_stream(chats, options, ollama, model).map(move |progress| (id, progress)))
+pub fn chat(id : i32, chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>) -> iced::Subscription<(i32, Result<ChatProgress, String>)>{
+    Subscription::run_with_id(id, run_ollama_stream(chats, options, ollama).map(move |progress| (id, progress)))
 }
 
 impl ChatStream{
-    pub fn new(chats : Chats, app : &mut ChatApp) -> Self {
-        let index = Chats::get_index(app, chats.id.clone());
-        app.main_view.chats[index].loading = true;
+    pub fn new(app : &ChatApp, id : i32, option : usize, chat : usize) -> Self {
         
-        let s_index = chats.get_saved_index(app).unwrap();
-        let chat = Chat{
-            role: crate::save::chat::Role::User,
-            message: chats.input.text(),
-            images: chats.images.clone(), 
-        };
-        app.main_view.chats[index].markdown.push(Chat::generate_mk(&chat.message));
-        app.save.chats[s_index].0.push(chat);
-        
-
-        let chat = app.save.chats[s_index].clone();
-        app.main_view.chats[index].gen_chats = Arc::new(chat.get_chat_messages());
-        let chat = Arc::clone(&app.main_view.chats[index].gen_chats);
-        let index = app.options.get_create_model_options_index(chats.model.clone());
-        
-
-
         Self{
-            id : chats.saved_id,
+            id,
             state: State::Generating(ChatMessage::new(ollama_rs::generation::chat::MessageRole::Assistant, String::new())),
-            chats : chat, 
-            options : app.options.0[index].clone(), 
-            model : chats.model
+            chats : Arc::new(app.save.chats[chat].get_chat_messages()), 
+            options : app.options.0[option].clone(), 
         }
     }
 
@@ -134,14 +113,14 @@ impl ChatStream{
         }
     }
 
-    //pub fn subscription(&self, app : &ChatApp) -> Subscription<Message> {
-    //    match self.state {
-    //        State::Generating (_) => {
-    //            chat(self.id,self.chats, self.options, app.logic.ollama.clone(), self.model).map(Message::Pulling)
-    //        }
-    //        _ => Subscription::none(),
-    //    }
-    //}
+    pub fn subscription(&self, app : &ChatApp) -> Subscription<Message> {
+        match self.state {
+            State::Generating (_) => {
+                chat(self.id,self.chats.clone(), self.options.clone(), app.logic.ollama.clone()).map(Message::Generating)
+            }
+            _ => Subscription::none(),
+        }
+    }
 
 }
 

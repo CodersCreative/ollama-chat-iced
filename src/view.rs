@@ -1,5 +1,6 @@
 
 use iced::{Subscription, Theme};
+use crate::chat::ChatStream;
 use crate::download::{pull, DownloadProgress};
 use crate::download::Download;
 use crate::{ChatApp, Message};
@@ -14,6 +15,7 @@ pub struct View{
     pub chats : Vec<Chats>,
     pub models : Vec<Models>,
     pub downloads : Vec<Download>,
+    pub chat_streams : Vec<ChatStream>,
     pub id : usize,
 }
 
@@ -27,6 +29,7 @@ impl View{
             chats: Vec::new(),
             models: Vec::new(),
             downloads: Vec::new(),
+            chat_streams: Vec::new(),
             id: 0,
         }
     }

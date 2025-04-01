@@ -52,7 +52,6 @@ pub struct Chats {
 pub enum ChatsMessage{
     Regenerate,
     Submit,
-    Received(Result<ChatMessage, String>),
     ChangeModel(String),
     Action(text_editor::Action),
     ChangeStart(String),
@@ -69,10 +68,24 @@ impl ChatsMessage{
 
             Self::Regenerate => {
                 let index = Chats::get_index(app, id);
-                if let Some(i) = app.main_view.chats[index].get_saved_index(app){
-                    app.save.chats[i].0.pop();
-                    return self.submit(id, app, false);
+
+                let mut s_index = 0;
+                let saved_id = app.main_view.chats[index].saved_id;
+
+                for (i, x) in app.save.chats.iter_mut().enumerate(){
+                    if x.1 == saved_id{
+                        x.0.remove(x.0.len() - 1);
+                        s_index = i;
+                        break;
+                    }
                 }
+
+                app.main_view.chats.iter_mut().filter(|x| x.saved_id == saved_id).for_each(|x| {
+                    x.markdown.remove(x.markdown.len() - 1);
+                });
+
+                let option = app.options.get_create_model_options_index(app.main_view.chats[index].model.clone());
+                app.main_view.chat_streams.push(crate::chat::ChatStream::new(app, saved_id, option, s_index));
 
                 Task::none()
             },
@@ -91,12 +104,6 @@ impl ChatsMessage{
                 }
                 Task::none()
             }
-            Self::Received(x) => {
-                if let Ok(x) = x{
-                    return self.received(app, id, x.clone());
-                }
-                Task::none()
-            },
             Self::ChangeModel(x) => {
                 let index = Chats::get_index(app, id);
                 if !app.main_view.chats[index].loading{
@@ -136,7 +143,33 @@ impl ChatsMessage{
                 Task::none()
             },
             Self::Submit => {
-                self.submit(id, app, true)
+                let index = Chats::get_index(app, id);
+                let chat = Chat{
+                    role: super::chat::Role::User,
+                    message: app.main_view.chats[index].input.text(),
+                    images: app.main_view.chats[index].images.clone(), 
+                };
+
+
+                let mut s_index = 0;
+                let saved_id = app.main_view.chats[index].saved_id;
+
+                for (i, x) in app.save.chats.iter_mut().enumerate(){
+                    if x.1 == saved_id{
+                        x.0.push(chat.clone());
+                        s_index = i;
+                        break;
+                    }
+                }
+
+                app.main_view.chats.iter_mut().filter(|x| x.saved_id == saved_id).for_each(|x| {
+                    x.markdown.push(Chat::generate_mk(&chat.message.clone()));
+                });
+
+                let option = app.options.get_create_model_options_index(app.main_view.chats[index].model.clone());
+                app.main_view.chat_streams.push(crate::chat::ChatStream::new(app, saved_id, option, s_index));
+
+                Task::none()
             },
             Self::PickImage => {
                 ChatApp::pick_images(id)
@@ -265,19 +298,33 @@ impl Chats{
             }
         };
 
-        let upload = button(
-            svg(svg::Handle::from_path(get_path_assets("upload.svg".to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
-        )
-        .style(style::button::chosen_chat)
-        .on_press(Message::Chats(ChatsMessage::PickImage, self.id))
-        .width(Length::Fixed(48.0));
 
-        let submit = button(
-            svg(svg::Handle::from_path(get_path_assets("send.svg".to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
-        )
-        .style(style::button::chosen_chat)
-        .on_press(Message::Chats(ChatsMessage::Submit, self.id))
-        .width(Length::Fixed(48.0));
+        let btn = |file : &str| -> button::Button<'a, Message, Theme, Renderer>{
+            button(
+                svg(svg::Handle::from_path(get_path_assets("upload.svg".to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
+            )
+            .style(style::button::chosen_chat)
+            //.on_press(Message::Chats(ChatsMessage::PickImage, self.id))
+            .width(Length::Fixed(48.0))
+        };
+
+        let upload = btn("upload.svg").on_press(Message::Chats(ChatsMessage::PickImage, self.id));
+        
+        let submit = match self.loading{
+            true => {
+                btn("close.svg").on_press(Message::StopGenerating(self.saved_id))
+            },
+            false => {
+                btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, self.id))
+            }
+        };
+
+        //let submit = button(
+        //    svg(svg::Handle::from_path(get_path_assets("send.svg".to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
+        //)
+        //.style(style::button::chosen_chat)
+        //
+        //.width(Length::Fixed(48.0));
         
         let images = container(
             scrollable::Scrollable::new(row(self.images.iter().map(|x| {

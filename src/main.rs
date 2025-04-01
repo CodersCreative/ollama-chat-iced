@@ -16,15 +16,16 @@ use crate::{
     save::Save,
     sidebar::chats::Chats as SideChats,
 };
+use chat::ChatProgress;
 use download::{Download, DownloadProgress};
 use iced::{
-    clipboard, widget::{combo_box, container, markdown, row}, Element, Font, Subscription, Task, Theme
+    clipboard, widget::{combo_box, container, markdown, row, text_editor}, Element, Font, Subscription, Task, Theme
 };
 
 use models::{Models, ModelsMessage, SavedModels};
 use options::{Options, OptionMessage, SavedOptions};
 use panes::Panes;
-use save::chats::{ChatsMessage, SavedChats};
+use save::{chat::Chat, chats::{ChatsMessage, SavedChats}};
 use update::Logic;
 use sidebar::SideBarState;
 use panes::PaneMessage;
@@ -66,6 +67,8 @@ pub enum Message{
     ShowSettings,
     SideBar,
     Pulling((usize, Result<DownloadProgress, String>)),
+    Generating((i32, Result<ChatProgress, String>)),
+    StopGenerating(i32),
     Pull(String),
     StopPull(usize),
     None,
@@ -168,6 +171,15 @@ impl ChatApp{
                 }
                 Task::none()
             },
+            Message::StopGenerating(id) => {
+                for (i, x) in self.main_view.chat_streams.iter().enumerate(){
+                    if x.id == id{
+                        self.main_view.chat_streams.remove(i);
+                        break;
+                    }
+                }
+                Task::none()
+            },
             Message::ShowSettings => {
                 self.main_view.side = match self.main_view.side{
                     SideBarState::Settings => SideBarState::Shown,
@@ -190,26 +202,53 @@ impl ChatApp{
             },
 
             Message::Pull(x) => {
-                //if let None = self.main_view.downloading{
-                //    self.main_view.downloading = Some((0, x.clone(), DownloadProgress::Downloading(0.0, String::new())));
-                //}
                 self.main_view.downloads.push(Download::new(self.main_view.id, x.clone()));
                 self.main_view.id += 1;
                 Task::none()
             },
+            Message::Generating((id, progress)) => {
+                if let Some(chat) = self.main_view.chat_streams.iter_mut().find(|chat| chat.id == id){
+                    chat.progress(progress.clone());
+                }
+
+                if let Ok(ChatProgress::Generating(progress)) = progress{
+                    let mut mk = Chat::generate_mk(progress.content.as_str());
+                    let mut first = true;
+                    if let Some(chat) = self.save.chats.iter_mut().find(|chat| chat.1 == id){
+                        let index = chat.0.len() - 1;
+                        if chat.0.last().unwrap().role == save::chat::Role::AI{
+                            chat.0[index].message.push_str(progress.content.as_str());
+                            mk = Chat::generate_mk(&chat.0[index].message);
+                            first = false;
+                        }else{
+                            chat.0.push(Chat::new(&save::chat::Role::AI, &progress.content, Vec::new()));
+                            first = true;
+                        }
+                    }
+                    self.main_view.chats.iter_mut().filter(|chat| chat.saved_id == id).for_each(|chat|{
+                        if !first{
+                            chat.markdown.remove(chat.markdown.len() - 1);
+                        }
+                        chat.loading = true;
+                        chat.markdown.push(mk.clone());
+                    });
+                }else if let Ok(ChatProgress::Finished) = progress {
+                    self.save.save(SAVE_FILE);
+                    self.main_view.side_chats = SideChats::new(self.save.get_chat_previews());
+
+                    self.main_view.chats.iter_mut().filter(|chat| chat.saved_id == id).for_each(|chat|{
+                        chat.input = text_editor::Content::new();
+                        chat.images = Vec::new();
+                        chat.loading = false;
+                    });
+                }
+                
+                Task::none()
+            }
             Message::Pulling((id, progress)) => {
                 if let Some(download) = self.main_view.downloads.iter_mut().find(|download| download.id == id){
                     download.progress(progress);
                 }
-                //if let Some(x) = &self.main_view.downloading{
-                //    if let Ok(progress) = progress{
-                //        self.main_view.downloading = Some((x.0, x.1.clone(), progress));
-                //    }else{
-                //        self.main_view.downloading = Some((0, x.1.clone(), DownloadProgress::Downloading(0.0, String::new())));
-                //    }
-                //
-                //}
-                
                 Task::none()
             }
         }
@@ -228,7 +267,8 @@ impl ChatApp{
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let actions = self.main_view.downloads.iter().map(|x| x.subscription(self));
+        let mut actions : Vec<Subscription<Message>>  = self.main_view.downloads.iter().map(|x| x.subscription(self)).collect();
+        self.main_view.chat_streams.iter().for_each(|x| actions.push(x.subscription(self)));
         Subscription::batch(actions)
     }
 }
