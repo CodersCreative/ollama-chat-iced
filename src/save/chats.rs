@@ -13,7 +13,11 @@ use iced::Padding;
 use iced::Task;
 use iced::Theme;
 use iced::widget::Renderer;
+use kalosm_sound::rodio::buffer::SamplesBuffer;
+use kalosm_sound::MicInput;
 use serde::{Deserialize, Serialize};
+use crate::sound::get_audio;
+use crate::sound::transcribe;
 use crate::start;
 use crate::start::Section;
 use crate::style;
@@ -39,13 +43,20 @@ pub struct Chats {
     pub markdown: Vec<Vec<markdown::Item>>,
     pub images: Vec<PathBuf>,
     pub gen_chats : Arc<Vec<ChatMessage>>,
-    pub loading : bool,
+    pub state : State,
     pub start : String,
     pub input : text_editor::Content,
     input_height: f32,
     pub saved_id : i32,
     pub model : String,
     pub id : i32,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum State{
+    Generating,
+    Listening,
+    Idle,
 }
 
 #[derive(Debug, Clone)]
@@ -57,7 +68,10 @@ pub enum ChatsMessage{
     ChangeStart(String),
     ChangeChat(usize),
     NewChat,
+    Listen,
+    Convert(Option<SamplesBuffer<f32>>),
     PickedImage(Result<Vec<PathBuf>, String>),
+    Listened(Result<String, String>),
     PickImage,
     RemoveImage(PathBuf),
 }
@@ -89,6 +103,30 @@ impl ChatsMessage{
 
                 Task::none()
             },
+            Self::Listen => {
+                let index = Chats::get_index(app, id);
+                let mic = MicInput::default();
+                let stream = mic.stream();
+                
+                app.main_view.chats[index].state = State::Listening;
+                Task::perform(get_audio(stream), move |x| Message::Chats(ChatsMessage::Convert(x), id))
+            },
+            Self::Convert(x) => {
+                let index = Chats::get_index(app, id);
+                
+                app.main_view.chats[index].state = State::Generating;
+                Task::perform(transcribe(x.clone()), move |x| Message::Chats(ChatsMessage::Listened(x), id))
+            },
+            Self::Listened(x) => {
+                let index = Chats::get_index(app, id);
+                
+                if let Ok(str) = x{
+                    app.main_view.chats[index].input = text_editor::Content::with_text(str);
+                }
+
+                app.main_view.chats[index].state = State::Idle;
+                Task::none()
+            },
             Self::RemoveImage(x) => {
                 let index = Chats::get_index(app, id);
                 if let Ok(x) = app.main_view.chats[index].images.binary_search(&x){
@@ -106,7 +144,7 @@ impl ChatsMessage{
             }
             Self::ChangeModel(x) => {
                 let index = Chats::get_index(app, id);
-                if !app.main_view.chats[index].loading{
+                if app.main_view.chats[index].state == State::Idle{
                     app.main_view.chats[index].model = x.clone();
                     app.save.save(SAVE_FILE);
                     let _ = app.options.get_create_model_options_index(x.clone());
@@ -121,7 +159,7 @@ impl ChatsMessage{
             Self::ChangeChat(x) => {
                 let index = Chats::get_index(app, id);
                 
-                if !app.main_view.chats[index].loading{
+                if app.main_view.chats[index].state == State::Idle{
                     app.main_view.chats[index].saved_id = app.save.chats[x.clone()].1;
                     app.main_view.chats[index].markdown = app.save.chats[*x].to_mk();
                     app.logic.chat = Some(Chats::get_index(app, id));
@@ -137,7 +175,7 @@ impl ChatsMessage{
             },
             Self::NewChat => {
                 let chats = Chats::get_from_id(app, id);
-                if !chats.loading{
+                if chats.state == State::Idle{
                     return Self::new_chat(app, id)
                 }
                 Task::none()
@@ -169,6 +207,8 @@ impl ChatsMessage{
                 let option = app.options.get_create_model_options_index(app.main_view.chats[index].model.clone());
                 app.main_view.chat_streams.push(crate::chat::ChatStream::new(app, saved_id, option, s_index));
 
+                app.main_view.chats[index].state = State::Generating;
+                app.main_view.chats[index].images = Vec::new();
                 Task::none()
             },
             Self::PickImage => {
@@ -178,6 +218,15 @@ impl ChatsMessage{
     }
 }
 
+impl Clone for Chats{
+    fn clone(&self) -> Self {
+        Self::new(self.model.clone(), self.saved_id, self.markdown.clone())
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        *self = source.clone();
+    }
+}
 
 impl Chats{
     pub fn new(model : String, saved_id : i32, markdown : Vec<Vec<markdown::Item>>) -> Self{
@@ -187,7 +236,7 @@ impl Chats{
             saved_id,
             markdown,
             start : "General".to_string(),
-            loading: false,
+            state : State::Idle,
             input: text_editor::Content::new(),
             input_height: 50.0,
             images: Vec::new(),
@@ -273,8 +322,8 @@ impl SavedChats{
 
 impl Chats{
     pub fn chat_view<'a>(&'a self, app : &'a ChatApp, id : i32) -> Element<'a, Message>{
-        let input : Element<Message> = match self.loading {
-            false => {
+        let input : Element<Message> = match self.state {
+            State::Idle => {
                 text_editor(&self.input)
                 .placeholder("Type your message here...")
                 .on_action(|action| Message::Chats(ChatsMessage::Action(action), self.id))
@@ -293,29 +342,37 @@ impl Chats{
                 })
                 .into()  
             },
-            true => {
+            State::Generating => {
                 container(text("Awaiting Response...").color(app.theme().palette().primary).size(20)).padding(20).width(Length::Fill).style(container::transparent).into()
+            }
+            State::Listening => {
+                container(text("Listening...").color(app.theme().palette().primary).size(20)).padding(20).width(Length::Fill).style(container::transparent).into()
             }
         };
 
 
         let btn = |file : &str| -> button::Button<'a, Message, Theme, Renderer>{
             button(
-                svg(svg::Handle::from_path(get_path_assets("upload.svg".to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
+                svg(svg::Handle::from_path(get_path_assets(file.to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
             )
             .style(style::button::chosen_chat)
-            //.on_press(Message::Chats(ChatsMessage::PickImage, self.id))
             .width(Length::Fixed(48.0))
         };
 
         let upload = btn("upload.svg").on_press(Message::Chats(ChatsMessage::PickImage, self.id));
         
-        let submit = match self.loading{
+        let submit : Element<Message> = match self.state == State::Generating{
             true => {
-                btn("close.svg").on_press(Message::StopGenerating(self.saved_id))
+                btn("close.svg").on_press(Message::StopGenerating(self.saved_id)).into()
             },
             false => {
-                btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, self.id))
+                let record = btn("record.svg").on_press(Message::Chats(ChatsMessage::Listen, self.id));
+                let send = btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, self.id));
+
+                row![
+                    record,
+                    send
+                ].into()
             }
         };
 

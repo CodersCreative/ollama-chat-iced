@@ -11,6 +11,7 @@ pub mod options;
 pub mod panes;
 pub mod models;
 pub mod download;
+pub mod sound;
 
 use crate::{
     save::Save,
@@ -23,9 +24,11 @@ use iced::{
 };
 
 use models::{Models, ModelsMessage, SavedModels};
+use natural_tts::{models::{gtts::GttsModel, tts_rs::TtsModel}, NaturalTts, NaturalTtsBuilder};
 use options::{Options, OptionMessage, SavedOptions};
 use panes::Panes;
-use save::{chat::Chat, chats::{ChatsMessage, SavedChats}};
+use save::{chat::{Chat, Role}, chats::{ChatsMessage, SavedChats}};
+use sound::transcribe;
 use update::Logic;
 use sidebar::SideBarState;
 use panes::PaneMessage;
@@ -33,9 +36,13 @@ use crate::view::View;
 
 pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
 const SAVE_FILE: &str = "chat.json";
-const PREVIEW_LEN: usize = 20;
+const PREVIEW_LEN: usize = 25;
 
 fn main() -> iced::Result{
+    //let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
+    //
+    //let resp = tokio_runtime.block_on(transcribe()).unwrap();
+    //println!("{}", resp);
     let font = Font{
         family: iced::font::Family::Name("Roboto"),
         style: iced::font::Style::Normal,
@@ -51,7 +58,8 @@ pub struct ChatApp{
     pub options : SavedOptions,
     pub model_info : SavedModels, 
     pub logic : Logic,
-    pub panes : Panes
+    pub panes : Panes,
+    pub tts : NaturalTts,
 }
 
 #[derive(Debug, Clone)]
@@ -94,6 +102,7 @@ impl ChatApp{
             logic: Logic::new(),
             model_info : SavedModels::init().unwrap(),
             options: SavedOptions::default(),
+            tts : NaturalTtsBuilder::default().default_model(natural_tts::Model::Gtts).gtts_model(GttsModel::default()).tts_model(TtsModel::default()).build().unwrap(),
         }
     }
 
@@ -110,7 +119,7 @@ impl ChatApp{
 
         let models = app.logic.get_models();
         app.logic.combo_models = combo_box::State::new(models.clone());
-        app.main_view.side_chats = SideChats::new(app.save.get_chat_previews());
+
 
         if let Some(i) = app.save.theme{
             app.main_view.theme = Theme::ALL[i].clone()
@@ -120,8 +129,17 @@ impl ChatApp{
         if !models.is_empty(){
             if app.save.chats.is_empty(){
                 app.save.chats.push(SavedChats::new());
+            }else{
+                app.save.chats.iter_mut().for_each(|x| {
+                    if let Some(y) = x.0.last(){
+                        if y.role != Role::AI{
+                            x.0.remove(x.0.len() - 1);
+                        }
+                    } 
+                });
             }
 
+            app.main_view.side_chats = SideChats::new(app.save.get_chat_previews());
             let saved = app.save.chats.last().unwrap();
             let first = save::chats::Chats::new(models.first().unwrap().clone(), saved.1, saved.to_mk());
 
@@ -200,7 +218,6 @@ impl ChatApp{
             Message::ChangeTheme(x) => {
                 self.change_theme(x.clone())
             },
-
             Message::Pull(x) => {
                 self.main_view.downloads.push(Download::new(self.main_view.id, x.clone()));
                 self.main_view.id += 1;
@@ -214,6 +231,7 @@ impl ChatApp{
                 if let Ok(ChatProgress::Generating(progress)) = progress{
                     let mut mk = Chat::generate_mk(progress.content.as_str());
                     let mut first = true;
+                    
                     if let Some(chat) = self.save.chats.iter_mut().find(|chat| chat.1 == id){
                         let index = chat.0.len() - 1;
                         if chat.0.last().unwrap().role == save::chat::Role::AI{
@@ -225,11 +243,12 @@ impl ChatApp{
                             first = true;
                         }
                     }
+                    
                     self.main_view.chats.iter_mut().filter(|chat| chat.saved_id == id).for_each(|chat|{
                         if !first{
                             chat.markdown.remove(chat.markdown.len() - 1);
                         }
-                        chat.loading = true;
+                        chat.state = save::chats::State::Generating;
                         chat.markdown.push(mk.clone());
                     });
                 }else if let Ok(ChatProgress::Finished) = progress {
@@ -239,7 +258,7 @@ impl ChatApp{
                     self.main_view.chats.iter_mut().filter(|chat| chat.saved_id == id).for_each(|chat|{
                         chat.input = text_editor::Content::new();
                         chat.images = Vec::new();
-                        chat.loading = false;
+                        chat.state = save::chats::State::Idle;
                     });
                 }
                 

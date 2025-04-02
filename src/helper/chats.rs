@@ -1,26 +1,11 @@
 use crate::{
-    save::chats::{Chats, ChatsMessage, SavedChats}, sidebar::chats::Chats as SideChats, SAVE_FILE
+    save::chats::{Chats, ChatsMessage, SavedChats, State}, sidebar::chats::Chats as SideChats, SAVE_FILE
 };
 
 use iced::Task;
 use crate::{ChatApp, Message};
 
 impl ChatsMessage{
-    //pub fn change_chat(&self, o_index : usize, id : i32, app : &mut ChatApp,) -> Task<Message>{
-    //    let mut chats = Chats::get_from_id_mut(app, id);
-    //
-    //    if !chats.loading{
-    //        chats.saved_id = app.save.chats[o_index].1;
-    //        chats.markdown = app.save.chats[o_index].to_mk();
-    //        app.logic.chat = Some(Chats::get_index(app, id));
-    //        app.save.save(SAVE_FILE);
-    //    }
-    //
-    //    Task::none()
-    //}
-
-
-
     pub fn new_chat(app : &mut ChatApp, id : i32) -> Task<Message>{
         let chat = SavedChats::new();
         app.save.chats.push(chat.clone());
@@ -33,7 +18,7 @@ impl ChatApp{
 
     pub fn remove_chat(&mut self, o_index : usize) -> Task<Message>{
         for c in &self.main_view.chats{
-            if c.loading{
+            if c.state != State::Idle{
                 return Task::none();
             }
         }
