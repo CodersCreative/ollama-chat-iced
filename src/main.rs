@@ -12,11 +12,13 @@ pub mod panes;
 pub mod models;
 pub mod download;
 pub mod sound;
+pub mod call;
 
 use crate::{
     save::Save,
     sidebar::chats::Chats as SideChats,
 };
+use call::{Call, CallMessage};
 use chat::ChatProgress;
 use download::{Download, DownloadProgress};
 use iced::{
@@ -60,11 +62,13 @@ pub struct ChatApp{
     pub logic : Logic,
     pub panes : Panes,
     pub tts : NaturalTts,
+    pub call : Call,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message{
     Pane(PaneMessage),
+    Call(CallMessage),
     Models(ModelsMessage, i32),
     Option(OptionMessage, i32),
     Chats(ChatsMessage, i32),
@@ -102,7 +106,8 @@ impl ChatApp{
             logic: Logic::new(),
             model_info : SavedModels::init().unwrap(),
             options: SavedOptions::default(),
-            tts : NaturalTtsBuilder::default().default_model(natural_tts::Model::Gtts).gtts_model(GttsModel::default()).tts_model(TtsModel::default()).build().unwrap(),
+            tts : NaturalTtsBuilder::default().default_model(natural_tts::Model::TTS).gtts_model(GttsModel::default()).tts_model(TtsModel::default()).build().unwrap(),
+            call : Call::new("".to_string()),
         }
     }
 
@@ -174,6 +179,9 @@ impl ChatApp{
                 x.handle(i, self)
             }
             Message::Pane(x) => {
+                x.handle(self)
+            }
+            Message::Call(x) => {
                 x.handle(self)
             }
             Message::URLClicked(x) => {

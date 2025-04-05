@@ -7,6 +7,7 @@ pub enum Pane{
     Settings(i32),
     Chat(i32),
     Models(i32),
+    Call,
     NoModel,
 }
 
@@ -29,6 +30,7 @@ pub struct Panes{
     pub focus : Option<pane_grid::Pane>,
     pub panes : pane_grid::State<Pane>,
     pub pick : Option<(pane_grid::Pane, Pane)>,
+    pub call : Option<pane_grid::Pane>,
     pub last_chat : i32,
     pub created : usize,
 }
@@ -39,6 +41,7 @@ impl Panes {
         Self{
             focus: None,
             panes,
+            call: None,
             pick: None,
             created: 1,
             last_chat: 0,
@@ -111,6 +114,11 @@ impl PaneMessage{
                 if app.panes.created > 1{
                     if let Some((_, sibling)) = app.panes.panes.close(*pane) {
                         app.panes.focus = Some(sibling);
+                        if let Some(call) = app.panes.call{
+                            if call == *pane{
+                                app.panes.call = None;
+                            }
+                        }
                     }
                 }
                 Task::none()
@@ -139,7 +147,8 @@ impl PaneMessage{
                         //app.main_view.chats.push(*chat);
                         Pane::Chat(id)
                     },
-                    Pane::Models(x) => Pane::new_models(app),
+                    Pane::Models(_) => Pane::new_models(app),
+                    Pane::Call => Pane::Call,
                     _ => Pane::NoModel,
                 };
                 
@@ -160,34 +169,7 @@ impl PaneMessage{
 
             },
             Self::Pick(grid_pane, pane) => {
-                let value = match pane {
-                    Pane::Settings(_) => Pane::new_settings(app, app.logic.models.first().unwrap().clone()),
-                    Pane::Chat(x) => {
-                        let mut chat = Chats::get_from_id(app, x.clone()).clone();
-                        let id = generate_id();
-                        chat.id = id;
-                        app.main_view.chats.push(chat);
-                        Pane::Chat(id)
-                    },
-                    Pane::Models(_) => Pane::new_models(app),
-                    _ => Pane::NoModel,
-                };
-                if app.save.use_panes{
-                    app.panes.pick = Some((grid_pane.clone(), value));
-                }else{
-                    let result = app.panes.panes.split(pane_grid::Axis::Vertical, *grid_pane, value.clone());
-
-                    if let Some((pane, _)) = result {
-                        app.panes.focus = Some(pane);
-                    }
-
-                    app.panes.pick = None;
-                    
-                    if let Pane::Chat(x) = pane{
-                        app.panes.last_chat = *x;
-                    }
-                    app.panes.panes.close(*grid_pane);
-                }
+                Panes::new_window(app, *grid_pane, pane.clone());
                 Task::none()
             },
             Self::UnPick => {
@@ -197,14 +179,18 @@ impl PaneMessage{
             Self::Split(axis, og, pane) => {
                 let result = app.panes.panes.split(*axis, *og, pane.clone());
 
-                if let Some((_pane, _)) = result {
-                    app.panes.focus = Some(*og);
+                if let Some((p, _)) = result {
+                    app.panes.focus = Some(p);
+                    if let Pane::Call = pane{
+                        app.panes.call = Some(p);
+                    }
                 }
 
                 app.panes.pick = None;
                 if let Pane::Chat(x) = pane{
                     app.panes.last_chat = *x;
                 }
+
                 app.panes.created += 1;
                 Task::none()
             }
@@ -213,6 +199,45 @@ impl PaneMessage{
 }
 
 impl Panes{
+    pub fn new_window(app : &mut ChatApp, grid_pane : pane_grid::Pane, pane : Pane) {
+        let value = match pane {
+            Pane::Settings(_) => Pane::new_settings(app, app.logic.models.first().unwrap().clone()),
+            Pane::Chat(x) => {
+                let mut chat = Chats::get_from_id(app, x.clone()).clone();
+                let id = generate_id();
+                chat.id = id;
+                app.main_view.chats.push(chat);
+                Pane::Chat(id)
+            },
+            Pane::Models(_) => Pane::new_models(app),
+            Pane::Call => Pane::Call,
+            _ => Pane::NoModel,
+        };
+        if let Pane::Call = pane{
+            if let Some(call) = app.panes.call{
+                return;
+            }        
+        }
+        if app.save.use_panes{
+            app.panes.pick = Some((grid_pane.clone(), value));
+        }else{
+            let result = app.panes.panes.split(pane_grid::Axis::Vertical, grid_pane, value.clone());
+
+            if let Some((p, _)) = result {
+                app.panes.focus = Some(p);
+                if let Pane::Call = pane{
+                    app.panes.call = Some(p);
+                }
+            }
+
+            app.panes.pick = None;
+            
+            if let Pane::Chat(x) = pane{
+                app.panes.last_chat = x;
+            }
+            app.panes.panes.close(grid_pane);
+        }
+    }
     pub fn view<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{
         pane_grid(&self.panes, |pane, state, _is_maximized| {
             let pick = match &app.panes.pick{
@@ -232,6 +257,7 @@ impl Panes{
 
             pane_grid::Content::new(match state{
                 Pane::Settings(x) => add_to_window(app, pane, state.clone(), "Settings", pick, options_view(*x)),
+                Pane::Call => add_to_window(app, pane, state.clone(), "Call", pick, app.call.view(app)),
                 Pane::Chat(x) => {
                     let index = Chats::get_index(app, x.clone());
                     add_to_window(app, pane, state.clone(), "Chat", pick, app.main_view.chats[index.clone()].chat_view(app, x.clone()))

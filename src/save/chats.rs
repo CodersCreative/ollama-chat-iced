@@ -42,7 +42,7 @@ pub struct SavedChats ( pub Vec<Chat>, pub i32, pub SystemTime);
 pub struct Chats {
     pub markdown: Vec<Vec<markdown::Item>>,
     pub images: Vec<PathBuf>,
-    pub gen_chats : Arc<Vec<ChatMessage>>,
+    //pub gen_chats : Arc<Vec<ChatMessage>>,
     pub state : State,
     pub start : String,
     pub input : text_editor::Content,
@@ -70,8 +70,8 @@ pub enum ChatsMessage{
     NewChat,
     Listen,
     Convert(Option<SamplesBuffer<f32>>),
-    PickedImage(Result<Vec<PathBuf>, String>),
     Listened(Result<String, String>),
+    PickedImage(Result<Vec<PathBuf>, String>),
     PickImage,
     RemoveImage(PathBuf),
 }
@@ -240,7 +240,6 @@ impl Chats{
             input: text_editor::Content::new(),
             input_height: 50.0,
             images: Vec::new(),
-            gen_chats: Arc::new(Vec::new()),
         }
     }
 
@@ -366,11 +365,13 @@ impl Chats{
                 btn("close.svg").on_press(Message::StopGenerating(self.saved_id)).into()
             },
             false => {
+                let call = btn("call.svg").on_press(Message::Call(crate::call::CallMessage::StartCall(self.model.clone())));
                 let record = btn("record.svg").on_press(Message::Chats(ChatsMessage::Listen, self.id));
                 let send = btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, self.id));
 
                 row![
                     record,
+                    call,
                     send
                 ].into()
             }
