@@ -2,3 +2,4 @@
 /index/*
 *.json
 chat.json
+*.wav

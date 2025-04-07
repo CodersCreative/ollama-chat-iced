@@ -15,6 +15,19 @@ use std::{
     error::Error
 }; 
 
+use rodio::{Decoder, OutputStream, Sink};
+
+pub fn play_wav_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let (_stream, stream_handle) = OutputStream::try_default()?;
+    let sink = Sink::try_new(&stream_handle)?;
+    let file = BufReader::new(File::open(path)?);
+    let source = Decoder::new(file)?;
+    sink.append(source);
+    sink.sleep_until_end();
+
+    Ok(())
+}
+
 pub fn read_input() -> String {
     let mut input = String::new();
     std::io::stdin()
@@ -35,7 +48,6 @@ pub fn write_read_line(message: String) -> String{
     io::stdin().read_line(&mut input).unwrap();
     return input;
 }
-
 pub fn get_path_src(path : String) -> String{
     let mut new_path = env!("CARGO_MANIFEST_DIR").to_string();
     new_path.push_str(&format!("/src/{}", path));
@@ -65,6 +77,17 @@ pub fn get_path_dir(path : String) -> String{
     return new_path;
 }
 
+pub fn split_text_gtts(text: String) -> Vec<String> {
+    let max_characters = 100;
+
+    let splitter = TextSplitter::default().with_trim_chunks(true);
+
+    let chunks = splitter
+        .chunks(&text, max_characters)
+        .collect::<Vec<&str>>();
+
+    return chunks.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+}
 pub fn split_text(text: String) -> Vec<String> {
     let max_characters = PREVIEW_LEN.clone();
 

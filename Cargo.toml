@@ -1,6 +1,6 @@
 [package]
 name = "ochat"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 authors = ["Creative Coders <officialccoders@gmail.com>"]
 description = "A chatbot application that uses Ollama AIs."
@@ -36,3 +36,4 @@ thiserror = "2.0"
 natural-tts = { version = "0.2.0", features = ["gtts", "tts-rs"] }
 flate2 = "1.1.0"
 kalosm-sound = {version ="0.4.0"}
+rodio = "0.20.1"

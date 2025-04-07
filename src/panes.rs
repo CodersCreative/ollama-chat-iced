@@ -37,14 +37,22 @@ pub struct Panes{
 
 impl Panes {
     pub fn new(pane: Pane) -> Self{
+        let chat = if let Pane::Chat(x) = &pane{
+            x.clone()
+        }else{
+            0
+        };
         let (panes, _) = pane_grid::State::new(pane);
+        let (focus, _) = panes.panes.iter().last().unwrap();
+
+
         Self{
-            focus: None,
+            focus: Some(focus.clone()),
             panes,
             call: None,
             pick: None,
             created: 1,
-            last_chat: 0,
+            last_chat: chat,
         }
     }
 

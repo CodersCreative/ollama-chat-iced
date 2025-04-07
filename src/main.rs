@@ -26,7 +26,7 @@ use iced::{
 };
 
 use models::{Models, ModelsMessage, SavedModels};
-use natural_tts::{models::{gtts::GttsModel, tts_rs::TtsModel}, NaturalTts, NaturalTtsBuilder};
+use natural_tts::{models::{gtts::GttsModel, meta::MetaModel, msedge::MSEdgeModel, tts_rs::TtsModel}, NaturalTts, NaturalTtsBuilder};
 use options::{Options, OptionMessage, SavedOptions};
 use panes::Panes;
 use save::{chat::{Chat, Role}, chats::{ChatsMessage, SavedChats}};
@@ -106,7 +106,7 @@ impl ChatApp{
             logic: Logic::new(),
             model_info : SavedModels::init().unwrap(),
             options: SavedOptions::default(),
-            tts : NaturalTtsBuilder::default().default_model(natural_tts::Model::TTS).gtts_model(GttsModel::default()).tts_model(TtsModel::default()).build().unwrap(),
+            tts : NaturalTtsBuilder::default().default_model(natural_tts::Model::Gtts).gtts_model(GttsModel::default()).tts_model(TtsModel::default()).build().unwrap(),
             call : Call::new("".to_string()),
         }
     }

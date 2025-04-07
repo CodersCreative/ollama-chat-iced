@@ -1,9 +1,10 @@
 use iced::{ alignment::{Horizontal, Vertical}, event::listen, widget::{button, column, svg, text, Renderer}, Length, Task, Theme};
 use kalosm_sound::{rodio::buffer::SamplesBuffer, MicInput};
+use natural_tts::{models::NaturalModelTrait, NaturalTts};
 use ollama_rs::generation::chat::ChatMessage;
-use crate::{chat::run_ollama, panes::Panes, save::chat::Chat, sound::{get_audio, transcribe}, style, utils::get_path_assets, ChatApp, Message};
+use crate::{chat::run_ollama, panes::Panes, save::chat::Chat, sound::{get_audio, transcribe}, style, utils::{get_path_assets, get_path_src, play_wav_file, split_text_gtts}, ChatApp, Message};
 use iced::Element;
-use std::{path::PathBuf, sync::Arc};
+use std::{path::{Path, PathBuf}, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct Call {
@@ -142,13 +143,10 @@ impl CallMessage{
             },
             Self::Generated(x) => {
                 if let Ok(str) = x{
+
                     if app.call.state.clone() != State::Idle{
                         app.call.chats.push(Chat::new(&crate::save::chat::Role::AI, &str.content, Vec::new()));
-                        if let Err(_) = app.tts.say_auto(str.content.clone()){
-                            app.tts.default_model = Some(natural_tts::Model::TTS);
-                            let _ =app.tts.say_auto(str.content.clone()).unwrap();
-                        }
-                        println!("{}", str.content);
+                        return Task::perform(Self::say(str.content.clone(), app.tts.clone()), |_| Message::Call(CallMessage::Listen));
 
                     }else{
                         return Task::none();
@@ -165,6 +163,24 @@ impl CallMessage{
                 let _ = app.options.get_create_model_options_index(x.clone());
                 Task::none()
             },
+        }
+    }
+
+    async fn say(text : String, tts : NaturalTts) {
+        let mut tts = tts.clone();
+        let path = get_path_src(String::from("output.wav"));
+        let split_text = split_text_gtts(text.clone());
+
+        for txt in split_text{
+            let res = tts.save(txt, path.clone());
+            if let Err(e) = res{
+                println!("{:?}", e);
+                tts.default_model = Some(natural_tts::Model::TTS);
+                let _ = tts.say(text.clone()).unwrap();
+                break;
+            }else if let Ok(x) = res{
+                let _ = play_wav_file(Path::new(&path)).expect("Unable to play audio"); 
+            } 
         }
     }
 }
