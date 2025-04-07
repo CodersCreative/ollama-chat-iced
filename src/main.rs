@@ -70,6 +70,7 @@ pub enum Message{
     SaveToClipboard(String),
     RemoveChat(usize),
     URLClicked(markdown::Url),
+    ChangeUsePanels(bool),
     ShowSettings,
     SideBar,
     Pulling((usize, Result<DownloadProgress, String>)),
@@ -160,6 +161,11 @@ impl ChatApp{
         match message {
             Message::Option(x, i) => {
                 x.handle(Options::get_from_id(self, i).clone(), self)
+            },
+            Message::ChangeUsePanels(x) => {
+                self.save.use_panes = x;
+                self.save.save(SAVE_FILE);
+                Task::none()
             },
             Message::Models(x, i) => {
                 x.handle(Models::get_from_id(self, i).clone(), self)

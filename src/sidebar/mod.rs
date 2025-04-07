@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime};
 use crate::{save::chats::ChatsMessage, sidebar::chat::Chat, utils::get_path_assets};
 use iced::{
-    alignment::{Horizontal, Vertical},widget::{button, column, container, pick_list, row, scrollable, svg, text, vertical_space}, Element, Length, Padding, Renderer, Theme
+    alignment::{Horizontal, Vertical},widget::{button, checkbox, column, container, pick_list, row, scrollable, svg, text, vertical_space, Checkbox}, Element, Length, Padding, Renderer, Theme
 };
 use crate::{style, ChatApp, Message};
 use crate::view::View;
@@ -56,6 +56,7 @@ impl View{
             Self::txt("Downloads".to_string(), app.theme().palette().primary),
             self.get_downloads(app),
             vertical_space(),
+            checkbox("Use Panes", app.save.use_panes).on_toggle(Message::ChangeUsePanels),
         ]).width(Length::FillPortion(10))
         .style(style::container::side_bar).into()
     }
