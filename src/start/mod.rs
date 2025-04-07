@@ -41,14 +41,5 @@ pub const SECTIONS : [Section; 4] = [
             "Write code to parse a struct to json in Rust"
         ]
     },
-    //Section{
-    //    title : "Learn",
-    //    prompts : [
-    //        "What is a garbage collector",
-    //        "Best ways to learn to code",
-    //        "Explain lifetimes in Rust",
-    //        "Why is open-source better"
-    //    ]
-    //},
 ];
 

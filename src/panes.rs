@@ -149,10 +149,10 @@ impl PaneMessage{
                 let value = match pane {
                     Pane::Settings(_) => Pane::new_settings(app, app.logic.models.first().unwrap().clone()),
                     Pane::Chat(x) => {
-                        let mut chat = Chats::get_from_id_mut(app, x.clone());
+                        let mut chat = Chats::get_from_id(app, x.clone()).clone();
                         let id = generate_id();
                         chat.id = id;
-                        //app.main_view.chats.push(*chat);
+                        app.main_view.chats.push(chat);
                         Pane::Chat(id)
                     },
                     Pane::Models(_) => Pane::new_models(app),
@@ -221,11 +221,13 @@ impl Panes{
             Pane::Call => Pane::Call,
             _ => Pane::NoModel,
         };
+
         if let Pane::Call = pane{
-            if let Some(call) = app.panes.call{
+            if let Some(_) = app.panes.call{
                 return;
             }        
         }
+
         if app.save.use_panes{
             app.panes.pick = Some((grid_pane.clone(), value));
         }else{

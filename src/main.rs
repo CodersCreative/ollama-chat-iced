@@ -24,27 +24,21 @@ use download::{Download, DownloadProgress};
 use iced::{
     clipboard, widget::{combo_box, container, markdown, row, text_editor}, Element, Font, Subscription, Task, Theme
 };
-
 use models::{Models, ModelsMessage, SavedModels};
-use natural_tts::{models::{gtts::GttsModel, meta::MetaModel, msedge::MSEdgeModel, tts_rs::TtsModel}, NaturalTts, NaturalTtsBuilder};
+use natural_tts::{models::{gtts::GttsModel, tts_rs::TtsModel}, NaturalTts, NaturalTtsBuilder};
 use options::{Options, OptionMessage, SavedOptions};
 use panes::Panes;
 use save::{chat::{Chat, Role}, chats::{ChatsMessage, SavedChats}};
-use sound::transcribe;
 use update::Logic;
 use sidebar::SideBarState;
 use panes::PaneMessage;
-use crate::view::View;
+use view::View;
 
 pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
 const SAVE_FILE: &str = "chat.json";
 const PREVIEW_LEN: usize = 25;
 
 fn main() -> iced::Result{
-    //let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
-    //
-    //let resp = tokio_runtime.block_on(transcribe()).unwrap();
-    //println!("{}", resp);
     let font = Font{
         family: iced::font::Family::Name("Roboto"),
         style: iced::font::Style::Normal,
@@ -285,7 +279,6 @@ impl ChatApp{
         container(row![
             self.main_view.side_bar(self),
             self.panes.view(self),
-            //self.main_view.chat_view(self),
         ]).into()
     }
 

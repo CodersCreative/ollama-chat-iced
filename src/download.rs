@@ -1,7 +1,7 @@
 use iced::{alignment::{Horizontal, Vertical}, futures::{SinkExt, Stream, StreamExt}, stream::try_channel, widget::{button, column, container, progress_bar, text}, Element, Length, Subscription};
 use ollama_rs::Ollama;
 use tokio::sync::Mutex;
-use std::{sync::Arc,};
+use std::sync::Arc;
 use crate::{style, ChatApp, Message};
 
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl Download {
                 Ok(DownloadProgress::Finished) => {
                     self.state = State::Finished;
                 }
-                Err(e) => {
+                Err(_) => {
                     self.state = State::Errored;
                 }
             }
@@ -90,6 +90,7 @@ pub enum DownloadProgress {
     Downloading (f32, String),
     Finished,
 }
+
 pub fn pull(id : usize, model : String, ollama : Arc<Mutex<Ollama>>) -> iced::Subscription<(usize, Result<DownloadProgress, String>)>{
     Subscription::run_with_id(id, download_stream(model, ollama).map(move |progress| (id, progress)))
 }

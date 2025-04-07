@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime};
 use crate::{save::chats::ChatsMessage, sidebar::chat::Chat, utils::get_path_assets};
 use iced::{
-    alignment::{Horizontal, Vertical},widget::{button, column, container, pick_list, progress_bar, row, scrollable, svg, text, vertical_space}, Element, Length, Padding, Renderer, Theme
+    alignment::{Horizontal, Vertical},widget::{button, column, container, pick_list, row, scrollable, svg, text, vertical_space}, Element, Length, Padding, Renderer, Theme
 };
 use crate::{style, ChatApp, Message};
 use crate::view::View;
@@ -144,6 +144,7 @@ impl View{
         .align_x(Horizontal::Center)
         .into()
     }
+
     pub fn view_chats<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
         if app.main_view.side_chats.chats.len() >= 8{
             let view = |chats : Vec<&'a Chat>| -> Element<Message>{

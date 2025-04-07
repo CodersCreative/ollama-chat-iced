@@ -23,7 +23,7 @@ impl Chats{
     }
 
     pub fn view(&self, app : &ChatApp) -> Element<Message>{
-        let chats : Vec<Element<Message>> = self.chats.iter().enumerate().map(|(i, x)| x.view(app)).clone().collect();
+        let chats : Vec<Element<Message>> = self.chats.iter().map(|x| x.view(app)).clone().collect();
         return scrollable(column(chats).spacing(2)).into();
     }
 }

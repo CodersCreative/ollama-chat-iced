@@ -1,7 +1,4 @@
-use crate::{
-    save::chats::{Chats, ChatsMessage, SavedChats, State}, sidebar::chats::Chats as SideChats, SAVE_FILE
-};
-
+use crate::{save::chats::{ChatsMessage, SavedChats, State}, sidebar::chats::Chats as SideChats, SAVE_FILE};
 use iced::Task;
 use crate::{ChatApp, Message};
 
@@ -15,7 +12,6 @@ impl ChatsMessage{
 }
 
 impl ChatApp{
-
     pub fn remove_chat(&mut self, o_index : usize) -> Task<Message>{
         for c in &self.main_view.chats{
             if c.state != State::Idle{

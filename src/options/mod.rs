@@ -9,6 +9,7 @@ use serde_json;
 use std::{fs::File, io::Read};
 
 pub const SETTINGS_FILE: &str = "settings.json";
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Options (pub String, pub i32, pub Option<OptionKey>);
 
@@ -35,8 +36,6 @@ pub enum OptionMessage{
     ChangeModel(String),
     DeleteModel,
 }
-
-
 
 impl OptionMessage{
     pub fn handle<'a>(&'a self, options : Options, app : &'a mut ChatApp) -> Task<Message>{
@@ -249,8 +248,6 @@ pub enum OptionKey{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GenOption{
     pub name: String,
-    //pub doc : String,
-    //pub shown: bool,
     pub key: OptionKey,
     num_type: NumType,
     pub temp: String,
@@ -270,11 +267,9 @@ impl GenOption{
     fn new(name: &str, key : OptionKey, num_value : Option<(f32, f32)>, text_value : Option<(String, String)>) -> Self{
         Self{
             name: name.to_string(),
-            //doc: key.get_doc(),
             num_type: NumType::Whole,
             temp: num_value.unwrap().0.to_string(),
             key,
-            //shown: false,
             bool_value: false,
             num_value,
             text_value,

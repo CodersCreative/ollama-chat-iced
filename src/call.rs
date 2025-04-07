@@ -1,10 +1,10 @@
-use iced::{ alignment::{Horizontal, Vertical}, event::listen, widget::{button, column, svg, text, Renderer}, Length, Task, Theme};
+use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, svg, text, Renderer}, Length, Task, Theme};
 use kalosm_sound::{rodio::buffer::SamplesBuffer, MicInput};
 use natural_tts::{models::NaturalModelTrait, NaturalTts};
 use ollama_rs::generation::chat::ChatMessage;
 use crate::{chat::run_ollama, panes::Panes, save::chat::Chat, sound::{get_audio, transcribe}, style, utils::{get_path_assets, get_path_src, play_wav_file, split_text_gtts}, ChatApp, Message};
 use iced::Element;
-use std::{path::{Path, PathBuf}, sync::Arc};
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct Call {
@@ -146,6 +146,7 @@ impl CallMessage{
 
                     if app.call.state.clone() != State::Idle{
                         app.call.chats.push(Chat::new(&crate::save::chat::Role::AI, &str.content, Vec::new()));
+                        app.call.state = State::Outputting;
                         return Task::perform(Self::say(str.content.clone(), app.tts.clone()), |_| Message::Call(CallMessage::Listen));
 
                     }else{
@@ -178,7 +179,7 @@ impl CallMessage{
                 tts.default_model = Some(natural_tts::Model::TTS);
                 let _ = tts.say(text.clone()).unwrap();
                 break;
-            }else if let Ok(x) = res{
+            }else if let Ok(_) = res{
                 let _ = play_wav_file(Path::new(&path)).expect("Unable to play audio"); 
             } 
         }

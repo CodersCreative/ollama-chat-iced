@@ -1,6 +1,5 @@
 use std::str::FromStr;
 use std::{error::Error, fs::File, io::Read};
-use ollama_rs::models::pull::PullModelStatus;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tantivy::collector::TopDocs;
@@ -11,11 +10,8 @@ use tantivy::{doc, DocAddress,IndexWriter, Score, TantivyDocument};
 use url::Url;
 use std::collections::HashMap;
 use iced::{
-    alignment::{Horizontal, Vertical},widget::{button, column, combo_box, container, keyed_column, row, scrollable, text, text_input, Renderer}, Element, Length, Task, Theme
+    alignment::{Horizontal, Vertical},widget::{button, column, container, keyed_column, row, scrollable, text, text_input, Renderer}, Element, Length, Task, Theme
 };
-use std::sync::Arc;
-//use iced::task::{Straw, sipper};
-//use crate::download::{ DownloadProgress};
 use crate::utils::get_path_settings;
 use crate::{style, utils::generate_id, ChatApp, Message};
 
@@ -44,8 +40,6 @@ pub struct ModelInfo {
 #[derive(Debug, Clone)]
 pub enum ModelsMessage {
     Expand(String),
-    //Delete(String),
-    //Pulled(Result<PullModelStatus, String>),
     Search,
     Input(String)
 
@@ -63,13 +57,6 @@ impl ModelsMessage{
                 }
                 Task::none()
             },
-
-            //Self::Pulled(_) => {
-            //    let models = app.logic.get_models();
-            //    app.logic.models = models.clone();
-            //    app.logic.combo_models = combo_box::State::new(models.clone());
-            //    Task::none()
-            //},
             Self::Input(x) => {
                 let index = Models::get_index(app, models.0);
                 app.main_view.models[index].2 = x.clone();
@@ -120,7 +107,6 @@ impl ModelInfo{
                 button(text(&self.url).size(16)).style(style::button::chosen_chat).on_press(Message::URLClicked(Url::from_str(&self.url).unwrap())).into()
             );
             for tag in &self.tags{
-                //let name = format!("{}:{}", self.name, tag[0]);
                 widgets.push(button(
                     row![
                         text(tag[0].clone()).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(16),
@@ -128,7 +114,6 @@ impl ModelInfo{
                     ]
                 )
                 .style(style::button::not_chosen_chat)
-                //.on_press(Message::Models(ModelsMessage::Pull(), id))
                 .on_press(Message::Pull(format!("{}:{}", self.name, tag[0])))
                 .width(Length::Fill).padding(10).into());
             } 
@@ -346,6 +331,7 @@ impl Models{
         }
         0
     }
+
     pub fn view_models<'a>(&'a self, app : &'a ChatApp,) -> Element<'a, Message>{
         keyed_column(
             self.3
@@ -372,7 +358,6 @@ impl Models{
         let input = text_input::<Message, Theme, Renderer>("Enter your message", &self.2)
             .on_input(|x| Message::Models(ModelsMessage::Input(x), self.0))
             .on_submit(Message::Models(ModelsMessage::Search, self.0))
-            //.on_submit(Message::Chats(ChatsMessage::Submit, self.id))
             .size(16)
             .style(style::text_input::input)
             .width(Length::Fill);
@@ -387,22 +372,14 @@ impl Models{
     }
 }
 
-impl SavedModels{
-
-
-}
-
-
 fn extract_model_description(python_code: &str) -> Result<HashMap<String, String>, String> {
     let mut result = HashMap::new();
 
-    // Remove the "descriptions = " part and the curly braces
     let code_without_prefix = python_code
         .trim()
         .trim_start_matches("descriptions = {")
         .trim_end_matches("}");
 
-    // Split the string into key-value pairs
     let pairs: Vec<&str> = code_without_prefix.split(",\n").map(|s| s.trim()).collect();
 
     let key_regex = Regex::new(r"'([^']+)'").unwrap();
@@ -419,10 +396,8 @@ fn extract_model_description(python_code: &str) -> Result<HashMap<String, String
         if let (Some(key_caps), Some(value_caps)) = (key_capture, value_capture) {
             let key = key_caps.get(1).map_or("", |m| m.as_str()).trim().to_string();
             let value = value_caps.get(1).map_or("", |m| m.as_str()).trim().to_string();
-            //println!("{:?}", value);
             result.insert(key, value);
         } else {
-            //c
             return Err(format!("Failed to parse pair: {}", pair));
         }
     }

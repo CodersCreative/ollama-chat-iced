@@ -1,52 +1,28 @@
 use std::time::SystemTime;
-
-use iced::alignment::Horizontal;
-use iced::alignment::Vertical;
-use iced::padding;
-use iced::widget::text_editor;
-use iced::widget::{button, column, combo_box, container, horizontal_space, image, row, scrollable, text, markdown, keyed_column, text_input, svg};
-use iced::widget::scrollable::Direction;
-use iced::widget::scrollable::Scrollbar;
-use iced::Element;
-use iced::Length;
-use iced::Padding;
-use iced::Task;
-use iced::Theme;
-use iced::widget::Renderer;
-use kalosm_sound::rodio::buffer::SamplesBuffer;
-use kalosm_sound::MicInput;
+use iced::alignment::{Horizontal, Vertical};
+use iced::widget::{Renderer, text_editor, button, column, combo_box, container, horizontal_space, image, row, scrollable, text, markdown, keyed_column, svg, scrollable::{Direction, Scrollbar}};
+use iced::{Element, Length, Padding, Task, Theme};
+use kalosm_sound::{rodio::buffer::SamplesBuffer, MicInput};
 use serde::{Deserialize, Serialize};
-use crate::sound::get_audio;
-use crate::sound::transcribe;
-use crate::start;
-use crate::start::Section;
+use crate::sound::{get_audio, transcribe};
+use crate::start::{self, Section};
 use crate::style;
-use crate::utils::change_alpha;
-use crate::utils::generate_id;
-use crate::utils::get_path_assets;
-use crate::utils::lighten_colour;
-use crate::ChatApp;
-use crate::SAVE_FILE;
-use crate::{utils::get_preview, Message};
+use crate::utils::{change_alpha, generate_id, get_path_assets, lighten_colour, get_preview};
+use crate::{ChatApp, Message, SAVE_FILE};
 use std::{path::PathBuf, sync::Arc};
-
 use ollama_rs::generation::chat::ChatMessage;
 use super::chat::Chat;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SavedChats ( pub Vec<Chat>, pub i32, pub SystemTime);
 
-
-
 #[derive(Debug)]
 pub struct Chats {
     pub markdown: Vec<Vec<markdown::Item>>,
     pub images: Vec<PathBuf>,
-    //pub gen_chats : Arc<Vec<ChatMessage>>,
     pub state : State,
     pub start : String,
     pub input : text_editor::Content,
-    input_height: f32,
     pub saved_id : i32,
     pub model : String,
     pub id : i32,
@@ -238,7 +214,6 @@ impl Chats{
             start : "General".to_string(),
             state : State::Idle,
             input: text_editor::Content::new(),
-            input_height: 50.0,
             images: Vec::new(),
         }
     }
@@ -277,6 +252,7 @@ impl Chats{
         };
         self.view_with_index(app, index)
     }
+
     pub fn view_with_index<'a>(&'a self, app : &'a ChatApp, index : usize) -> Element<'a, Message>{
         keyed_column(
             app.save.chats[index].0
@@ -297,8 +273,6 @@ impl SavedChats{
     pub fn new() -> Self{
         Self(Vec::new(), generate_id(), SystemTime::now())
     }
-
-
 
     pub fn to_mk(&self) -> Vec<Vec<markdown::Item>>{
         return self.0.iter().map(|x| Chat::generate_mk(&x.message)).collect();
@@ -376,13 +350,6 @@ impl Chats{
                 ].into()
             }
         };
-
-        //let submit = button(
-        //    svg(svg::Handle::from_path(get_path_assets("send.svg".to_string()))).style(style::svg::primary).width(Length::Fixed(24.0)),
-        //)
-        //.style(style::button::chosen_chat)
-        //
-        //.width(Length::Fixed(48.0));
         
         let images = container(
             scrollable::Scrollable::new(row(self.images.iter().map(|x| {

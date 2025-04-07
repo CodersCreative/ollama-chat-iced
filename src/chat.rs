@@ -1,16 +1,12 @@
-use iced::{futures::{SinkExt, Stream, StreamExt, TryFutureExt}, stream::try_channel, Subscription, Task};
+use iced::{futures::{SinkExt, Stream, StreamExt}, stream::try_channel, Subscription};
 use ollama_rs::{
     generation::chat::{
         request::ChatMessageRequest, ChatMessage,
-    }, models::pull::PullModelStatus, Ollama
+    }, Ollama
 };
 use tokio::sync::Mutex;
-use std::{sync::Arc, time::Instant, error::Error};
-
-use crate::{options::ModelOptions, save::{chats::Chats, chat::Chat}, ChatApp, Message};
-
-
-
+use std::sync::Arc;
+use crate::{options::ModelOptions, ChatApp, Message};
 
 #[derive(Debug, Clone)]
 pub enum ChatProgress {
@@ -42,7 +38,6 @@ pub async fn run_ollama(chats: Vec<ChatMessage>, options : ModelOptions, ollama 
 }
 
 pub async fn delete_model(ollama : Arc<Mutex<Ollama>>, model : String){
-    let now = Instant::now();
     let o = ollama.lock().await;
     let _ = o.delete_model(model).await;
 }
@@ -109,7 +104,7 @@ impl ChatStream{
                 Ok(ChatProgress::Finished) => {
                     self.state = State::Finished;
                 }
-                Err(e) => {
+                Err(_) => {
                     self.state = State::Errored;
                 }
             }
