@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use iced::Task;
-use crate::{save::chats::ChatsMessage, ChatApp, Message};
+use crate::{common::Id, save::chats::ChatsMessage, ChatApp, Message};
 
 const IMAGE_FORMATS: &[&str] = &[
     "bmp", "dds", "ff", "gif", "hdr", "ico", "jpeg", "jpg", "exr", "png", "pnm", "qoi", "tga",
@@ -8,7 +8,7 @@ const IMAGE_FORMATS: &[&str] = &[
 ];
 
 impl ChatApp{
-    pub fn pick_images(id : i32) -> Task<Message>{
+    pub fn pick_images(id : Id) -> Task<Message>{
         Task::perform(Self::load_images(), move |x| Message::Chats(ChatsMessage::PickedImage(x), id))
     }
 

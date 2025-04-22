@@ -1,6 +1,6 @@
 pub mod save;
 pub mod utils;
-pub mod chat;
+pub mod llm;
 pub mod sidebar;
 pub mod view;
 pub mod helper;
@@ -13,19 +13,24 @@ pub mod models;
 pub mod download;
 pub mod sound;
 pub mod call;
+pub mod common;
+pub mod chats;
+// pub mod database;
 
 use crate::{
     save::Save,
     sidebar::chats::Chats as SideChats,
 };
 use call::{Call, CallMessage};
-use chat::ChatProgress;
+use llm::ChatProgress;
+use common::Id;
 use download::{Download, DownloadProgress};
 use iced::{
-    clipboard, widget::{combo_box, container, markdown, row, text_editor}, Element, Font, Subscription, Task, Theme
+    clipboard, event, widget::{combo_box, container, markdown, row, text_editor}, window, Element, Event, Font, Subscription, Task, Theme
 };
 use models::{Models, ModelsMessage, SavedModels};
 use natural_tts::{models::{gtts::GttsModel, tts_rs::TtsModel}, NaturalTts, NaturalTtsBuilder};
+use ollama_rs::generation::chat::ChatMessage;
 use options::{Options, OptionMessage, SavedOptions};
 use panes::Panes;
 use save::{chat::{Chat, Role}, chats::{ChatsMessage, SavedChats}};
@@ -37,6 +42,7 @@ use view::View;
 pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
 const SAVE_FILE: &str = "chat.json";
 const PREVIEW_LEN: usize = 25;
+const MIN_WIDTH : f32 = 300.0;
 
 fn main() -> iced::Result{
     let font = Font{
@@ -57,15 +63,16 @@ pub struct ChatApp{
     pub panes : Panes,
     pub tts : NaturalTts,
     pub call : Call,
+    pub potrait : bool,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message{
     Pane(PaneMessage),
     Call(CallMessage),
-    Models(ModelsMessage, i32),
-    Option(OptionMessage, i32),
-    Chats(ChatsMessage, i32),
+    Models(ModelsMessage, Id),
+    Option(OptionMessage, Id),
+    Chats(ChatsMessage, Id),
     ChangeTheme(Theme),
     SaveToClipboard(String),
     RemoveChat(usize),
@@ -74,10 +81,12 @@ pub enum Message{
     ShowSettings,
     SideBar,
     Pulling((usize, Result<DownloadProgress, String>)),
-    Generating((i32, Result<ChatProgress, String>)),
-    StopGenerating(i32),
+    Generating((Id, Result<ChatProgress, String>)),
+    Generated(Id, Result<ChatMessage, String>),
+    StopGenerating(Id),
     Pull(String),
     StopPull(usize),
+    EventOccurred(Event),
     None,
 }
 
@@ -96,13 +105,14 @@ impl ChatApp{
     fn new_with_save(save : Save) -> Self{
         Self{
             save,
-            panes: Panes::new(panes::Pane::Chat(0)),
+            panes: Panes::new(panes::Pane::Chat(Id::new())),
             main_view: View::new(),
             logic: Logic::new(),
             model_info : SavedModels::init().unwrap(),
             options: SavedOptions::default(),
             tts : NaturalTtsBuilder::default().default_model(natural_tts::Model::Gtts).gtts_model(GttsModel::default()).tts_model(TtsModel::default()).build().unwrap(),
             call : Call::new("".to_string()),
+            potrait : false,
         }
     }
 
@@ -122,7 +132,7 @@ impl ChatApp{
 
 
         if let Some(i) = app.save.theme{
-            app.main_view.theme = Theme::ALL[i].clone()
+            app.main_view.set_theme(Theme::ALL[i].clone());
         }
 
 
@@ -132,23 +142,23 @@ impl ChatApp{
             }else{
                 app.save.chats.iter_mut().for_each(|x| {
                     if let Some(y) = x.0.last(){
-                        if y.role != Role::AI{
+                        if y.get_role() != &Role::AI{
                             x.0.remove(x.0.len() - 1);
                         }
                     } 
                 });
             }
 
-            app.main_view.side_chats = SideChats::new(app.save.get_chat_previews());
+            app.main_view.set_side_chats(SideChats::new(app.save.get_chat_previews()));
             let saved = app.save.chats.last().unwrap();
-            let first = save::chats::Chats::new(models.first().unwrap().clone(), saved.1, saved.to_mk());
+            let first = chats::Chats::new(models.first().unwrap().clone(), saved.1, saved.to_mk());
 
-            app.panes = Panes::new(panes::Pane::Chat(first.id));
-            app.panes.last_chat = first.id;
-            app.main_view.chats.push(first);
+            app.panes = Panes::new(panes::Pane::Chat(first.get_id().clone()));
+            app.panes.last_chat = first.get_id().clone();
+            app.main_view.add_to_chats(first);
             app.options.get_create_model_options_index(models.first().unwrap().clone());
         }
-        app.logic.chat = app.save.get_current_chat_num();
+        // app.logic.chat = app.save.get_current_chat_num();
         
         (app, Task::none())
     }
@@ -188,36 +198,50 @@ impl ChatApp{
                 open::that_in_background(x.to_string()); 
                 Task::none()
             },
-            Message::StopPull(id) => {
-                for (i, x) in self.main_view.downloads.iter().enumerate(){
-                    if x.id == id{
-                        self.main_view.downloads.remove(i);
-                        break;
-                    }
+            Message::EventOccurred(event) => {
+                if let Event::Window(window::Event::CloseRequested) = event {
+                    window::get_latest().and_then(window::close)
+                } else if let Event::Window(window::Event::Resized(x)) = event{
+                    self.potrait = x.width < MIN_WIDTH;
+                    Task::none()
+                } else {
+                    Task::none()
                 }
+            },
+            Message::StopPull(id) => {
+                self.main_view.update_downloads(|downloads| {
+                    for (i, x) in downloads.iter().enumerate(){
+                        if x.id == id{
+                            downloads.remove(i);
+                            break;
+                        }
+                    }
+                });
                 Task::none()
             },
             Message::StopGenerating(id) => {
-                for (i, x) in self.main_view.chat_streams.iter().enumerate(){
-                    if x.id == id{
-                        self.main_view.chat_streams.remove(i);
-                        break;
+                self.main_view.update_chat_streams(|streams| {
+                    for (i, x) in streams.iter().enumerate(){
+                        if x.id == id{
+                            streams.remove(i);
+                            break;
+                        }
                     }
-                }
+                });
                 Task::none()
             },
             Message::ShowSettings => {
-                self.main_view.side = match self.main_view.side{
+                self.main_view.set_side_state(match self.main_view.get_side_state(){
                     SideBarState::Settings => SideBarState::Shown,
                     _ => SideBarState::Settings,
-                };
+                });
                 Task::none()
             },
             Message::SideBar => {
-                self.main_view.side = match self.main_view.side{
+                self.main_view.set_side_state(match self.main_view.get_side_state(){
                     SideBarState::Hidden => SideBarState::Shown,
                     _ => SideBarState::Hidden,
-                };
+                });
                 Task::none()
             },
             Message::RemoveChat(x) => {
@@ -226,15 +250,61 @@ impl ChatApp{
             Message::ChangeTheme(x) => {
                 self.change_theme(x.clone())
             },
-            Message::Pull(x) => {
-                self.main_view.downloads.push(Download::new(self.main_view.id, x.clone()));
-                self.main_view.id += 1;
+            Message::Generated(id, x) => {
+                if let Ok(x) = x{
+                    let mut mk = Chat::generate_mk(x.content.as_str());
+                    let mut first = true;
+                    if let Some(chat) = self.save.chats.iter_mut().find(|chat| chat.1 == id){
+                        let index = chat.0.len() - 1;
+                        if chat.0.last().unwrap().get_role() == &save::chat::Role::AI{
+                            chat.0[index].add_to_content(x.content.as_str());
+                            mk = Chat::generate_mk(&chat.0[index].get_content());
+                            first = false;
+                        }else{
+                            chat.0.push(Chat::new(&save::chat::Role::AI, &x.content, Vec::new(), x.tool_calls));
+                            first = true;
+                        }
+                    }
+                    
+                    self.main_view.update_chats(|chats| {
+                        chats.iter_mut().filter(|chat| chat.get_saved_chat() == &id).for_each(|chat|{
+                            if !first{
+                                chat.update_markdown(|x| {x.remove(x.len() - 1);});
+                                // chat.markdown.remove(chat.markdown.len() - 1);
+                            }
+                            chat.set_state(chats::State::Generating);
+                            chat.add_markdown(mk.clone());
+                        });
+                    });
+
+                    self.save.save(SAVE_FILE);
+                    self.main_view.set_side_chats(SideChats::new(self.save.get_chat_previews()));
+                    
+                    self.main_view.update_chats(|chats| {
+                        chats.iter_mut().filter(|chat| chat.get_saved_chat() == &id).for_each(|chat|{
+                            chat.set_content(text_editor::Content::new());
+                            chat.set_images(Vec::new());
+                            chat.set_state(chats::State::Idle);
+                        });
+                    });
+
+                }
+
                 Task::none()
             },
+            Message::Pull(x) => {
+                self.main_view.add_download(Download::new(self.main_view.get_id().clone(), x.clone()));
+                self.main_view.set_id(self.main_view.get_id() + 1);
+                Task::none()
+            },
+
             Message::Generating((id, progress)) => {
-                if let Some(chat) = self.main_view.chat_streams.iter_mut().find(|chat| chat.id == id){
-                    chat.progress(progress.clone());
-                }
+                self.main_view.update_chat_streams(|streams| {
+                    if let Some(chat) = streams.iter_mut().find(|chat| chat.id == id){
+                        chat.progress(progress.clone());
+                    }
+                });
+
 
                 if let Ok(ChatProgress::Generating(progress)) = progress{
                     let mut mk = Chat::generate_mk(progress.content.as_str());
@@ -242,46 +312,56 @@ impl ChatApp{
                     
                     if let Some(chat) = self.save.chats.iter_mut().find(|chat| chat.1 == id){
                         let index = chat.0.len() - 1;
-                        if chat.0.last().unwrap().role == save::chat::Role::AI{
-                            chat.0[index].message.push_str(progress.content.as_str());
-                            mk = Chat::generate_mk(&chat.0[index].message);
+                        if chat.0.last().unwrap().get_role() == &save::chat::Role::AI{
+                            chat.0[index].add_to_content(progress.content.as_str());
+                            mk = Chat::generate_mk(&chat.0[index].get_content());
                             first = false;
                         }else{
-                            chat.0.push(Chat::new(&save::chat::Role::AI, &progress.content, Vec::new()));
+                            chat.0.push(Chat::new(&save::chat::Role::AI, &progress.content, Vec::new(), progress.tool_calls));
                             first = true;
                         }
                     }
                     
-                    self.main_view.chats.iter_mut().filter(|chat| chat.saved_id == id).for_each(|chat|{
-                        if !first{
-                            chat.markdown.remove(chat.markdown.len() - 1);
-                        }
-                        chat.state = save::chats::State::Generating;
-                        chat.markdown.push(mk.clone());
+                    self.main_view.update_chats(|chats| {
+                        chats.iter_mut().filter(|chat| chat.get_saved_chat() == &id).for_each(|chat|{
+                            if !first{
+                                chat.update_markdown(|x| {x.remove(x.len() - 1);});
+                            }
+                            chat.set_state(chats::State::Generating);
+                            chat.add_markdown(mk.clone());
+                        });
                     });
+
                 }else if let Ok(ChatProgress::Finished) = progress {
                     self.save.save(SAVE_FILE);
-                    self.main_view.side_chats = SideChats::new(self.save.get_chat_previews());
-
-                    self.main_view.chats.iter_mut().filter(|chat| chat.saved_id == id).for_each(|chat|{
-                        chat.input = text_editor::Content::new();
-                        chat.images = Vec::new();
-                        chat.state = save::chats::State::Idle;
+                    self.main_view.set_side_chats(SideChats::new(self.save.get_chat_previews()));
+                    
+                    self.main_view.update_chats(|chats| {
+                        chats.iter_mut().filter(|chat| chat.get_saved_chat() == &id).for_each(|chat|{
+                            chat.set_content(text_editor::Content::new());
+                            chat.set_images(Vec::new());
+                            chat.set_state(chats::State::Idle);
+                        });
                     });
                 }
                 
                 Task::none()
             }
             Message::Pulling((id, progress)) => {
-                if let Some(download) = self.main_view.downloads.iter_mut().find(|download| download.id == id){
-                    download.progress(progress);
-                }
+                self.main_view.update_downloads(move |x| {
+                    if let Some(download) = x.iter_mut().find(|download| download.id == id){
+                        download.progress(progress.clone());
+                    }
+                });
                 Task::none()
             }
         }
     }
 
     fn view<'a>(&'a self) -> Element<'a, Message>{
+        if self.potrait && self.main_view.get_side_state() != &SideBarState::Hidden{
+            return self.main_view.side_bar(self);
+        }
         container(row![
             self.main_view.side_bar(self),
             self.panes.view(self),
@@ -289,12 +369,13 @@ impl ChatApp{
     }
 
     fn theme(&self) -> iced::Theme {
-        self.main_view.theme.clone()
+        self.main_view.get_theme().clone()
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let mut actions : Vec<Subscription<Message>>  = self.main_view.downloads.iter().map(|x| x.subscription(self)).collect();
-        self.main_view.chat_streams.iter().for_each(|x| actions.push(x.subscription(self)));
+        let mut actions : Vec<Subscription<Message>>  = self.main_view.get_downloads_list().iter().map(|x| x.subscription(self)).collect();
+        self.main_view.get_chat_streams().iter().for_each(|x| actions.push(x.subscription(self)));
+        actions.push(event::listen().map(Message::EventOccurred));
         Subscription::batch(actions)
     }
 }

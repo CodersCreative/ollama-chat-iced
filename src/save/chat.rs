@@ -1,16 +1,59 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::SystemTime};
+use derive_builder::Builder;
 use iced::{alignment::{Horizontal, Vertical}, widget::{svg, button, markdown, column, container, image, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Theme};
 use iced::{Element, Length};
-use ollama_rs::generation::chat::ChatMessage;
+use ollama_rs::generation::{chat::ChatMessage, tools::ToolCall};
 use serde::{Deserialize, Serialize};
-use crate::{style::{self}, utils::{convert_image, get_path_assets}, Message};
-use super::chats::{Chats, ChatsMessage};
+use crate::{chats::Chats, style::{self}, utils::{convert_image, get_path_assets}, Message};
+use super::chats::ChatsMessage;
 
-#[derive(Serialize, Deserialize, Debug,Clone, PartialEq, Default)]
+#[derive(Builder, Serialize, Deserialize, Debug, Clone)]
 pub struct Chat{
-    pub role: Role,
-    pub message: String,
-    pub images: Vec<PathBuf>,
+     #[builder(default = "Role::User")]   
+    role: Role,
+    content: String,
+     #[builder(default = "Vec::new()")]   
+    images: Vec<PathBuf>,
+     #[builder(default = "Vec::new()")]   
+    tools : Vec<ToolCall>,
+     #[builder(default = "SystemTime::now()")]   
+    timestamp : SystemTime,
+}
+
+impl Chat{
+    pub fn get_role(&self) -> &Role{
+        &self.role
+    }
+
+    pub fn update_content(&mut self, f : fn(&mut String)){
+        f(&mut self.content);
+    }
+
+    pub fn add_to_content(&mut self, text : &str){
+        self.content.push_str(text);
+    }
+
+    pub fn get_content(&self) -> &str{
+        &self.content
+    }
+
+    pub fn set_content(&mut self, content : String) {
+        self.content = content;
+    }
+
+    pub fn get_images(&self) -> &Vec<PathBuf> {
+        &self.images
+    }
+
+    pub fn get_tools(&self) -> &Vec<ToolCall> {
+        &self.tools
+    }
+}
+
+impl PartialEq for Chat{
+    fn eq(&self, other: &Self) -> bool {
+        self.role == other.role && self.content == other.content
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug,Clone, PartialEq, Default)]
@@ -20,11 +63,38 @@ pub enum Role {
     AI,
 }
 
+impl From<usize> for Role{
+    fn from(value: usize) -> Self {
+        match value {
+            0 => Self::User,
+            _ => Self::AI,
+        }
+    }
+}
+
+impl Into<usize> for Role{
+    fn into(self) -> usize {
+        match self {
+            Self::User => 0,
+            _ => 1,
+        }
+    }
+}
+
+impl std::fmt::Display for Role {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let output = match self {
+            Self::AI => "Ai",
+            Self::User => "User"
+        };
+        write!(f, "{}", output)
+    }
+}
 impl Into<ChatMessage> for &Chat{
     fn into(self) -> ChatMessage {
         let mut message = match self.role{
-            Role::User => ChatMessage::user(self.message.clone()),
-            Role::AI => ChatMessage::assistant(self.message.clone()),
+            Role::User => ChatMessage::user(self.get_content().to_string()),
+            Role::AI => ChatMessage::assistant(self.get_content().to_string()),
         };
 
         message.images = match self.images.len() > 0{
@@ -34,16 +104,20 @@ impl Into<ChatMessage> for &Chat{
             false => None
         };
 
+        message.tool_calls = self.tools.clone();
+
         message
     }
 }
 
 impl Chat{
-    pub fn new(role : &Role, messasge : &str, images : Vec<PathBuf>) -> Self{
+    pub fn new(role : &Role, messasge : &str, images : Vec<PathBuf>, tools : Vec<ToolCall>) -> Self{
         return Self{
             role: role.clone(),
-            message: messasge.to_string(),
+            content: messasge.to_string(),
             images,
+            tools,
+            timestamp: SystemTime::now(),
         }
     }
 
@@ -58,17 +132,16 @@ impl Chat{
         //markdown::view_with(markdown, theme, &style::markdown::CustomViewer).into()
     }
 
-    pub fn view<'a>(&'a self, chats : &Chats,markdown : &'a Vec<markdown::Item>, theme: &Theme) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, chats : &Chats, markdown : &'a Vec<markdown::Item>, theme: &Theme) -> Element<'a, Message> {
         let is_ai = self.role == Role::AI;
-        
         let style = match is_ai{
             true => style::container::chat_ai,
             false => style::container::chat,
         };
 
-        let copy = button(svg(svg::Handle::from_path(get_path_assets("copy.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::SaveToClipboard(self.message.clone()));
+        let copy = button(svg(svg::Handle::from_path(get_path_assets("copy.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::SaveToClipboard(self.get_content().to_string()));
 
-        let regenerate = button(svg(svg::Handle::from_path(get_path_assets("restart.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::Regenerate, chats.id));
+        let regenerate = button(svg(svg::Handle::from_path(get_path_assets("restart.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::Regenerate, chats.get_id().clone()));
         
         let name = container(
             row![

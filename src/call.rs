@@ -2,7 +2,7 @@ use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, svg, text
 use kalosm_sound::{rodio::buffer::SamplesBuffer, MicInput};
 use natural_tts::{models::NaturalModelTrait, NaturalTts};
 use ollama_rs::generation::chat::ChatMessage;
-use crate::{chat::run_ollama, panes::Panes, save::chat::Chat, sound::{get_audio, transcribe}, style, utils::{get_path_assets, get_path_src, play_wav_file, split_text_gtts}, ChatApp, Message};
+use crate::{llm::run_ollama, panes::Panes, save::chat::Chat, sound::{get_audio, transcribe}, style, utils::{get_path_assets, get_path_src, play_wav_file, split_text_gtts}, ChatApp, Message};
 use iced::Element;
 use std::path::Path;
 
@@ -133,7 +133,7 @@ impl CallMessage{
             Self::Listened(x) => {
                 if app.call.state != State::Idle{
                     if let Ok(str) = x{
-                        app.call.chats.push(Chat::new(&crate::save::chat::Role::User, str, Vec::new()));
+                        app.call.chats.push(Chat::new(&crate::save::chat::Role::User, str, Vec::new(), Vec::new()));
                     }
                     let index = app.options.get_create_model_options_index(app.call.model.clone());
 
@@ -145,7 +145,7 @@ impl CallMessage{
                 if let Ok(str) = x{
 
                     if app.call.state.clone() != State::Idle{
-                        app.call.chats.push(Chat::new(&crate::save::chat::Role::AI, &str.content, Vec::new()));
+                        app.call.chats.push(Chat::new(&crate::save::chat::Role::AI, &str.content, Vec::new(), Vec::new()));
                         app.call.state = State::Outputting;
                         return Task::perform(Self::say(str.content.clone(), app.tts.clone()), |_| Message::Call(CallMessage::Listen));
 

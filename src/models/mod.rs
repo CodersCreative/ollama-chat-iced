@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use iced::{
     alignment::{Horizontal, Vertical},widget::{button, column, container, keyed_column, row, scrollable, text, text_input, Renderer}, Element, Length, Task, Theme
 };
+use crate::common::Id;
 use crate::utils::get_path_settings;
 use crate::{style, utils::generate_id, ChatApp, Message};
 
@@ -49,22 +50,25 @@ impl ModelsMessage{
     pub fn handle(&self, models : Models, app : &mut ChatApp) -> Task<Message>{
         match self{
             Self::Expand(x) => {
-                let index = Models::get_index(app, models.0);
-                if models.1 != Some(x.clone()){
-                    app.main_view.models[index].1 = Some(x.clone());
-                }else{
-                    app.main_view.models[index].1 = None;
-                }
+                app.main_view.update_model(Models::get_index(app, models.0), |model| {
+                    if models.1 != Some(x.clone()){
+                        model.1 = Some(x.clone());
+                    }else{
+                        model.1 = None;
+                    }
+                });
                 Task::none()
             },
             Self::Input(x) => {
-                let index = Models::get_index(app, models.0);
-                app.main_view.models[index].2 = x.clone();
+                app.main_view.update_model(Models::get_index(app, models.0), |model| {
+                    model.2 = x.clone();
+                });
                 Task::none()
             }
             Self::Search => {
-                let index = Models::get_index(app, models.0);
-                app.main_view.models[index].3 = app.model_info.search(models.2).unwrap();
+                app.main_view.update_model(Models::get_index(app, models.0), |model| {
+                    model.3 = app.model_info.search(models.2.clone()).unwrap();
+                });
                 Task::none()
             }
         }
@@ -72,7 +76,7 @@ impl ModelsMessage{
 }
 
 impl ModelInfo{
-    fn view<'a>(&'a self, app : &'a ChatApp, id : i32, expand : bool) -> Element<'a, Message>{
+    fn view<'a>(&'a self, app : &'a ChatApp, id : Id, expand : bool) -> Element<'a, Message>{
         let mut widgets : Vec<Element<Message>> = Vec::new();
 
         widgets.push(
@@ -307,25 +311,25 @@ impl SavedModels{
 }
 
 #[derive(Debug, Clone)]
-pub struct Models(pub i32, pub Option<String>, pub String, pub Vec<ModelInfo>);
+pub struct Models(pub Id, pub Option<String>, pub String, pub Vec<ModelInfo>);
 
 impl Models{
     pub fn new(app: &ChatApp) -> Self{
         Self(
-            generate_id(),
+            Id::new(),
             None,
             String::new(),
             app.model_info.models.clone()
         )
     }
 
-    pub fn get_from_id<'a>(app: &'a ChatApp, id : i32) -> &'a Self{
-        app.main_view.models.iter().find(|x| x.0 == id).unwrap()
+    pub fn get_from_id<'a>(app: &'a ChatApp, id : Id) -> &'a Self{
+        app.main_view.get_models().iter().find(|x| x.0 == id).unwrap()
     }
 
-    pub fn get_index<'a>(app : &'a ChatApp, id : i32) -> usize{
-        for i in 0..app.main_view.models.len(){
-            if app.main_view.models[i].0 == id{
+    pub fn get_index<'a>(app : &'a ChatApp, id : Id) -> usize{
+        for i in 0..app.main_view.get_models().len(){
+            if app.main_view.get_models()[i].0 == id{
                 return i
             }
         }

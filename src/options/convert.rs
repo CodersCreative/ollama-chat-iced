@@ -1,5 +1,7 @@
+use ollama_rs::models::ModelOptions as GenerationOptions;
+
 use super::*;
-use ollama_rs::generation::options::GenerationOptions;
+// use ollama_rs::generation::options::GenerationOptions;
 
 impl ModelOptions {
     pub fn get_key_index(&self, key : OptionKey) -> usize{
@@ -42,7 +44,7 @@ impl Into<GenerationOptions> for ModelOptions{
 
         let x = self.get_key(OptionKey::CtxWindow);
         if x.bool_value{
-            options = options.num_ctx(x.num_value.unwrap().0 as u32);
+            options = options.num_ctx(x.num_value.unwrap().0 as u64);
         }
 
         let x = self.get_key(OptionKey::NumGQA);

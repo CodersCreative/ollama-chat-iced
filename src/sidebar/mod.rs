@@ -9,6 +9,7 @@ use crate::view::View;
 pub mod chats;
 pub mod chat;
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SideBarState {
     Hidden,
     Shown,
@@ -17,7 +18,7 @@ pub enum SideBarState {
 
 impl View{
     pub fn side_bar<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
-        match app.main_view.side{
+        match app.main_view.get_side_state(){
             SideBarState::Shown => self.full_side_bar(app),
             SideBarState::Hidden => self.hidden_side_bar(app),
             SideBarState::Settings => self.settings_side_bar(app)
@@ -43,6 +44,14 @@ impl View{
         .style(style::container::side_bar).into()
     }
 
+    fn get_length(potrait : bool) -> Length{
+        if potrait{
+            Length::Fill
+        }else{
+            Length::Fixed(300.0)
+        }
+    }
+
     pub fn settings_side_bar<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
         container(column![
             self.header("Settings".to_string()),
@@ -57,17 +66,17 @@ impl View{
             self.get_downloads(app),
             vertical_space(),
             checkbox("Use Panes", app.save.use_panes).on_toggle(Message::ChangeUsePanels),
-        ]).width(Length::FillPortion(10))
+        ]).width(Self::get_length(app.potrait))
         .style(style::container::side_bar).into()
     }
 
     fn get_downloads<'a>(&'a self, app : &'a ChatApp) -> Element<'a, Message>{
-        if app.main_view.downloads.is_empty(){
+        if app.main_view.get_downloads_list().is_empty(){
             return Self::txt("None".to_string(), self.theme().palette().text);
         }
 
 
-        column(app.main_view.downloads.iter().map(|x| x.view(app))).into()
+        column(app.main_view.get_downloads_list().iter().map(|x| x.view(app))).into()
     }
 
     fn hide_button<'a>(title: &'a str) -> button::Button<'a, Message, Theme, Renderer>{
@@ -132,7 +141,7 @@ impl View{
             new_button,
             self.view_chats(app),
             vertical_space(),
-        ]).width(Length::FillPortion(10))
+        ]).width(Self::get_length(app.potrait))
         .style(style::container::side_bar).into()
     }
 
@@ -147,7 +156,7 @@ impl View{
     }
 
     pub fn view_chats<'a>(&'a self, app : &'a ChatApp) -> Element<Message>{
-        if app.main_view.side_chats.chats.len() >= 8{
+        if app.main_view.get_side_chats().chats.len() >= 8{
             let view = |chats : Vec<&'a Chat>| -> Element<Message>{
                 let chats : Vec<Element<Message>> = chats.iter().map(|x| x.view(app)).clone().collect();
                 return scrollable(column(chats).spacing(2)).into();
@@ -155,14 +164,14 @@ impl View{
 
             return column![
                 Self::txt("This Month".to_string(), self.theme().palette().primary),
-                view((&app.main_view.side_chats.chats).iter().filter(|x| x.time.duration_since(SystemTime::now()).unwrap_or(Duration::new(0, 0)).as_secs() < 2629746).collect::<Vec<&Chat>>()),
+                view((&app.main_view.get_side_chats().chats).iter().filter(|x| x.get_time().duration_since(SystemTime::now()).unwrap_or(Duration::new(0, 0)).as_secs() < 2629746).collect::<Vec<&Chat>>()),
                 Self::txt("Old".to_string(), self.theme().palette().primary),
-                view((&app.main_view.side_chats.chats).iter().filter(|x| x.time.duration_since(SystemTime::now()).unwrap_or(Duration::new(0, 0)).as_secs() > 2629746).collect::<Vec<&Chat>>()),
+                view((&app.main_view.get_side_chats().chats).iter().filter(|x| x.get_time().duration_since(SystemTime::now()).unwrap_or(Duration::new(0, 0)).as_secs() > 2629746).collect::<Vec<&Chat>>()),
             ].into()
         }else{
             return column![
                 Self::txt("All".to_string(), self.theme().palette().primary),
-                container(app.main_view.side_chats.view(app)),
+                container(app.main_view.get_side_chats().view(app)),
             ].into()
         }
     }

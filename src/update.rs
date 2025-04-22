@@ -2,12 +2,12 @@ use iced::widget::combo_box;
 use ollama_rs::Ollama;
 use tokio::sync::Mutex as TMutex;
 use std::sync::Arc;
-use crate::chat::get_model;
+use crate::llm::get_model;
 
 pub struct Logic{
     pub combo_models: combo_box::State<String>,
     pub models : Vec<String>,
-    pub chat: Option<usize>,
+    // pub chat: Option<usize>,
     pub ollama: Arc<TMutex<Ollama>>,
 }
 
@@ -16,7 +16,7 @@ impl Logic{
         let mut val = Self{
             combo_models: combo_box::State::new(Vec::new()),
             models : Vec::new(),
-            chat: None,
+            // chat: None,
             ollama: Arc::new(TMutex::new(get_model())),
         };
 

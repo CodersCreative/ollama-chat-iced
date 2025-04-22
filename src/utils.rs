@@ -136,9 +136,9 @@ pub fn get_preview(chat: &SavedChats) -> (String, SystemTime){
     if !chat.0.is_empty(){
         if chat.0.len() > 1{
             let i = chat.0.len() - 2;
-            let prev = split_text(chat.0[i].message.clone().to_string());
+            let prev = split_text(chat.0[i].get_content().to_string());
             if prev.len() > 0{ 
-                return (prev[0].clone(), chat.2);
+                return (prev[0].clone(), chat.3);
             }
         }
     }
