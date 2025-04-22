@@ -142,7 +142,7 @@ impl ChatApp{
             }else{
                 app.save.chats.iter_mut().for_each(|x| {
                     if let Some(y) = x.0.last(){
-                        if y.get_role() != &Role::AI{
+                        if y.role() != &Role::AI{
                             x.0.remove(x.0.len() - 1);
                         }
                     } 
@@ -153,8 +153,8 @@ impl ChatApp{
             let saved = app.save.chats.last().unwrap();
             let first = chats::Chats::new(models.first().unwrap().clone(), saved.1, saved.to_mk());
 
-            app.panes = Panes::new(panes::Pane::Chat(first.get_id().clone()));
-            app.panes.last_chat = first.get_id().clone();
+            app.panes = Panes::new(panes::Pane::Chat(first.id().clone()));
+            app.panes.last_chat = first.id().clone();
             app.main_view.add_to_chats(first);
             app.options.get_create_model_options_index(models.first().unwrap().clone());
         }
@@ -231,14 +231,14 @@ impl ChatApp{
                 Task::none()
             },
             Message::ShowSettings => {
-                self.main_view.set_side_state(match self.main_view.get_side_state(){
+                self.main_view.set_side_state(match self.main_view.side_state(){
                     SideBarState::Settings => SideBarState::Shown,
                     _ => SideBarState::Settings,
                 });
                 Task::none()
             },
             Message::SideBar => {
-                self.main_view.set_side_state(match self.main_view.get_side_state(){
+                self.main_view.set_side_state(match self.main_view.side_state(){
                     SideBarState::Hidden => SideBarState::Shown,
                     _ => SideBarState::Hidden,
                 });
@@ -256,9 +256,9 @@ impl ChatApp{
                     let mut first = true;
                     if let Some(chat) = self.save.chats.iter_mut().find(|chat| chat.1 == id){
                         let index = chat.0.len() - 1;
-                        if chat.0.last().unwrap().get_role() == &save::chat::Role::AI{
+                        if chat.0.last().unwrap().role() == &save::chat::Role::AI{
                             chat.0[index].add_to_content(x.content.as_str());
-                            mk = Chat::generate_mk(&chat.0[index].get_content());
+                            mk = Chat::generate_mk(&chat.0[index].content());
                             first = false;
                         }else{
                             chat.0.push(Chat::new(&save::chat::Role::AI, &x.content, Vec::new(), x.tool_calls));
@@ -267,7 +267,7 @@ impl ChatApp{
                     }
                     
                     self.main_view.update_chats(|chats| {
-                        chats.iter_mut().filter(|chat| chat.get_saved_chat() == &id).for_each(|chat|{
+                        chats.iter_mut().filter(|chat| chat.saved_chat() == &id).for_each(|chat|{
                             if !first{
                                 chat.update_markdown(|x| {x.remove(x.len() - 1);});
                                 // chat.markdown.remove(chat.markdown.len() - 1);
@@ -281,7 +281,7 @@ impl ChatApp{
                     self.main_view.set_side_chats(SideChats::new(self.save.get_chat_previews()));
                     
                     self.main_view.update_chats(|chats| {
-                        chats.iter_mut().filter(|chat| chat.get_saved_chat() == &id).for_each(|chat|{
+                        chats.iter_mut().filter(|chat| chat.saved_chat() == &id).for_each(|chat|{
                             chat.set_content(text_editor::Content::new());
                             chat.set_images(Vec::new());
                             chat.set_state(chats::State::Idle);
@@ -293,8 +293,8 @@ impl ChatApp{
                 Task::none()
             },
             Message::Pull(x) => {
-                self.main_view.add_download(Download::new(self.main_view.get_id().clone(), x.clone()));
-                self.main_view.set_id(self.main_view.get_id() + 1);
+                self.main_view.add_download(Download::new(self.main_view.id().clone(), x.clone()));
+                self.main_view.set_id(self.main_view.id() + 1);
                 Task::none()
             },
 
@@ -312,9 +312,9 @@ impl ChatApp{
                     
                     if let Some(chat) = self.save.chats.iter_mut().find(|chat| chat.1 == id){
                         let index = chat.0.len() - 1;
-                        if chat.0.last().unwrap().get_role() == &save::chat::Role::AI{
+                        if chat.0.last().unwrap().role() == &save::chat::Role::AI{
                             chat.0[index].add_to_content(progress.content.as_str());
-                            mk = Chat::generate_mk(&chat.0[index].get_content());
+                            mk = Chat::generate_mk(&chat.0[index].content());
                             first = false;
                         }else{
                             chat.0.push(Chat::new(&save::chat::Role::AI, &progress.content, Vec::new(), progress.tool_calls));
@@ -323,7 +323,7 @@ impl ChatApp{
                     }
                     
                     self.main_view.update_chats(|chats| {
-                        chats.iter_mut().filter(|chat| chat.get_saved_chat() == &id).for_each(|chat|{
+                        chats.iter_mut().filter(|chat| chat.saved_chat() == &id).for_each(|chat|{
                             if !first{
                                 chat.update_markdown(|x| {x.remove(x.len() - 1);});
                             }
@@ -337,7 +337,7 @@ impl ChatApp{
                     self.main_view.set_side_chats(SideChats::new(self.save.get_chat_previews()));
                     
                     self.main_view.update_chats(|chats| {
-                        chats.iter_mut().filter(|chat| chat.get_saved_chat() == &id).for_each(|chat|{
+                        chats.iter_mut().filter(|chat| chat.saved_chat() == &id).for_each(|chat|{
                             chat.set_content(text_editor::Content::new());
                             chat.set_images(Vec::new());
                             chat.set_state(chats::State::Idle);
@@ -359,7 +359,7 @@ impl ChatApp{
     }
 
     fn view<'a>(&'a self) -> Element<'a, Message>{
-        if self.potrait && self.main_view.get_side_state() != &SideBarState::Hidden{
+        if self.potrait && self.main_view.side_state() != &SideBarState::Hidden{
             return self.main_view.side_bar(self);
         }
         container(row![
@@ -369,12 +369,12 @@ impl ChatApp{
     }
 
     fn theme(&self) -> iced::Theme {
-        self.main_view.get_theme().clone()
+        self.main_view.theme().clone()
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let mut actions : Vec<Subscription<Message>>  = self.main_view.get_downloads_list().iter().map(|x| x.subscription(self)).collect();
-        self.main_view.get_chat_streams().iter().for_each(|x| actions.push(x.subscription(self)));
+        let mut actions : Vec<Subscription<Message>>  = self.main_view.downloads().iter().map(|x| x.subscription(self)).collect();
+        self.main_view.chat_streams().iter().for_each(|x| actions.push(x.subscription(self)));
         actions.push(event::listen().map(Message::EventOccurred));
         Subscription::batch(actions)
     }

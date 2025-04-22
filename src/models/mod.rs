@@ -324,12 +324,12 @@ impl Models{
     }
 
     pub fn get_from_id<'a>(app: &'a ChatApp, id : Id) -> &'a Self{
-        app.main_view.get_models().iter().find(|x| x.0 == id).unwrap()
+        app.main_view.models().iter().find(|x| x.0 == id).unwrap()
     }
 
     pub fn get_index<'a>(app : &'a ChatApp, id : Id) -> usize{
-        for i in 0..app.main_view.get_models().len(){
-            if app.main_view.get_models()[i].0 == id{
+        for i in 0..app.main_view.models().len(){
+            if app.main_view.models()[i].0 == id{
                 return i
             }
         }

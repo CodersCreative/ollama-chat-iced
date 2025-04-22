@@ -1,4 +1,5 @@
 use std::time::SystemTime;
+use getset::{Getters, Setters};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Renderer, text_editor, button, column, combo_box, container, horizontal_space, image, row, scrollable, text, markdown, keyed_column, svg, scrollable::{Direction, Scrollbar}};
 use iced::{Element, Length, Padding, Task, Theme};
@@ -17,17 +18,27 @@ use std::{path::PathBuf, sync::Arc};
 use ollama_rs::generation::chat::ChatMessage;
 // use super::chat::Chat;
 
-#[derive(Debug)]
+#[derive(Debug, Getters, Setters)]
 pub struct Chats {
+    #[getset(get = "pub", set = "pub")]
     markdown: Vec<Vec<markdown::Item>>,
+    #[getset(get = "pub", set = "pub")]
     images: Vec<PathBuf>,
+    #[getset(get = "pub", set = "pub")]
     state : State,
+    #[getset(get = "pub", set = "pub")]
     start : String,
+    #[getset(get = "pub", set = "pub")]
     content : text_editor::Content,
-    saved_id : Id,
+    #[getset(get = "pub", set = "pub")]
+    saved_chat : Id,
+    #[getset(get = "pub", set = "pub")]
     model : String,
+    #[getset(get = "pub", set = "pub")]
     desc : Option<String>,
+    #[getset(get = "pub", set = "pub")]
     tools : Arc<TooledOptions>,
+    #[getset(get = "pub", set = "pub")]
     id : Id,
 }
 
@@ -40,7 +51,7 @@ pub enum State{
 
 impl Clone for Chats{
     fn clone(&self) -> Self {
-        Self::new(self.model.clone(), self.saved_id, self.markdown.clone())
+        Self::new(self.model.clone(), self.saved_chat().clone(), self.markdown.clone())
     }
 
     fn clone_from(&mut self, source: &Self) {
@@ -49,10 +60,6 @@ impl Clone for Chats{
 }
 
 impl Chats{
-    pub fn set_markdown(&mut self, markdown : Vec<Vec<markdown::Item>>){
-        self.markdown = markdown;
-    }
-
     pub fn content_perform(&mut self, action : text_editor::Action) {
         self.content.perform(action);
     }
@@ -61,70 +68,16 @@ impl Chats{
         self.markdown.push(markdown);
     }
 
-    pub fn get_markdown(&self) -> &Vec<Vec<markdown::Item>> {
-        &self.markdown
-    }
-
     pub fn update_markdown<F>(&mut self, mut f : F) where F : FnMut(&mut Vec<Vec<markdown::Item>>){
         f(&mut self.markdown);
-    }
-
-    pub fn update<F>(&mut self, mut f : F) where F : FnMut(&mut Self){
-        f(self);
-    }
-
-    pub fn get_id(&self) -> &Id {
-        &self.id
-    }
-
-    pub fn set_id(&mut self, id :Id) {
-        self.id = id;
-    }
-    pub fn set_saved_chat(&mut self, id :Id) {
-        self.saved_id = id;
-    }
-
-    pub fn get_saved_chat(&self) -> &Id {
-        &self.saved_id
-    }
-
-    pub fn set_tools(&mut self, tools: Arc<TooledOptions>) {
-        self.tools = tools;
-    }
-
-    pub fn get_tools(&self) -> Arc<TooledOptions>{
-        self.tools.clone()
     }
 
     pub fn set_content_text(&mut self, content : &str) {
         self.content = text_editor::Content::with_text(content);
     }
 
-    pub fn set_content(&mut self, content : text_editor::Content) {
-        self.content = content
-    }
-
-    pub fn get_content(&self) -> &text_editor::Content{
-        &self.content
-    }
-
     pub fn get_content_text(&self) -> String{
         self.content.text()
-    }
-
-    pub fn get_start(&self) -> &str {
-        &self.start
-    }
-
-    pub fn set_model(&mut self, model : String) {
-        self.model = model;
-    }
-    pub fn set_start(&mut self, start : String) {
-        self.start = start;
-    }
-
-    pub fn get_model(&self) -> &str {
-        &self.model
     }
 
     pub fn add_image(&mut self, image : PathBuf){
@@ -134,37 +87,22 @@ impl Chats{
     pub fn update_images<F>(&mut self, mut f : F) where F : FnMut(&mut Vec<PathBuf>){         
         f(&mut self.images);
     }
-    
-    pub fn get_images(&self) -> &Vec<PathBuf>{
-        &self.images
-    }
 
     pub fn get_images_mut(&mut self) -> &mut Vec<PathBuf>{
         &mut self.images
     }
 
-    pub fn set_images(&mut self, images : Vec<PathBuf>) {
-        self.images = images;
-    }
-
     pub fn add_images(&mut self, images : &mut Vec<PathBuf>) {
         self.images.append(images);
-    }
-    pub fn get_state(&self) -> &State {
-        &self.state
-    } 
-
-    pub fn set_state(&mut self, state : State){
-        self.state = state;
     }
 }
 
 impl Chats{
-    pub fn new(model : String, saved_id : Id, markdown : Vec<Vec<markdown::Item>>) -> Self{
+    pub fn new(model : String, saved_chat : Id, markdown : Vec<Vec<markdown::Item>>) -> Self{
         Self{
             id: Id::new(),
             model,
-            saved_id,
+            saved_chat,
             markdown,
             start : "General".to_string(),
             state : State::Idle,
@@ -176,7 +114,7 @@ impl Chats{
     }
 
     pub fn get_from_id<'a>(app: &'a ChatApp, id : Id) -> &'a Self{
-        app.main_view.get_chats().iter().find(|x| x.id == id).unwrap()
+        app.main_view.chats().iter().find(|x| x.id == id).unwrap()
     }
 
 
@@ -185,8 +123,8 @@ impl Chats{
     }
 
     pub fn get_index<'a>(app : &'a ChatApp, id : Id) -> usize{
-        for i in 0..app.main_view.get_chats().len(){
-            if app.main_view.get_chats()[i].id == id{
+        for i in 0..app.main_view.chats().len(){
+            if app.main_view.chats()[i].id == id{
                 return i
             }
         }
@@ -195,7 +133,7 @@ impl Chats{
 
     pub fn get_saved_index(&self, app : &ChatApp) -> Option<usize>{
         for i in 0..app.save.chats.len() {
-            if self.saved_id == app.save.chats[i].1{
+            if self.saved_chat() == &app.save.chats[i].1{
                 return Some(i);
             }
         }
@@ -229,7 +167,7 @@ impl Chats{
     pub fn chat_view<'a>(&'a self, app : &'a ChatApp, id : Id) -> Element<'a, Message>{
         let input : Element<Message> = match self.state {
             State::Idle => {
-                text_editor(self.get_content())
+                text_editor(self.content())
                 .placeholder("Type your message here...")
                 .on_action(|action| Message::Chats(ChatsMessage::Action(action), self.id))
                 .padding(Padding::from(20))
@@ -268,7 +206,7 @@ impl Chats{
         
         let submit : Element<Message> = match self.state == State::Generating{
             true => {
-                btn("close.svg").on_press(Message::StopGenerating(self.saved_id)).into()
+                btn("close.svg").on_press(Message::StopGenerating(self.saved_chat().clone())).into()
             },
             false => {
                 let call = btn("call.svg").on_press(Message::Call(crate::call::CallMessage::StartCall(self.model.clone())));
@@ -302,7 +240,7 @@ impl Chats{
             container(
                 combo_box(
                     &app.logic.combo_models, 
-                    self.get_model(), 
+                    self.model(), 
                     None,
                     move |x| Message::Chats(ChatsMessage::ChangeModel(x), id)
                 )

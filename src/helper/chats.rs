@@ -13,8 +13,8 @@ impl ChatsMessage{
 
 impl ChatApp{
     pub fn remove_chat(&mut self, o_index : usize) -> Task<Message>{
-        for c in self.main_view.get_chats(){
-            if c.get_state() != &State::Idle{
+        for c in self.main_view.chats(){
+            if c.state() != &State::Idle{
                 return Task::none();
             }
         }
@@ -23,7 +23,7 @@ impl ChatApp{
         self.save.chats.remove(o_index);
         
         for c in self.main_view.get_chats_mut(){
-            if c.get_saved_chat() == &id{
+            if c.saved_chat() == &id{
                 c.set_saved_chat(self.save.chats.last().unwrap().1.clone());
                 c.set_markdown(Vec::new());
             }

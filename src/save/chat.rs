@@ -1,5 +1,6 @@
 use std::{path::PathBuf, time::SystemTime};
 use derive_builder::Builder;
+use getset::{Getters, Setters};
 use iced::{alignment::{Horizontal, Vertical}, widget::{svg, button, markdown, column, container, image, row, scrollable::{self, Direction, Scrollbar}, text}, Padding, Theme};
 use iced::{Element, Length};
 use ollama_rs::generation::{chat::ChatMessage, tools::ToolCall};
@@ -7,46 +8,35 @@ use serde::{Deserialize, Serialize};
 use crate::{chats::Chats, style::{self}, utils::{convert_image, get_path_assets}, Message};
 use super::chats::ChatsMessage;
 
-#[derive(Builder, Serialize, Deserialize, Debug, Clone)]
+#[derive(Builder, Serialize, Deserialize, Debug, Clone, Getters, Setters)]
 pub struct Chat{
+    #[getset(get = "pub", set = "pub")]
      #[builder(default = "Role::User")]   
     role: Role,
+    
+    #[getset(get = "pub", set = "pub")]
     content: String,
+    
+    #[getset(get = "pub", set = "pub")]
      #[builder(default = "Vec::new()")]   
     images: Vec<PathBuf>,
+    
+    #[getset(get = "pub", set = "pub")]
      #[builder(default = "Vec::new()")]   
     tools : Vec<ToolCall>,
+    
+    #[getset(get = "pub", set = "pub")]
      #[builder(default = "SystemTime::now()")]   
     timestamp : SystemTime,
 }
 
 impl Chat{
-    pub fn get_role(&self) -> &Role{
-        &self.role
-    }
-
     pub fn update_content(&mut self, f : fn(&mut String)){
         f(&mut self.content);
     }
 
     pub fn add_to_content(&mut self, text : &str){
         self.content.push_str(text);
-    }
-
-    pub fn get_content(&self) -> &str{
-        &self.content
-    }
-
-    pub fn set_content(&mut self, content : String) {
-        self.content = content;
-    }
-
-    pub fn get_images(&self) -> &Vec<PathBuf> {
-        &self.images
-    }
-
-    pub fn get_tools(&self) -> &Vec<ToolCall> {
-        &self.tools
     }
 }
 
@@ -93,8 +83,8 @@ impl std::fmt::Display for Role {
 impl Into<ChatMessage> for &Chat{
     fn into(self) -> ChatMessage {
         let mut message = match self.role{
-            Role::User => ChatMessage::user(self.get_content().to_string()),
-            Role::AI => ChatMessage::assistant(self.get_content().to_string()),
+            Role::User => ChatMessage::user(self.content().to_string()),
+            Role::AI => ChatMessage::assistant(self.content().to_string()),
         };
 
         message.images = match self.images.len() > 0{
@@ -139,9 +129,9 @@ impl Chat{
             false => style::container::chat,
         };
 
-        let copy = button(svg(svg::Handle::from_path(get_path_assets("copy.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::SaveToClipboard(self.get_content().to_string()));
+        let copy = button(svg(svg::Handle::from_path(get_path_assets("copy.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::SaveToClipboard(self.content().to_string()));
 
-        let regenerate = button(svg(svg::Handle::from_path(get_path_assets("restart.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::Regenerate, chats.get_id().clone()));
+        let regenerate = button(svg(svg::Handle::from_path(get_path_assets("restart.svg".to_string()))).style(style::svg::white).width(16.0).height(16.0)).style(style::button::transparent_text).on_press(Message::Chats(ChatsMessage::Regenerate, chats.id().clone()));
         
         let name = container(
             row![

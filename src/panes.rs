@@ -15,7 +15,7 @@ impl Pane {
     pub fn new_settings(app : &mut ChatApp, model : String) -> Self{
         let model = Options::new(model.clone());
         app.main_view.add_to_options(model.clone());
-        return Self::Settings(model.get_id().clone());
+        return Self::Settings(model.id().clone());
     }
 
     pub fn new_models(app : &mut ChatApp) -> Self{
@@ -270,11 +270,11 @@ impl Panes{
                 Pane::Call => add_to_window(app, pane, state.clone(), "Call", pick, app.call.view(app)),
                 Pane::Chat(x) => {
                     let index = Chats::get_index(app, x.clone());
-                    add_to_window(app, pane, state.clone(), "Chat", pick, app.main_view.get_chats()[index.clone()].chat_view(app, x.clone()))
+                    add_to_window(app, pane, state.clone(), "Chat", pick, app.main_view.chats()[index.clone()].chat_view(app, x.clone()))
                 },
                 Pane::Models(x) => {
                     let index = Models::get_index(app, x.clone());
-                    add_to_window(app, pane, state.clone(), "Models", pick, app.main_view.get_models()[index.clone()].view(app))
+                    add_to_window(app, pane, state.clone(), "Models", pick, app.main_view.models()[index.clone()].view(app))
                 },
                 Pane::NoModel => text("Please install Ollama to use this app.").into(),
             })

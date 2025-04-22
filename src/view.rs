@@ -1,3 +1,4 @@
+use getset::{Getters, Setters};
 use iced::Theme;
 use crate::common::Id;
 use crate::llm::ChatStream;
@@ -7,31 +8,29 @@ use crate::ChatApp;
 use crate::{models::Models, options::Options, sidebar::SideBarState};
 use crate::sidebar::chats::Chats as SideChats;
 
+#[derive(Getters, Setters)]
 pub struct View{
+    #[getset(get = "pub", set = "pub")]
     theme: Theme,
+    #[getset(get = "pub", set = "pub")]
     side_state : SideBarState,
+    #[getset(get = "pub", set = "pub")]
     side_chats: SideChats,
+    #[getset(get = "pub", set = "pub")]
     options : Vec<Options>,
+    #[getset(get = "pub", set = "pub")]
     chats : Vec<Chats>,
+    #[getset(get = "pub", set = "pub")]
     models : Vec<Models>,
+    #[getset(get = "pub", set = "pub")]
     downloads : Vec<Download>,
+    #[getset(get = "pub", set = "pub")]
     chat_streams : Vec<ChatStream>,
+    #[getset(get = "pub", set = "pub")]
     id : usize,
 }
 
 impl View{
-    pub fn get_id(&self) -> &usize{
-        &self.id
-    }
-    
-    pub fn set_id(&mut self, id : usize){
-        self.id = id;
-    }
-
-    pub fn get_chats(&self) -> &Vec<Chats> {
-        &self.chats
-    }
-
     pub fn get_chats_mut(&mut self) -> &mut Vec<Chats> {
         &mut self.chats
     }
@@ -46,34 +45,6 @@ impl View{
     
     pub fn update_chat<F>(&mut self, index : usize, mut f : F) where F : FnMut(&mut Chats){
         f(&mut self.chats[index]);
-    }
-    
-    pub fn get_theme(&self) -> &Theme{
-        &self.theme
-    }
-
-    pub fn set_theme(&mut self, theme : Theme){
-        self.theme = theme;
-    }
-
-    pub fn set_side_state(&mut self, state : SideBarState){
-        self.side_state = state;
-    }
-    
-    pub fn get_side_state(&self) -> &SideBarState{
-        &self.side_state
-    }
-
-    pub fn get_side_chats(&self) -> &SideChats {
-        &self.side_chats
-    }
-
-    pub fn set_side_chats(&mut self, chats : SideChats) {
-        self.side_chats = chats;
-    }
-
-    pub fn get_options(&self) -> &Vec<Options> {
-        &self.options
     }
     
     pub fn add_to_options(&mut self, options : Options){
@@ -92,10 +63,6 @@ impl View{
         f(&mut self.options[index]);
     }
 
-    pub fn get_models(&self) -> &Vec<Models>{
-        &self.models
-    }
-
     pub fn add_model(&mut self, models : Models){
         self.models.push(models);
     }
@@ -111,10 +78,6 @@ impl View{
         f(&mut self.models[index]);
     }
     
-    pub fn get_downloads_list(&self) -> &Vec<Download> {
-        &self.downloads
-    }
-
     pub fn get_downloads_mut(&mut self) -> &mut Vec<Download> {
         &mut self.downloads
     } 
@@ -126,10 +89,6 @@ impl View{
     pub fn update_downloads<F>(&mut self, mut f : F) where F : FnMut(&mut Vec<Download>){
         f(&mut self.downloads);
     }
-
-    pub fn get_chat_streams(&self) -> &Vec<ChatStream> {
-        &self.chat_streams
-    } 
 
     pub fn get_chat_streams_mut(&mut self) -> &mut Vec<ChatStream> {
         &mut self.chat_streams
@@ -158,10 +117,4 @@ impl View{
             id: 0,
         }
     }
-    pub fn theme(&self) -> iced::Theme {
-        self.theme.clone()
-    }
-
-
-
 }
