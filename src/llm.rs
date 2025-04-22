@@ -1,13 +1,22 @@
-use iced::{futures::{FutureExt, SinkExt, Stream, StreamExt}, stream::try_channel, Subscription};
-use ollama_rs::{
-    coordinator::{self, Coordinator}, generation::{chat::{
-        request::ChatMessageRequest, ChatMessage,
-    }, tools::implementations::{Calculator, DDGSearcher, Scraper, SerperSearchTool, StockScraper}}, Ollama
-};
-use tokio::sync::Mutex;
-use std::sync::Arc;
 use crate::{common::Id, options::ModelOptions, save::chats::TooledOptions, ChatApp, Message};
+use iced::{
+    futures::{FutureExt, SinkExt, Stream, StreamExt},
+    stream::try_channel,
+    Subscription,
+};
+use ollama_rs::{
+    coordinator::{self, Coordinator},
+    generation::{
+        chat::{request::ChatMessageRequest, ChatMessage},
+        tools::implementations::{
+            Calculator, DDGSearcher, Scraper, SerperSearchTool, StockScraper,
+        },
+    },
+    Ollama,
+};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub enum ChatProgress {
@@ -15,36 +24,46 @@ pub enum ChatProgress {
     Finished,
 }
 
-pub fn get_model() -> Ollama{
+pub fn get_model() -> Ollama {
     return Ollama::default();
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Tools{
+pub enum Tools {
     DuckDuckGo,
     Serper,
     Scraper,
     Finance,
     Calculator,
 }
- 
-pub async fn run_ollama(chats: Vec<ChatMessage>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>) -> Result<ChatMessage, String>{
+
+pub async fn run_ollama(
+    chats: Vec<ChatMessage>,
+    options: ModelOptions,
+    ollama: Arc<Mutex<Ollama>>,
+) -> Result<ChatMessage, String> {
     let o = ollama.lock().await;
- 
-    let request = ChatMessageRequest::new(options.1.clone(), chats.to_vec()).options(options.into());
+
+    let request =
+        ChatMessageRequest::new(options.1.clone(), chats.to_vec()).options(options.into());
     let result = o.send_chat_messages(request).await;
-    
-    if let Ok(result) = result{
+
+    if let Ok(result) = result {
         return Ok(result.message);
     }
- 
+
     return Err("Failed to run ollama.".to_string());
 }
 
-async fn get_coordinator(tooled : Arc<TooledOptions>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>) -> (Coordinator<Vec<ChatMessage>>, Vec<ChatMessage>){
+async fn get_coordinator(
+    tooled: Arc<TooledOptions>,
+    options: ModelOptions,
+    ollama: Arc<Mutex<Ollama>>,
+) -> (Coordinator<Vec<ChatMessage>>, Vec<ChatMessage>) {
     let ollama = ollama.lock().await;
-    let mut coordinator = Coordinator::new(ollama.clone(), options.1.clone(), Vec::new()).options(options.into());
-    
+    let mut coordinator =
+        Coordinator::new(ollama.clone(), options.1.clone(), Vec::new()).options(options.into());
+
     let tools = tooled.tools.clone();
     let chats = tooled.chats.to_vec().clone();
     drop(tooled);
@@ -52,45 +71,69 @@ async fn get_coordinator(tooled : Arc<TooledOptions>, options : ModelOptions, ol
 
     if tools.contains(&Tools::DuckDuckGo) {
         coordinator = coordinator.add_tool(DDGSearcher::new());
-    }else if tools.contains(&Tools::Serper) {
+    } else if tools.contains(&Tools::Serper) {
         coordinator = coordinator.add_tool(SerperSearchTool {});
-    }else if tools.contains(&Tools::Scraper) {
+    } else if tools.contains(&Tools::Scraper) {
         coordinator = coordinator.add_tool(Scraper {});
-    }else if tools.contains(&Tools::Finance) {
+    } else if tools.contains(&Tools::Finance) {
         coordinator = coordinator.add_tool(StockScraper::new());
-    }else if tools.contains(&Tools::Calculator) {
+    } else if tools.contains(&Tools::Calculator) {
         coordinator = coordinator.add_tool(Calculator {});
     }
 
     (coordinator, chats)
 }
 
-async fn get_message(coordinator : &mut Coordinator<Vec<ChatMessage>>,chats :  Vec<ChatMessage>) ->  Result<ChatMessage, String>{
-    if let Ok(result) = coordinator.chat(chats).await{
+async fn get_message(
+    coordinator: &mut Coordinator<Vec<ChatMessage>>,
+    chats: Vec<ChatMessage>,
+) -> Result<ChatMessage, String> {
+    if let Ok(result) = coordinator.chat(chats).await {
         return Ok(result.message);
     }
- 
+
     return Err("Failed to run ollama.".to_string());
 }
 
-pub async fn run_ollama_tools(tooled : Arc<TooledOptions>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>) -> Result<ChatMessage, String>{
+pub async fn run_ollama_tools(
+    tooled: Arc<TooledOptions>,
+    options: ModelOptions,
+    ollama: Arc<Mutex<Ollama>>,
+) -> Result<ChatMessage, String> {
     let (mut coordinator, chats) = get_coordinator(tooled, options, ollama).await;
     get_message(&mut coordinator, chats).await
 }
 
-pub async fn delete_model(ollama : Arc<Mutex<Ollama>>, model : String){
+pub async fn delete_model(ollama: Arc<Mutex<Ollama>>, model: String) {
     let o = ollama.lock().await;
     let _ = o.delete_model(model).await;
 }
 
-pub fn run_ollama_stream(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>) -> impl Stream<Item = Result<ChatProgress, String>>{
-    try_channel(1, |mut output| async move{
+pub fn run_ollama_stream(
+    chats: Arc<Vec<ChatMessage>>,
+    options: ModelOptions,
+    ollama: Arc<Mutex<Ollama>>,
+) -> impl Stream<Item = Result<ChatProgress, String>> {
+    try_channel(1, |mut output| async move {
         let ollama = ollama.lock().await;
-        let request = ChatMessageRequest::new(options.1.clone(), chats.to_vec()).options(options.into());
-        let mut y = ollama.send_chat_messages_stream(request).await.map_err(|x|x.to_string())?;
-        let _ = output.send(ChatProgress::Generating(ChatMessage { role: ollama_rs::generation::chat::MessageRole::Assistant, content: String::new(), images: None , tool_calls: Vec::new()})).await;
-        while let Some(Ok(response)) = y.next().await{
-            let _ = output.send(ChatProgress::Generating(response.message)).await;
+        let request =
+            ChatMessageRequest::new(options.1.clone(), chats.to_vec()).options(options.into());
+        let mut y = ollama
+            .send_chat_messages_stream(request)
+            .await
+            .map_err(|x| x.to_string())?;
+        let _ = output
+            .send(ChatProgress::Generating(ChatMessage {
+                role: ollama_rs::generation::chat::MessageRole::Assistant,
+                content: String::new(),
+                images: None,
+                tool_calls: Vec::new(),
+            }))
+            .await;
+        while let Some(Ok(response)) = y.next().await {
+            let _ = output
+                .send(ChatProgress::Generating(response.message))
+                .await;
         }
 
         let _ = output.send(ChatProgress::Finished).await;
@@ -103,9 +146,9 @@ pub fn run_ollama_stream(chats: Arc<Vec<ChatMessage>>, options : ModelOptions, o
 pub struct ChatStream {
     pub id: Id,
     pub state: State,
-    pub chats: Arc<Vec<ChatMessage>>, 
-    pub options : ModelOptions,
-    pub tools : Arc<Vec<Tools>>,
+    pub chats: Arc<Vec<ChatMessage>>,
+    pub options: ModelOptions,
+    pub tools: Arc<Vec<Tools>>,
 }
 
 #[derive(Debug)]
@@ -115,28 +158,36 @@ pub enum State {
     Errored,
 }
 
-pub fn chat(id : Id, chats: Arc<Vec<ChatMessage>>, options : ModelOptions, ollama : Arc<Mutex<Ollama>>) -> iced::Subscription<(Id, Result<ChatProgress, String>)>{
-    Subscription::run_with_id(id, run_ollama_stream(chats, options, ollama).map(move |progress| (id, progress)))
+pub fn chat(
+    id: Id,
+    chats: Arc<Vec<ChatMessage>>,
+    options: ModelOptions,
+    ollama: Arc<Mutex<Ollama>>,
+) -> iced::Subscription<(Id, Result<ChatProgress, String>)> {
+    Subscription::run_with_id(
+        id,
+        run_ollama_stream(chats, options, ollama).map(move |progress| (id, progress)),
+    )
 }
 
-impl ChatStream{
-    pub fn new(app : &ChatApp, id : Id, option : usize, chat : usize) -> Self {
-        Self{
+impl ChatStream {
+    pub fn new(app: &ChatApp, id: Id, option: usize, chat: usize) -> Self {
+        Self {
             id,
-            state: State::Generating(ChatMessage::new(ollama_rs::generation::chat::MessageRole::Assistant, String::new())),
-            chats : Arc::new(app.save.chats[chat].get_chat_messages()), 
-            options : app.options.0[option].clone(),
-            tools : Arc::new(app.save.chats[chat].2.clone()),
+            state: State::Generating(ChatMessage::new(
+                ollama_rs::generation::chat::MessageRole::Assistant,
+                String::new(),
+            )),
+            chats: Arc::new(app.save.chats[chat].get_chat_messages()),
+            options: app.options.0[option].clone(),
+            tools: Arc::new(app.save.chats[chat].2.clone()),
         }
     }
 
-    pub fn progress(
-        &mut self,
-        new_progress: Result<ChatProgress, String>,
-    ) {
+    pub fn progress(&mut self, new_progress: Result<ChatProgress, String>) {
         if let State::Generating(message) = &mut self.state {
             match new_progress {
-                Ok(ChatProgress::Generating (mes)) => {
+                Ok(ChatProgress::Generating(mes)) => {
                     *message = mes;
                 }
                 Ok(ChatProgress::Finished) => {
@@ -149,14 +200,16 @@ impl ChatStream{
         }
     }
 
-    pub fn subscription(&self, app : &ChatApp) -> Subscription<Message> {
+    pub fn subscription(&self, app: &ChatApp) -> Subscription<Message> {
         match self.state {
-            State::Generating (_) => {
-                chat(self.id, self.chats.clone(), self.options.clone(), app.logic.ollama.clone()).map(Message::Generating)
-            }
+            State::Generating(_) => chat(
+                self.id,
+                self.chats.clone(),
+                self.options.clone(),
+                app.logic.ollama.clone(),
+            )
+            .map(Message::Generating),
             _ => Subscription::none(),
         }
     }
-
 }
-

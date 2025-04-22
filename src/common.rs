@@ -1,20 +1,20 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize,Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Id (Uuid);
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Id(Uuid);
 
-impl Id{
-    pub fn new() -> Self{
+impl Id {
+    pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
-    
-    pub fn new_time() -> Self{
+
+    pub fn new_time() -> Self {
         Self(Uuid::now_v7())
     }
 }
 
-impl Default for Id{
+impl Default for Id {
     fn default() -> Self {
         Id::new()
     }

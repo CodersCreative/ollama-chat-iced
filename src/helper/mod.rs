@@ -1,16 +1,16 @@
 pub mod chats;
 pub mod image;
 
-use iced::{Task, Theme};
 use crate::{ChatApp, Message, SAVE_FILE};
+use iced::{Task, Theme};
 
-impl ChatApp{
-    pub fn change_theme(&mut self, theme : Theme) -> Task<Message>{
+impl ChatApp {
+    pub fn change_theme(&mut self, theme: Theme) -> Task<Message> {
         self.main_view.set_theme(theme.clone());
         let mut index = None;
 
-        for i in 0..Theme::ALL.len(){
-            if Theme::ALL[i] == theme{
+        for i in 0..Theme::ALL.len() {
+            if Theme::ALL[i] == theme {
                 index = Some(i);
                 break;
             }

@@ -19,15 +19,14 @@ pub const DOCS : [&str; 16] = [
     "",
 ];
 
-impl OptionKey{
-    pub fn get_doc(&self) -> String{
+impl OptionKey {
+    pub fn get_doc(&self) -> String {
         let index = self.get_doc_index();
         index.to_string()
     }
 
-
-    pub fn get_doc_index(&self) -> usize{
-        match self{
+    pub fn get_doc_index(&self) -> usize {
+        match self {
             Self::Mirostat => 0,
             Self::MirostatETA => 1,
             Self::MirostatTau => 2,

@@ -1,36 +1,36 @@
 pub mod chat;
 pub mod chats;
 
+use crate::chats::Chats;
+use crate::common::Id;
+use crate::utils::get_path_settings;
+use crate::{ChatApp, Message};
+use chats::SavedChats;
 use iced::Element;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 use std::time::SystemTime;
 use std::{fs::File, io::Read};
-use crate::chats::Chats;
-use crate::common::Id;
-use crate::utils::get_path_settings;
-use crate::{ChatApp, Message};
-use chats::{SavedChats};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Save {
-    pub theme : Option<usize>,
-    pub use_panes : bool,
-    pub chats : Vec<SavedChats>,
+    pub theme: Option<usize>,
+    pub use_panes: bool,
+    pub chats: Vec<SavedChats>,
 }
 
 impl Save {
-    pub fn new() -> Self{
+    pub fn new() -> Self {
         let chat = SavedChats::new();
-        Self{
-            theme : None,
-            use_panes : true,
+        Self {
+            theme: None,
+            use_panes: true,
             chats: vec![chat.clone()],
         }
     }
 
-    pub fn view_chat<'a>(&'a self, chat : &'a Chats, app : &'a ChatApp) -> Element<'a, Message>{
+    pub fn view_chat<'a>(&'a self, chat: &'a Chats, app: &'a ChatApp) -> Element<'a, Message> {
         chat.view(app)
     }
 
@@ -49,22 +49,22 @@ impl Save {
     //     return index;
     // }
 
-    pub fn set_chats(&mut self, chats : Vec<SavedChats>){
+    pub fn set_chats(&mut self, chats: Vec<SavedChats>) {
         self.chats = chats;
     }
 
-    pub fn get_index(&self, id : Id) -> Option<usize>{
-        for i in 0..self.chats.len(){
-            if self.chats[i].1 == id{
+    pub fn get_index(&self, id: Id) -> Option<usize> {
+        for i in 0..self.chats.len() {
+            if self.chats[i].1 == id {
                 return Some(i);
             }
         }
-        return None
+        return None;
     }
 
-    pub fn update_chats(&mut self, chat : SavedChats){
+    pub fn update_chats(&mut self, chat: SavedChats) {
         let mut new_chats = Vec::new();
-        
+
         let mut found = false;
         for (i, existing_chat) in self.chats.iter().enumerate() {
             if existing_chat.1 == chat.clone().1 {
@@ -77,17 +77,16 @@ impl Save {
             }
         }
 
-        if !found{
+        if !found {
             new_chats.push(chat.clone());
         }
 
-
-        if self.chats.len() <= new_chats.len(){
+        if self.chats.len() <= new_chats.len() {
             self.chats = new_chats;
         }
     }
-    
-    pub fn save(&self, path : &str){
+
+    pub fn save(&self, path: &str) {
         let path = get_path_settings(path.to_string());
         let writer = File::create(path);
 
@@ -96,11 +95,11 @@ impl Save {
         }
     }
 
-    pub fn replace(&mut self, save : Save){
+    pub fn replace(&mut self, save: Save) {
         *self = save;
     }
 
-    pub fn load(path : &str) -> Result<Self, String>{
+    pub fn load(path: &str) -> Result<Self, String> {
         let path = get_path_settings(path.to_string());
         let reader = File::open(path);
 
@@ -116,7 +115,7 @@ impl Save {
             };
         }
 
-         return Err("Failed to open file".to_string());
+        return Err("Failed to open file".to_string());
     }
 
     // pub fn get_current_preview(&self) -> (String, SystemTime){
@@ -126,7 +125,11 @@ impl Save {
     //     }
     // }
 
-    pub fn get_chat_previews(&self) -> Vec<(String, SystemTime)>{
-        self.chats.clone().iter().map(|x| x.get_preview()).collect::<Vec<(String, SystemTime)>>()
+    pub fn get_chat_previews(&self) -> Vec<(String, SystemTime)> {
+        self.chats
+            .clone()
+            .iter()
+            .map(|x| x.get_preview())
+            .collect::<Vec<(String, SystemTime)>>()
     }
 }

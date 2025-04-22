@@ -1,22 +1,26 @@
-use std::str::FromStr;
-use std::{error::Error, fs::File, io::Read};
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use tantivy::collector::TopDocs;
-use tantivy::query::QueryParser;
-use tantivy::schema::{Field, OwnedValue, Schema, STORED, TEXT};
-use tantivy::index::Index;
-use tantivy::{doc, DocAddress,IndexWriter, Score, TantivyDocument};
-use url::Url;
-use std::collections::HashMap;
-use iced::{
-    alignment::{Horizontal, Vertical},widget::{button, column, container, keyed_column, row, scrollable, text, text_input, Renderer}, Element, Length, Task, Theme
-};
 use crate::common::Id;
 use crate::utils::get_path_settings;
 use crate::{style, utils::generate_id, ChatApp, Message};
+use iced::{
+    alignment::{Horizontal, Vertical},
+    widget::{
+        button, column, container, keyed_column, row, scrollable, text, text_input, Renderer,
+    },
+    Element, Length, Task, Theme,
+};
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::{error::Error, fs::File, io::Read};
+use tantivy::collector::TopDocs;
+use tantivy::index::Index;
+use tantivy::query::QueryParser;
+use tantivy::schema::{Field, OwnedValue, Schema, STORED, TEXT};
+use tantivy::{doc, DocAddress, IndexWriter, Score, TantivyDocument};
+use url::Url;
 
-const MODELS_PATH : &str = "models.json";
+const MODELS_PATH: &str = "models.json";
 
 #[derive(Serialize, Deserialize, Debug)]
 struct TempInfo {
@@ -26,7 +30,6 @@ struct TempInfo {
     categories: Vec<String>,
     languages: Vec<String>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ModelInfo {
@@ -42,144 +45,175 @@ pub struct ModelInfo {
 pub enum ModelsMessage {
     Expand(String),
     Search,
-    Input(String)
-
+    Input(String),
 }
 
-impl ModelsMessage{
-    pub fn handle(&self, models : Models, app : &mut ChatApp) -> Task<Message>{
-        match self{
+impl ModelsMessage {
+    pub fn handle(&self, models: Models, app: &mut ChatApp) -> Task<Message> {
+        match self {
             Self::Expand(x) => {
-                app.main_view.update_model(Models::get_index(app, models.0), |model| {
-                    if models.1 != Some(x.clone()){
-                        model.1 = Some(x.clone());
-                    }else{
-                        model.1 = None;
-                    }
-                });
+                app.main_view
+                    .update_model(Models::get_index(app, models.0), |model| {
+                        if models.1 != Some(x.clone()) {
+                            model.1 = Some(x.clone());
+                        } else {
+                            model.1 = None;
+                        }
+                    });
                 Task::none()
-            },
+            }
             Self::Input(x) => {
-                app.main_view.update_model(Models::get_index(app, models.0), |model| {
-                    model.2 = x.clone();
-                });
+                app.main_view
+                    .update_model(Models::get_index(app, models.0), |model| {
+                        model.2 = x.clone();
+                    });
                 Task::none()
             }
             Self::Search => {
-                app.main_view.update_model(Models::get_index(app, models.0), |model| {
-                    model.3 = app.model_info.search(models.2.clone()).unwrap();
-                });
+                app.main_view
+                    .update_model(Models::get_index(app, models.0), |model| {
+                        model.3 = app.model_info.search(models.2.clone()).unwrap();
+                    });
                 Task::none()
             }
         }
     }
 }
 
-impl ModelInfo{
-    fn view<'a>(&'a self, app : &'a ChatApp, id : Id, expand : bool) -> Element<'a, Message>{
-        let mut widgets : Vec<Element<Message>> = Vec::new();
+impl ModelInfo {
+    fn view<'a>(&'a self, app: &'a ChatApp, id: Id, expand: bool) -> Element<'a, Message> {
+        let mut widgets: Vec<Element<Message>> = Vec::new();
 
         widgets.push(
             button(
                 text(self.name.clone())
-                .color(app.theme().palette().primary)
-                .size(24)
+                    .color(app.theme().palette().primary)
+                    .size(24)
+                    .width(Length::Fill)
+                    .align_y(Vertical::Center)
+                    .align_x(Horizontal::Left),
+            )
+            .style(style::button::transparent_back)
+            .on_press(Message::Models(
+                ModelsMessage::Expand(self.name.clone()),
+                id,
+            ))
+            .into(),
+        );
+
+        widgets.push(
+            text(&self.author)
+                .color(app.theme().palette().danger)
+                .size(20)
                 .width(Length::Fill)
                 .align_y(Vertical::Center)
                 .align_x(Horizontal::Left)
-            ).style(style::button::transparent_back).on_press(Message::Models(ModelsMessage::Expand(self.name.clone()), id)).into()
+                .into(),
         );
 
-        widgets.push(text(&self.author)
-        .color(app.theme().palette().danger)
-        .size(20)
-        .width(Length::Fill)
-        .align_y(Vertical::Center)
-        .align_x(Horizontal::Left).into());
-
-        if let Some(x) = app.model_info.descriptions.get(&self.name){
-            widgets.push(text(x)
-            .color(app.theme().palette().text)
-            .size(16)
-            .width(Length::Fill)
-            .align_y(Vertical::Center)
-            .align_x(Horizontal::Left).into());
-        }
-
-        if expand{
+        if let Some(x) = app.model_info.descriptions.get(&self.name) {
             widgets.push(
-                button(text(&self.url).size(16)).style(style::button::chosen_chat).on_press(Message::URLClicked(Url::from_str(&self.url).unwrap())).into()
+                text(x)
+                    .color(app.theme().palette().text)
+                    .size(16)
+                    .width(Length::Fill)
+                    .align_y(Vertical::Center)
+                    .align_x(Horizontal::Left)
+                    .into(),
             );
-            for tag in &self.tags{
-                widgets.push(button(
-                    row![
-                        text(tag[0].clone()).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(16),
-                        text(tag[1].clone()).align_x(Horizontal::Center).align_y(Vertical::Center).width(Length::Fill).size(16)
-                    ]
-                )
-                .style(style::button::not_chosen_chat)
-                .on_press(Message::Pull(format!("{}:{}", self.name, tag[0])))
-                .width(Length::Fill).padding(10).into());
-            } 
-
         }
 
+        if expand {
+            widgets.push(
+                button(text(&self.url).size(16))
+                    .style(style::button::chosen_chat)
+                    .on_press(Message::URLClicked(Url::from_str(&self.url).unwrap()))
+                    .into(),
+            );
+            for tag in &self.tags {
+                widgets.push(
+                    button(row![
+                        text(tag[0].clone())
+                            .align_x(Horizontal::Center)
+                            .align_y(Vertical::Center)
+                            .width(Length::Fill)
+                            .size(16),
+                        text(tag[1].clone())
+                            .align_x(Horizontal::Center)
+                            .align_y(Vertical::Center)
+                            .width(Length::Fill)
+                            .size(16)
+                    ])
+                    .style(style::button::not_chosen_chat)
+                    .on_press(Message::Pull(format!("{}:{}", self.name, tag[0])))
+                    .width(Length::Fill)
+                    .padding(10)
+                    .into(),
+                );
+            }
+        }
 
-        container(column(widgets).padding(10)).padding(5).style(style::container::side_bar).into()
+        container(column(widgets).padding(10))
+            .padding(5)
+            .style(style::container::side_bar)
+            .into()
     }
 
-    fn search_format(&self) -> String{
-        format!("{}, {:?}, {}, {:?}", self.name, self.tags, self.author, self.categories)
+    fn search_format(&self) -> String {
+        format!(
+            "{}, {:?}, {}, {:?}",
+            self.name, self.tags, self.author, self.categories
+        )
     }
 }
 
-impl Into<ModelInfo> for TempInfo{
+impl Into<ModelInfo> for TempInfo {
     fn into(self) -> ModelInfo {
-        ModelInfo{
-            name : String::new(),
-            url : self.url,
-            tags : self.tags,
-            author : self.author,
-            categories : self.categories,
-            languages : self.languages,
+        ModelInfo {
+            name: String::new(),
+            url: self.url,
+            tags: self.tags,
+            author: self.author,
+            categories: self.categories,
+            languages: self.languages,
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct SavedModels{
-    pub models : Vec<ModelInfo>,
-    pub descriptions : HashMap<String, String>,
-    pub data : (Index, Vec<Field>, Schema),
+pub struct SavedModels {
+    pub models: Vec<ModelInfo>,
+    pub descriptions: HashMap<String, String>,
+    pub data: (Index, Vec<Field>, Schema),
 }
 
-impl Into<SaveableModels> for SavedModels{
+impl Into<SaveableModels> for SavedModels {
     fn into(self) -> SaveableModels {
-        SaveableModels{
-            models : self.models,
-            descriptions : self.descriptions,
+        SaveableModels {
+            models: self.models,
+            descriptions: self.descriptions,
         }
     }
 }
 
-impl Into<SavedModels> for SaveableModels{
+impl Into<SavedModels> for SaveableModels {
     fn into(self) -> SavedModels {
-        SavedModels{
-            models : self.models.clone(),
-            descriptions : self.descriptions.clone(),
-            data : self.into_index().unwrap(),
+        SavedModels {
+            models: self.models.clone(),
+            descriptions: self.descriptions.clone(),
+            data: self.into_index().unwrap(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct SaveableModels{
-    pub models : Vec<ModelInfo>,
-    pub descriptions : HashMap<String, String>,
+pub struct SaveableModels {
+    pub models: Vec<ModelInfo>,
+    pub descriptions: HashMap<String, String>,
 }
 
-impl SaveableModels{
-    pub fn save(&self, path : &str){
+impl SaveableModels {
+    pub fn save(&self, path: &str) {
         let path = get_path_settings(path.to_string());
         let writer = File::create(path);
 
@@ -188,7 +222,7 @@ impl SaveableModels{
         }
     }
 
-    pub fn load(path : &str) -> Result<Self, String>{
+    pub fn load(path: &str) -> Result<Self, String> {
         let path = get_path_settings(path.to_string());
         let reader = File::open(path);
 
@@ -204,9 +238,9 @@ impl SaveableModels{
             };
         }
 
-         return Err("Failed to open file".to_string());
+        return Err("Failed to open file".to_string());
     }
-    fn into_index<'a>(&'a self) -> Result<(Index, Vec<Field>, Schema), Box<dyn Error>>{
+    fn into_index<'a>(&'a self) -> Result<(Index, Vec<Field>, Schema), Box<dyn Error>> {
         let mut schema_builder = Schema::builder();
         let name = schema_builder.add_text_field("title", TEXT | STORED);
         let desc = schema_builder.add_text_field("desc", TEXT);
@@ -216,7 +250,7 @@ impl SaveableModels{
         let index = Index::create_in_ram(schema.clone());
         let mut index_writer: IndexWriter = index.writer(50_000_000)?;
 
-        for model in &self.models{
+        for model in &self.models {
             let d = self.descriptions.get(model.name.as_str()).unwrap().clone();
             index_writer.add_document(doc!(
                 name => model.name.clone(),
@@ -230,30 +264,33 @@ impl SaveableModels{
         Ok((index, vec![name, desc, author], schema))
     }
 
-
-    pub fn init() -> Result<Self, Box<dyn Error>>{
-        if let Ok(x) = Self::load(MODELS_PATH){
+    pub fn init() -> Result<Self, Box<dyn Error>> {
+        if let Ok(x) = Self::load(MODELS_PATH) {
             return Ok(x);
         }
-        
+
         let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
-        
-        let resp = tokio_runtime.block_on(reqwest::get("https://raw.githubusercontent.com/Jeffser/Alpaca/main/src/available_models.json"))?;
+
+        let resp = tokio_runtime.block_on(reqwest::get(
+            "https://raw.githubusercontent.com/Jeffser/Alpaca/main/src/available_models.json",
+        ))?;
         let content = tokio_runtime.block_on(resp.text())?;
-        let data : HashMap<String, TempInfo> = serde_json::from_str(&content)?;
+        let data: HashMap<String, TempInfo> = serde_json::from_str(&content)?;
 
-        let models : Vec<ModelInfo> = data.into_iter().map(|x| {
-            let mut info : ModelInfo = x.1.into();
-            info.name = x.0;
-            info
-        }).collect();
-
+        let models: Vec<ModelInfo> = data
+            .into_iter()
+            .map(|x| {
+                let mut info: ModelInfo = x.1.into();
+                info.name = x.0;
+                info
+            })
+            .collect();
 
         let resp = tokio_runtime.block_on(reqwest::get("https://raw.githubusercontent.com/Jeffser/Alpaca/main/src/available_models_descriptions.py"))?;
         let content = tokio_runtime.block_on(resp.text())?;
         let descriptions = extract_model_description(&content)?;
 
-        let models = Self{
+        let models = Self {
             models,
             descriptions,
         };
@@ -264,24 +301,23 @@ impl SaveableModels{
     }
 }
 
-impl SavedModels{
-    pub fn save(&self, path : &str){
-        let saveable : SaveableModels = self.clone().into();
+impl SavedModels {
+    pub fn save(&self, path: &str) {
+        let saveable: SaveableModels = self.clone().into();
         saveable.save(path)
     }
 
-    pub fn init() -> Result<Self, Box<dyn Error>>{
-        let saveable : SaveableModels = SaveableModels::init()?;
+    pub fn init() -> Result<Self, Box<dyn Error>> {
+        let saveable: SaveableModels = SaveableModels::init()?;
         Ok(saveable.into())
     }
 
-
-    pub fn load(path : &str) -> Result<Self, String>{
-        let saveable : SaveableModels = SaveableModels::load(path)?;
+    pub fn load(path: &str) -> Result<Self, String> {
+        let saveable: SaveableModels = SaveableModels::load(path)?;
         Ok(saveable.into())
     }
-    pub fn search<'a>(&'a self, input : String) -> Result<Vec<ModelInfo>, Box<dyn Error>>{
-        if input.is_empty(){
+    pub fn search<'a>(&'a self, input: String) -> Result<Vec<ModelInfo>, Box<dyn Error>> {
+        if input.is_empty() {
             return Ok(self.models.clone());
         }
 
@@ -291,13 +327,14 @@ impl SavedModels{
         let query_parser = QueryParser::for_index(&self.data.0, self.data.1.clone());
         let query = query_parser.parse_query(&input)?;
 
-        let top_docs: Vec<(Score, DocAddress)> = searcher.search(&query, &TopDocs::with_limit(10))?;
+        let top_docs: Vec<(Score, DocAddress)> =
+            searcher.search(&query, &TopDocs::with_limit(10))?;
         let mut models = Vec::new();
 
         for (_score, doc_address) in top_docs {
             let retrieved_doc = searcher.doc::<TantivyDocument>(doc_address)?;
-            
-            let model : String = match retrieved_doc.get_first(self.data.1[0].clone()).unwrap(){
+
+            let model: String = match retrieved_doc.get_first(self.data.1[0].clone()).unwrap() {
                 OwnedValue::Str(x) => x.clone(),
                 _ => "".to_string(),
             };
@@ -313,66 +350,59 @@ impl SavedModels{
 #[derive(Debug, Clone)]
 pub struct Models(pub Id, pub Option<String>, pub String, pub Vec<ModelInfo>);
 
-impl Models{
-    pub fn new(app: &ChatApp) -> Self{
+impl Models {
+    pub fn new(app: &ChatApp) -> Self {
         Self(
             Id::new(),
             None,
             String::new(),
-            app.model_info.models.clone()
+            app.model_info.models.clone(),
         )
     }
 
-    pub fn get_from_id<'a>(app: &'a ChatApp, id : Id) -> &'a Self{
+    pub fn get_from_id<'a>(app: &'a ChatApp, id: Id) -> &'a Self {
         app.main_view.models().iter().find(|x| x.0 == id).unwrap()
     }
 
-    pub fn get_index<'a>(app : &'a ChatApp, id : Id) -> usize{
-        for i in 0..app.main_view.models().len(){
-            if app.main_view.models()[i].0 == id{
-                return i
+    pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
+        for i in 0..app.main_view.models().len() {
+            if app.main_view.models()[i].0 == id {
+                return i;
             }
         }
         0
     }
 
-    pub fn view_models<'a>(&'a self, app : &'a ChatApp,) -> Element<'a, Message>{
-        keyed_column(
-            self.3
-                .iter()
-                .enumerate()
-                .map(|(i, model)| {
-                    let mut expand = false;
-                    
-                    if let Some(x) = &self.1{
-                        expand = x == &model.name;
-                    }
+    pub fn view_models<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
+        keyed_column(self.3.iter().enumerate().map(|(i, model)| {
+            let mut expand = false;
 
-                    (
-                        0,
-                        model.view(app, self.0, expand)
-                    )
-                }),
-        )
+            if let Some(x) = &self.1 {
+                expand = x == &model.name;
+            }
+
+            (0, model.view(app, self.0, expand))
+        }))
         .spacing(10)
         .into()
     }
 
-    pub fn view<'a>(&'a self, app : &'a ChatApp,) -> Element<'a, Message>{
+    pub fn view<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
         let input = text_input::<Message, Theme, Renderer>("Enter your message", &self.2)
             .on_input(|x| Message::Models(ModelsMessage::Input(x), self.0))
             .on_submit(Message::Models(ModelsMessage::Search, self.0))
             .size(16)
             .style(style::text_input::input)
             .width(Length::Fill);
-        
+
         container(column![
             input,
             scrollable::Scrollable::new(self.view_models(app)).width(Length::Fill)
-        ]).width(Length::Fill)
+        ])
+        .width(Length::Fill)
         .height(Length::Fill)
-        .padding(20).into()
-
+        .padding(20)
+        .into()
     }
 }
 
@@ -398,8 +428,16 @@ fn extract_model_description(python_code: &str) -> Result<HashMap<String, String
         let value_capture = value_regex.captures(pair);
 
         if let (Some(key_caps), Some(value_caps)) = (key_capture, value_capture) {
-            let key = key_caps.get(1).map_or("", |m| m.as_str()).trim().to_string();
-            let value = value_caps.get(1).map_or("", |m| m.as_str()).trim().to_string();
+            let key = key_caps
+                .get(1)
+                .map_or("", |m| m.as_str())
+                .trim()
+                .to_string();
+            let value = value_caps
+                .get(1)
+                .map_or("", |m| m.as_str())
+                .trim()
+                .to_string();
             result.insert(key, value);
         } else {
             return Err(format!("Failed to parse pair: {}", pair));
