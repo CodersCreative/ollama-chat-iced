@@ -1,4 +1,3 @@
-use crate::common::Id;
 use crate::save::chats::ChatsMessage;
 use crate::{style, ChatApp, Message};
 use iced::alignment::{Horizontal, Vertical};

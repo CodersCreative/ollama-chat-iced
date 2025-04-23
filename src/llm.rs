@@ -1,11 +1,11 @@
 use crate::{common::Id, options::ModelOptions, save::chats::TooledOptions, ChatApp, Message};
 use iced::{
-    futures::{FutureExt, SinkExt, Stream, StreamExt},
+    futures::{SinkExt, Stream, StreamExt},
     stream::try_channel,
     Subscription,
 };
 use ollama_rs::{
-    coordinator::{self, Coordinator},
+    coordinator::Coordinator,
     generation::{
         chat::{request::ChatMessageRequest, ChatMessage},
         tools::implementations::{
@@ -44,8 +44,8 @@ pub async fn run_ollama(
 ) -> Result<ChatMessage, String> {
     let o = ollama.lock().await;
 
-    let request =
-        ChatMessageRequest::new(options.1.clone(), chats.to_vec()).options(options.into());
+    let request = ChatMessageRequest::new(options.model().to_string(), chats.to_vec())
+        .options(options.into());
     let result = o.send_chat_messages(request).await;
 
     if let Ok(result) = result {
@@ -61,8 +61,8 @@ async fn get_coordinator(
     ollama: Arc<Mutex<Ollama>>,
 ) -> (Coordinator<Vec<ChatMessage>>, Vec<ChatMessage>) {
     let ollama = ollama.lock().await;
-    let mut coordinator =
-        Coordinator::new(ollama.clone(), options.1.clone(), Vec::new()).options(options.into());
+    let mut coordinator = Coordinator::new(ollama.clone(), options.model().to_string(), Vec::new())
+        .options(options.into());
 
     let tools = tooled.tools.clone();
     let chats = tooled.chats.to_vec().clone();
@@ -116,8 +116,8 @@ pub fn run_ollama_stream(
 ) -> impl Stream<Item = Result<ChatProgress, String>> {
     try_channel(1, |mut output| async move {
         let ollama = ollama.lock().await;
-        let request =
-            ChatMessageRequest::new(options.1.clone(), chats.to_vec()).options(options.into());
+        let request = ChatMessageRequest::new(options.model().to_string(), chats.to_vec())
+            .options(options.into());
         let mut y = ollama
             .send_chat_messages_stream(request)
             .await
@@ -179,7 +179,7 @@ impl ChatStream {
                 String::new(),
             )),
             chats: Arc::new(app.save.chats[chat].get_chat_messages()),
-            options: app.options.0[option].clone(),
+            options: app.options.model_options()[option].clone(),
             tools: Arc::new(app.save.chats[chat].2.clone()),
         }
     }

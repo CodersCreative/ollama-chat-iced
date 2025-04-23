@@ -1,11 +1,9 @@
 use crate::common::Id;
-use crate::llm::{get_model, run_ollama_tools, Tools};
 use crate::save::chats::{ChatsMessage, TooledOptions};
-use crate::sound::{get_audio, transcribe};
 use crate::start::{self, Section};
 use crate::style;
-use crate::utils::{change_alpha, generate_id, get_path_assets, get_preview, lighten_colour};
-use crate::{ChatApp, Message, SAVE_FILE};
+use crate::utils::{change_alpha, get_path_assets, lighten_colour};
+use crate::{ChatApp, Message};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{
@@ -14,12 +12,7 @@ use iced::widget::{
     scrollable::{Direction, Scrollbar},
     svg, text, text_editor, Renderer,
 };
-use iced::{Element, Length, Padding, Task, Theme};
-use kalosm_sound::{rodio::buffer::SamplesBuffer, MicInput};
-use ollama_rs::coordinator::Coordinator;
-use ollama_rs::generation::chat::ChatMessage;
-use serde::{Deserialize, Serialize};
-use std::time::SystemTime;
+use iced::{Element, Length, Padding, Theme};
 use std::{path::PathBuf, sync::Arc};
 // use super::chat::Chat;
 

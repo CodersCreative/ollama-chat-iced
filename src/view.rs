@@ -3,7 +3,6 @@ use crate::common::Id;
 use crate::download::Download;
 use crate::llm::ChatStream;
 use crate::sidebar::chats::Chats as SideChats;
-use crate::ChatApp;
 use crate::{models::Models, options::Options, sidebar::SideBarState};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::Theme;
@@ -49,6 +48,18 @@ impl View {
         f(&mut self.chats[index]);
     }
 
+    pub fn update_chat_by_saved<F>(&mut self, id: &Id, mut f: F)
+    where
+        F: FnMut(&mut Chats),
+    {
+        self.chats
+            .iter_mut()
+            .filter(|x| x.saved_chat() == id)
+            .for_each(|x| {
+                f(x);
+            });
+    }
+
     pub fn add_to_options(&mut self, options: Options) {
         self.options.push(options);
     }
@@ -69,9 +80,6 @@ impl View {
 
     pub fn add_model(&mut self, models: Models) {
         self.models.push(models);
-    }
-    pub fn get_models_mut(&mut self) -> &mut Vec<Models> {
-        &mut self.models
     }
 
     pub fn update_models<F>(&mut self, mut f: F)
@@ -124,5 +132,21 @@ impl View {
             chat_streams: Vec::new(),
             id: 0,
         }
+    }
+
+    pub fn remove_download_by_id(&mut self, id: &usize) {
+        self.update_downloads(|downloads| {
+            if let Some(index) = downloads.iter().position(|x| &x.id == id) {
+                downloads.remove(index);
+            }
+        });
+    }
+
+    pub fn remove_chat_stream_by_id(&mut self, id: &Id) {
+        self.update_chat_streams(|streams| {
+            if let Some(index) = streams.iter().position(|x| &x.id == id) {
+                streams.remove(index);
+            }
+        });
     }
 }

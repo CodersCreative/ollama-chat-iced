@@ -3,7 +3,6 @@ use crate::{
     common::Id,
     save::chats::{ChatsMessage, SavedChats},
     sidebar::chats::Chats as SideChats,
-    SAVE_FILE,
 };
 use crate::{ChatApp, Message};
 use iced::Task;

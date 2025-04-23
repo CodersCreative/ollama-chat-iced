@@ -1,6 +1,6 @@
 use crate::common::Id;
 use crate::utils::get_path_settings;
-use crate::{style, utils::generate_id, ChatApp, Message};
+use crate::{style, ChatApp, Message};
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{

@@ -171,7 +171,7 @@ impl CallMessage {
                                 .iter()
                                 .map(|x| x.into())
                                 .collect::<Vec<ChatMessage>>(),
-                            app.options.0[index].clone(),
+                            app.options.model_options()[index].clone(),
                             app.logic.ollama.clone(),
                         ),
                         move |x| Message::Call(CallMessage::Generated(x)),

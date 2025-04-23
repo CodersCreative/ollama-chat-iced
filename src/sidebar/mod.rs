@@ -5,7 +5,6 @@ use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
         button, checkbox, column, container, pick_list, row, scrollable, svg, text, vertical_space,
-        Checkbox,
     },
     Element, Length, Padding, Renderer, Theme,
 };

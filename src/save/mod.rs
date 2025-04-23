@@ -9,7 +9,6 @@ use chats::SavedChats;
 use iced::Element;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::HashMap;
 use std::time::SystemTime;
 use std::{fs::File, io::Read};
 

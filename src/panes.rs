@@ -4,7 +4,7 @@ use crate::{
     models::Models,
     options::Options,
     style::{self},
-    utils::{generate_id, get_path_assets},
+    utils::get_path_assets,
     ChatApp, Message,
 };
 use iced::{

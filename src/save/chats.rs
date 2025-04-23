@@ -1,28 +1,18 @@
 use super::chat::{Chat, ChatBuilder};
 use crate::chats::{Chats, State};
 use crate::common::Id;
-use crate::llm::{get_model, run_ollama_tools, Tools};
+use crate::llm::Tools;
 use crate::sound::{get_audio, transcribe};
-use crate::start::{self, Section};
-use crate::style;
-use crate::utils::{change_alpha, generate_id, get_path_assets, get_preview, lighten_colour};
+use crate::utils::get_preview;
 use crate::{ChatApp, Message, SAVE_FILE};
-use iced::alignment::{Horizontal, Vertical};
-use iced::widget::{
-    button, column, combo_box, container, horizontal_space, image, keyed_column, markdown, row,
-    scrollable,
-    scrollable::{Direction, Scrollbar},
-    svg, text, text_editor, Renderer,
-};
-use iced::{Element, Length, Padding, Task, Theme};
+use iced::widget::{markdown, text_editor};
+use iced::Task;
 use kalosm_sound::{rodio::buffer::SamplesBuffer, MicInput};
-use ollama_rs::coordinator::Coordinator;
 use ollama_rs::generation::chat::ChatMessage;
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 use std::{path::PathBuf, sync::Arc};
 
-use tokio::sync::Mutex;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SavedChats(pub Vec<Chat>, pub Id, pub Vec<Tools>, pub SystemTime);
 
@@ -65,15 +55,10 @@ impl ChatsMessage {
                         break;
                     }
                 }
-                app.main_view.update_chats(|chats| {
-                    chats
-                        .iter_mut()
-                        .filter(|x| x.saved_chat() == &saved_id)
-                        .for_each(|x| {
-                            x.update_markdown(|x| {
-                                x.remove(x.len() - 1);
-                            });
-                        });
+                app.main_view.update_chat_by_saved(&saved_id, |chat| {
+                    chat.update_markdown(|x| {
+                        x.remove(x.len() - 1);
+                    });
                 });
 
                 let option = app.options.get_create_model_options_index(
@@ -202,13 +187,9 @@ impl ChatsMessage {
                         break;
                     }
                 }
-                app.main_view.update_chats(|chats| {
-                    chats
-                        .iter_mut()
-                        .filter(|x| x.saved_chat() == &saved_id)
-                        .for_each(|x| {
-                            x.add_markdown(Chat::generate_mk(chat.content()));
-                        });
+
+                app.main_view.update_chat_by_saved(&saved_id, |x| {
+                    x.add_markdown(Chat::generate_mk(chat.content()));
                 });
 
                 let option = app.options.get_create_model_options_index(

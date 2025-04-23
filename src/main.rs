@@ -214,41 +214,19 @@ impl ChatApp {
                 }
             }
             Message::StopPull(id) => {
-                self.main_view.update_downloads(|downloads| {
-                    for (i, x) in downloads.iter().enumerate() {
-                        if x.id == id {
-                            downloads.remove(i);
-                            break;
-                        }
-                    }
-                });
+                self.main_view.remove_download_by_id(&id);
                 Task::none()
             }
             Message::StopGenerating(id) => {
-                self.main_view.update_chat_streams(|streams| {
-                    for (i, x) in streams.iter().enumerate() {
-                        if x.id == id {
-                            streams.remove(i);
-                            break;
-                        }
-                    }
-                });
+                self.main_view.remove_chat_stream_by_id(&id);
                 Task::none()
             }
             Message::ShowSettings => {
-                self.main_view
-                    .set_side_state(match self.main_view.side_state() {
-                        SideBarState::Settings => SideBarState::Shown,
-                        _ => SideBarState::Settings,
-                    });
+                self.toggle_side_bar_state(SideBarState::Settings);
                 Task::none()
             }
             Message::SideBar => {
-                self.main_view
-                    .set_side_state(match self.main_view.side_state() {
-                        SideBarState::Hidden => SideBarState::Shown,
-                        _ => SideBarState::Hidden,
-                    });
+                self.toggle_side_bar_state(SideBarState::Hidden);
                 Task::none()
             }
             Message::RemoveChat(x) => return self.remove_chat(x),

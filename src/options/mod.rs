@@ -5,7 +5,7 @@ use crate::{
     common::Id,
     llm::delete_model,
     style,
-    utils::{generate_id, get_path_assets, get_path_settings},
+    utils::{get_path_assets, get_path_settings},
     ChatApp, Message,
 };
 use doc::DOCS;
@@ -52,7 +52,39 @@ impl Options {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct SavedOptions(pub Vec<ModelOptions>);
+pub struct SavedOptions(Vec<ModelOptions>);
+
+impl SavedOptions {
+    pub fn model_options(&self) -> &Vec<ModelOptions> {
+        &self.0
+    }
+
+    pub fn model_options_mut(&mut self) -> &mut Vec<ModelOptions> {
+        &mut self.0
+    }
+
+    pub fn set_model_options(&mut self, options: Vec<ModelOptions>) {
+        self.0 = options;
+    }
+
+    pub fn update_model_option<F>(&mut self, index: usize, mut f: F)
+    where
+        F: FnMut(&mut ModelOptions),
+    {
+        f(&mut self.0[index]);
+    }
+
+    pub fn update_gen_option<F>(&mut self, model_index: usize, index: usize, mut f: F)
+    where
+        F: FnMut(&mut GenOption),
+    {
+        self.0[model_index].update_option(index, f);
+    }
+
+    pub fn gen_option(&mut self, model_index: usize, index: usize) -> &GenOption {
+        &self.model_options()[model_index].options()[index]
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum OptionMessage {
@@ -67,13 +99,19 @@ pub enum OptionMessage {
 
 impl OptionMessage {
     pub fn handle<'a>(&'a self, options: Options, app: &'a mut ChatApp) -> Task<Message> {
+        let mut get_indexes = |x: &OptionKey| -> (usize, usize) {
+            let m_index = app
+                .options
+                .get_create_model_options_index(options.model().to_string());
+            (m_index, app.options.0[m_index].get_key_index(x.clone()))
+        };
+
         match self {
             Self::ChangeOptionBool(x) => {
-                let m_index = app
-                    .options
-                    .get_create_model_options_index(options.model().to_string());
-                let index = app.options.0[m_index].get_key_index(x.1.clone());
-                app.options.0[m_index].0[index].bool_value = x.0;
+                let (m_index, index) = get_indexes(&x.1);
+
+                app.options
+                    .update_gen_option(m_index, index, |option| option.bool_value = x.0);
                 app.options.save(SETTINGS_FILE);
                 Task::none()
             }
@@ -106,42 +144,39 @@ impl OptionMessage {
                 Task::none()
             }
             Self::ChangeOptionNum(x) => {
-                let m_index = app
-                    .options
-                    .get_create_model_options_index(options.model().to_string());
-                let index = app.options.0[m_index].get_key_index(x.1.clone());
-                app.options.0[m_index].0[index].temp = x.0.clone();
+                let (m_index, index) = get_indexes(&x.1);
+                app.options
+                    .update_gen_option(m_index, index, |option| option.temp = x.0.clone());
                 Task::none()
             }
             Self::SubmitOptionNum(x) => {
-                let m_index = app
-                    .options
-                    .get_create_model_options_index(options.model().to_string());
-                let index = app.options.0[m_index].get_key_index(x.clone());
-                if let Ok(num) = app.options.0[m_index].0[index].temp.parse::<f32>() {
-                    let mut value = app.options.0[m_index].0[index].num_value.unwrap();
-                    value.0 = num;
-                    app.options.0[m_index].0[index].num_value = Some(value);
-                    app.options.save(SETTINGS_FILE);
-                } else {
-                    app.options.0[m_index].0[index].temp = app.options.0[m_index].0[index]
-                        .num_value
-                        .unwrap()
-                        .0
-                        .to_string();
-                }
+                let (m_index, index) = get_indexes(&x);
+
+                app.options.update_gen_option(m_index, index, |option| {
+                    if let Ok(num) = option.temp.parse::<f32>() {
+                        let mut value = option.num_value.unwrap();
+                        value.0 = num;
+                        option.num_value = Some(value);
+                    } else {
+                        option.temp = option.num_value.unwrap().0.to_string()
+                    }
+                });
+
+                app.options.save(SETTINGS_FILE);
+
                 Task::none()
             }
             Self::ResetOption(x) => {
-                let m_index = app
-                    .options
-                    .get_create_model_options_index(options.model().to_string());
-                let index = app.options.0[m_index].get_key_index(x.clone());
-                let mut value = app.options.0[m_index].0[index].num_value.unwrap();
-                value.0 = value.1;
-                app.options.0[m_index].0[index].num_value = Some(value);
-                app.options.0[m_index].0[index].temp = value.1.to_string();
-                app.options.0[m_index].0[index].bool_value = false;
+                let (m_index, index) = get_indexes(&x);
+
+                app.options.update_gen_option(m_index, index, |option| {
+                    let mut value = option.num_value.unwrap();
+                    value.0 = value.1;
+                    option.num_value = Some(value);
+                    option.temp = value.1.to_string();
+                    option.bool_value = false;
+                });
+
                 app.options.save(SETTINGS_FILE);
                 Task::none()
             }
@@ -189,7 +224,39 @@ impl SavedOptions {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct ModelOptions(pub Vec<GenOption>, pub String);
+pub struct ModelOptions(Vec<GenOption>, String);
+
+impl ModelOptions {
+    pub fn model(&self) -> &str {
+        &self.1
+    }
+
+    pub fn set_model(&mut self, model: String) {
+        self.1 = model;
+    }
+
+    pub fn options(&self) -> &Vec<GenOption> {
+        &self.0
+    }
+
+    pub fn set_options(&mut self, options: Vec<GenOption>) {
+        self.0 = options;
+    }
+
+    pub fn update_options<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut Vec<GenOption>),
+    {
+        f(&mut self.0);
+    }
+
+    pub fn update_option<F>(&mut self, index: usize, mut f: F)
+    where
+        F: FnMut(&mut GenOption),
+    {
+        f(&mut self.0[index]);
+    }
+}
 
 impl SavedOptions {
     pub fn save(&self, path: &str) {
