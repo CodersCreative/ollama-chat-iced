@@ -9,11 +9,8 @@ impl ChatApp {
         self.main_view.set_theme(theme.clone());
         let mut index = None;
 
-        for i in 0..Theme::ALL.len() {
-            if Theme::ALL[i] == theme {
-                index = Some(i);
-                break;
-            }
+        if let Some(i) = Theme::ALL.iter().position(|x| x == &theme) {
+            index = Some(i);
         }
 
         self.save.theme = index;

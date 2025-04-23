@@ -53,12 +53,7 @@ impl Save {
     }
 
     pub fn get_index(&self, id: Id) -> Option<usize> {
-        for i in 0..self.chats.len() {
-            if self.chats[i].1 == id {
-                return Some(i);
-            }
-        }
-        return None;
+        self.chats.iter().position(|x| x.1 == id)
     }
 
     pub fn update_chats(&mut self, chat: SavedChats) {

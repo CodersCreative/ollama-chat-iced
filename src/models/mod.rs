@@ -240,6 +240,7 @@ impl SaveableModels {
 
         return Err("Failed to open file".to_string());
     }
+
     fn into_index<'a>(&'a self) -> Result<(Index, Vec<Field>, Schema), Box<dyn Error>> {
         let mut schema_builder = Schema::builder();
         let name = schema_builder.add_text_field("title", TEXT | STORED);
@@ -365,10 +366,8 @@ impl Models {
     }
 
     pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
-        for i in 0..app.main_view.models().len() {
-            if app.main_view.models()[i].0 == id {
-                return i;
-            }
+        if let Some(i) = app.main_view.models().iter().position(|x| x.0 == id) {
+            return i;
         }
         0
     }

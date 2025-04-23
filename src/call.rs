@@ -1,7 +1,7 @@
 use crate::{
     llm::run_ollama,
     panes::Panes,
-    save::chat::Chat,
+    save::chat::{Chat, ChatBuilder},
     sound::{get_audio, transcribe},
     style,
     utils::{get_path_assets, get_path_src, play_wav_file, split_text_gtts},
@@ -103,6 +103,15 @@ pub enum CallMessage {
 
 impl CallMessage {
     pub fn handle(&self, app: &mut ChatApp) -> Task<Message> {
+        let listen = || -> Task<Message> {
+            let mic = MicInput::default();
+            let stream = mic.stream();
+
+            return Task::perform(get_audio(stream), move |x| {
+                Message::Call(CallMessage::Convert(x))
+            });
+        };
+
         match self {
             Self::StartCall(x) => {
                 if let Some(_) = app.panes.focus {
@@ -113,13 +122,9 @@ impl CallMessage {
                         app.panes.focus.unwrap().clone(),
                         crate::panes::Pane::Call,
                     );
-                    let mic = MicInput::default();
-                    let stream = mic.stream();
 
                     app.call.state = State::Listening;
-                    return Task::perform(get_audio(stream), move |x| {
-                        Message::Call(CallMessage::Convert(x))
-                    });
+                    return listen();
                 }
 
                 Task::none()
@@ -130,13 +135,8 @@ impl CallMessage {
             }
             Self::Listen => {
                 if app.call.state.clone() != State::Idle {
-                    let mic = MicInput::default();
-                    let stream = mic.stream();
-
                     app.call.state = State::Listening;
-                    return Task::perform(get_audio(stream), move |x| {
-                        Message::Call(CallMessage::Convert(x))
-                    });
+                    return listen();
                 }
 
                 Task::none()
@@ -153,12 +153,12 @@ impl CallMessage {
             Self::Listened(x) => {
                 if app.call.state != State::Idle {
                     if let Ok(str) = x {
-                        app.call.chats.push(Chat::new(
-                            &crate::save::chat::Role::User,
-                            str,
-                            Vec::new(),
-                            Vec::new(),
-                        ));
+                        app.call.chats.push(
+                            ChatBuilder::default()
+                                .content(str.to_string())
+                                .build()
+                                .unwrap(),
+                        );
                     }
                     let index = app
                         .options
@@ -198,12 +198,8 @@ impl CallMessage {
                     }
                 }
 
-                let mic = MicInput::default();
-                let stream = mic.stream();
                 app.call.state = State::Listening;
-                Task::perform(get_audio(stream), move |x| {
-                    Message::Call(CallMessage::Convert(x))
-                })
+                listen()
             }
             Self::ChangeModel(x) => {
                 app.call.model = x.clone();

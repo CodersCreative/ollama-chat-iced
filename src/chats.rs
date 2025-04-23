@@ -130,21 +130,17 @@ impl Chats {
     }
 
     pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
-        for i in 0..app.main_view.chats().len() {
-            if app.main_view.chats()[i].id == id {
-                return i;
-            }
+        if let Some(i) = app.main_view.chats().iter().position(|x| x.id() == &id) {
+            return i;
         }
         0
     }
 
     pub fn get_saved_index(&self, app: &ChatApp) -> Option<usize> {
-        for i in 0..app.save.chats.len() {
-            if self.saved_chat() == &app.save.chats[i].1 {
-                return Some(i);
-            }
-        }
-        None
+        app.save
+            .chats
+            .iter()
+            .position(|x| self.saved_chat() == &x.1)
     }
 
     pub fn view<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {

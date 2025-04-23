@@ -5,10 +5,8 @@ use super::*;
 
 impl ModelOptions {
     pub fn get_key_index(&self, key: OptionKey) -> usize {
-        for i in 0..self.0.len() {
-            if self.0[i].key == key {
-                return i;
-            }
+        if let Some(i) = self.0.iter().position(|x| x.key == key) {
+            return i;
         }
         0
     }

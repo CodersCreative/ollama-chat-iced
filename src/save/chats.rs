@@ -48,12 +48,16 @@ impl ChatsMessage {
                 let mut s_index = 0;
                 let saved_id = app.main_view.chats()[index].saved_chat().clone();
 
-                for (i, x) in app.save.chats.iter_mut().enumerate() {
-                    if x.1 == saved_id {
-                        x.0.remove(x.0.len() - 1);
-                        s_index = i;
-                        break;
-                    }
+                for (i, x) in app
+                    .save
+                    .chats
+                    .iter_mut()
+                    .enumerate()
+                    .filter(|(i, x)| x.1 == saved_id)
+                {
+                    x.0.remove(x.0.len() - 1);
+                    s_index = i;
+                    break;
                 }
                 app.main_view.update_chat_by_saved(&saved_id, |chat| {
                     chat.update_markdown(|x| {

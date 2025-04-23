@@ -199,13 +199,7 @@ impl OptionMessage {
 
 impl SavedOptions {
     pub fn get_model_options_index(&self, model: String) -> Option<usize> {
-        for i in 0..self.0.len() {
-            if self.0[i].1 == model {
-                return Some(i);
-            }
-        }
-
-        None
+        self.0.iter().position(|x| x.1 == model)
     }
 
     pub fn get_create_model_options_index(&mut self, model: String) -> usize {
@@ -298,10 +292,8 @@ impl Options {
     }
 
     pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
-        for i in 0..app.main_view.options().len() {
-            if app.main_view.options()[i].id() == &id {
-                return i;
-            }
+        if let Some(i) = app.main_view.options().iter().position(|x| x.0 == id) {
+            return i;
         }
         0
     }
