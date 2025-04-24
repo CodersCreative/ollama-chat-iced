@@ -1,3 +1,4 @@
+use crate::common::Id;
 use crate::view::View;
 use crate::{save::chats::ChatsMessage, sidebar::chat::Chat, utils::get_path_assets};
 use crate::{style, ChatApp, Message};
@@ -8,6 +9,7 @@ use iced::{
     },
     Element, Length, Padding, Renderer, Theme,
 };
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
 pub mod chat;
@@ -182,9 +184,10 @@ impl View {
 
     pub fn view_chats<'a>(&'a self, app: &'a ChatApp) -> Element<Message> {
         if app.main_view.side_chats().chats.len() >= 8 {
-            let view = |chats: Vec<&'a Chat>| -> Element<Message> {
+            
+            let view = |chats: HashMap<&'a Id, &'a Chat>| -> Element<Message> {
                 let chats: Vec<Element<Message>> =
-                    chats.iter().map(|x| x.view(app)).clone().collect();
+                    chats.iter().map(|(i, x)| x.view(app, i)).clone().collect();
                 return scrollable(column(chats).spacing(2)).into();
             };
 
@@ -193,25 +196,26 @@ impl View {
                 view(
                     (&app.main_view.side_chats().chats)
                         .iter()
-                        .filter(|x| x
+                        .filter(|(_, x)| 
+                            x
                             .get_time()
                             .duration_since(SystemTime::now())
                             .unwrap_or(Duration::new(0, 0))
                             .as_secs()
                             < 2629746)
-                        .collect::<Vec<&Chat>>()
+                        .collect::<HashMap<&Id, &Chat>>()
                 ),
                 Self::txt("Old".to_string(), self.theme().palette().primary),
                 view(
                     (&app.main_view.side_chats().chats)
                         .iter()
-                        .filter(|x| x
+                        .filter(|(_, x)| x
                             .get_time()
                             .duration_since(SystemTime::now())
                             .unwrap_or(Duration::new(0, 0))
                             .as_secs()
                             > 2629746)
-                        .collect::<Vec<&Chat>>()
+                        .collect::<HashMap<&Id, &Chat>>()
                 ),
             ]
             .into();

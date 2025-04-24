@@ -171,16 +171,16 @@ pub fn chat(
 }
 
 impl ChatStream {
-    pub fn new(app: &ChatApp, id: Id, option: usize, chat: usize) -> Self {
+    pub fn new(app: &ChatApp, id: Id, option: usize) -> Self {
         Self {
             id,
             state: State::Generating(ChatMessage::new(
                 ollama_rs::generation::chat::MessageRole::Assistant,
                 String::new(),
             )),
-            chats: Arc::new(app.save.chats[chat].get_chat_messages()),
+            chats: Arc::new(app.save.chats.get(&id).unwrap().get_chat_messages()),
             options: app.options.model_options()[option].clone(),
-            tools: Arc::new(app.save.chats[chat].2.clone()),
+            tools: Arc::new(app.save.chats.get(&id).unwrap().1.clone()),
         }
     }
 

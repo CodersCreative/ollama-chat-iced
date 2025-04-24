@@ -85,7 +85,7 @@ pub enum Message {
     Chats(ChatsMessage, Id),
     ChangeTheme(Theme),
     SaveToClipboard(String),
-    RemoveChat(usize),
+    RemoveChat(Id),
     URLClicked(markdown::Url),
     ChangeUsePanels(bool),
     ShowSettings,
@@ -151,9 +151,10 @@ impl ChatApp {
 
         if !models.is_empty() {
             if app.save.chats.is_empty() {
-                app.save.chats.push(SavedChats::new());
+                app.save.chats.insert(Id::new(), SavedChats::new());
+                // app.save.chats.push(SavedChats::new());
             } else {
-                app.save.chats.iter_mut().for_each(|x| {
+                app.save.chats.iter_mut().for_each(|(i, x)| {
                     if let Some(y) = x.0.last() {
                         if y.role() != &Role::AI {
                             x.0.remove(x.0.len() - 1);
@@ -164,12 +165,12 @@ impl ChatApp {
 
             app.main_view
                 .set_side_chats(SideChats::new(app.save.get_chat_previews()));
-            let saved = app.save.chats.last().unwrap();
-            let first = chats::Chats::new(models.first().unwrap().clone(), saved.1, saved.to_mk());
+            let saved = app.save.chats.iter().last().unwrap();
+            let first = (Id::new(), chats::Chats::new(models.first().unwrap().clone(), saved.0.clone(), saved.1.to_mk()));
 
-            app.panes = Panes::new(panes::Pane::Chat(first.id().clone()));
-            app.panes.last_chat = first.id().clone();
-            app.main_view.add_to_chats(first);
+            app.panes = Panes::new(panes::Pane::Chat(first.0.clone()));
+            app.panes.last_chat = first.0.clone();
+            app.main_view.add_to_chats(first.0, first.1);
             app.options
                 .get_create_model_options_index(models.first().unwrap().clone());
         }
@@ -184,13 +185,13 @@ impl ChatApp {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Option(x, i) => x.handle(Options::get_from_id(self, i).clone(), self),
+            Message::Option(x, k) => x.handle(k, self),
             Message::ChangeUsePanels(x) => {
                 self.save.use_panes = x;
                 self.save.save(SAVE_FILE);
                 Task::none()
             }
-            Message::Models(x, i) => x.handle(Models::get_from_id(self, i).clone(), self),
+            Message::Models(x, k) => x.handle(k, self),
             Message::None => Task::none(),
             Message::SaveToClipboard(x) => {
                 println!("Save Clip {}", x);
@@ -235,7 +236,7 @@ impl ChatApp {
                 if let Ok(x) = x {
                     let mut mk = Chat::generate_mk(x.content.as_str());
                     let mut first = true;
-                    if let Some(chat) = self.save.chats.iter_mut().find(|chat| chat.1 == id) {
+                    if let Some(chat) = self.save.chats.get_mut(&id){ //self.save.chats.iter_mut().find(|chat| chat.1 == id) {
                         let index = chat.0.len() - 1;
                         if chat.0.last().unwrap().role() == &save::chat::Role::AI {
                             chat.0[index].add_to_content(x.content.as_str());
@@ -255,8 +256,8 @@ impl ChatApp {
                     self.main_view.update_chats(|chats| {
                         chats
                             .iter_mut()
-                            .filter(|chat| chat.saved_chat() == &id)
-                            .for_each(|chat| {
+                            .filter(|chat| chat.1.saved_chat() == &id)
+                            .for_each(|(_, chat)| {
                                 if !first {
                                     chat.update_markdown(|x| {
                                         x.remove(x.len() - 1);
@@ -275,8 +276,8 @@ impl ChatApp {
                     self.main_view.update_chats(|chats| {
                         chats
                             .iter_mut()
-                            .filter(|chat| chat.saved_chat() == &id)
-                            .for_each(|chat| {
+                            .filter(|chat| chat.1.saved_chat() == &id)
+                            .for_each(|(_, chat)| {
                                 chat.set_content(text_editor::Content::new());
                                 chat.set_images(Vec::new());
                                 chat.set_state(chats::State::Idle);
@@ -304,7 +305,7 @@ impl ChatApp {
                     let mut mk = Chat::generate_mk(progress.content.as_str());
                     let mut first = true;
 
-                    if let Some(chat) = self.save.chats.iter_mut().find(|chat| chat.1 == id) {
+                    if let Some(chat) = self.save.chats.get_mut(&id) {
                         let index = chat.0.len() - 1;
                         if chat.0.last().unwrap().role() == &save::chat::Role::AI {
                             chat.0[index].add_to_content(progress.content.as_str());
@@ -324,8 +325,8 @@ impl ChatApp {
                     self.main_view.update_chats(|chats| {
                         chats
                             .iter_mut()
-                            .filter(|chat| chat.saved_chat() == &id)
-                            .for_each(|chat| {
+                            .filter(|chat| chat.1.saved_chat() == &id)
+                            .for_each(|(_, chat)| {
                                 if !first {
                                     chat.update_markdown(|x| {
                                         x.remove(x.len() - 1);
@@ -343,8 +344,8 @@ impl ChatApp {
                     self.main_view.update_chats(|chats| {
                         chats
                             .iter_mut()
-                            .filter(|chat| chat.saved_chat() == &id)
-                            .for_each(|chat| {
+                            .filter(|chat| chat.1.saved_chat() == &id)
+                            .for_each(|(_, chat)| {
                                 chat.set_content(text_editor::Content::new());
                                 chat.set_images(Vec::new());
                                 chat.set_state(chats::State::Idle);

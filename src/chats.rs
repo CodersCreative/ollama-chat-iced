@@ -36,8 +36,6 @@ pub struct Chats {
     desc: Option<String>,
     #[getset(get = "pub", set = "pub")]
     tools: Arc<TooledOptions>,
-    #[getset(get = "pub", set = "pub", get_copy = "pub with_prefix")]
-    id: Id,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -104,7 +102,7 @@ impl Chats {
 impl Chats {
     pub fn new(model: String, saved_chat: Id, markdown: Vec<Vec<markdown::Item>>) -> Self {
         Self {
-            id: Id::new(),
+            // id: Id::new(),
             model,
             saved_chat,
             markdown,
@@ -117,47 +115,47 @@ impl Chats {
         }
     }
 
-    pub fn get_from_id<'a>(app: &'a ChatApp, id: Id) -> &'a Self {
-        app.main_view.chats().iter().find(|x| x.id == id).unwrap()
-    }
+    // pub fn get_from_id<'a>(app: &'a ChatApp, id: Id) -> &'a Self {
+    //     app.main_view.chats().iter().find(|x| x.id == id).unwrap()
+    // }
+    //
+    // pub fn get_from_id_mut<'a>(app: &'a mut ChatApp, id: Id) -> &'a mut Self {
+    //     app.main_view
+    //         .chats_mut()
+    //         .iter_mut()
+    //         .find(|x| x.id == id)
+    //         .unwrap()
+    // }
 
-    pub fn get_from_id_mut<'a>(app: &'a mut ChatApp, id: Id) -> &'a mut Self {
-        app.main_view
-            .chats_mut()
-            .iter_mut()
-            .find(|x| x.id == id)
-            .unwrap()
-    }
+    // pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
+    //     if let Some(i) = app.main_view.chats().iter().position(|x| x.id() == &id) {
+    //         return i;
+    //     }
+    //     0
+    // }
+    //
+    // pub fn get_saved_index(&self, app: &ChatApp) -> Option<usize> {
+    //     app.save
+    //         .chats
+    //         .iter()
+    //         .position(|x| self.saved_chat() == &x.1)
+    // }
 
-    pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
-        if let Some(i) = app.main_view.chats().iter().position(|x| x.id() == &id) {
-            return i;
-        }
-        0
-    }
+    // pub fn view<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
+    //     let index = match self.get_saved_index(app) {
+    //         Some(x) => x,
+    //         None => return text("Failed").into(),
+    //     };
+    //     self.view_with_index(app, index)
+    // }
 
-    pub fn get_saved_index(&self, app: &ChatApp) -> Option<usize> {
-        app.save
-            .chats
-            .iter()
-            .position(|x| self.saved_chat() == &x.1)
-    }
-
-    pub fn view<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
-        let index = match self.get_saved_index(app) {
-            Some(x) => x,
-            None => return text("Failed").into(),
-        };
-        self.view_with_index(app, index)
-    }
-
-    pub fn view_with_index<'a>(&'a self, app: &'a ChatApp, index: usize) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         keyed_column(
-            app.save.chats[index]
+            app.save.chats.get(self.saved_chat()).unwrap()
                 .0
                 .iter()
                 .enumerate()
-                .map(|(i, chat)| (0, chat.view(self, &self.markdown[i], &app.theme()))),
+                .map(|(i, chat)| (0, chat.view(id, &self.markdown[i], &app.theme()))),
         )
         .spacing(10)
         .into()
@@ -167,18 +165,18 @@ impl Chats {
         let input: Element<Message> = match self.state {
             State::Idle => text_editor(self.content())
                 .placeholder("Type your message here...")
-                .on_action(|action| Message::Chats(ChatsMessage::Action(action), self.id))
+                .on_action(move |action| Message::Chats(ChatsMessage::Action(action), id))
                 .padding(Padding::from(20))
                 .size(20)
                 .style(style::text_editor::input)
-                .key_binding(|key_press| {
+                .key_binding(move |key_press| {
                     let modifiers = key_press.modifiers;
 
                     match text_editor::Binding::from_key_press(key_press) {
                         Some(text_editor::Binding::Enter) if !modifiers.shift() => {
                             Some(text_editor::Binding::Custom(Message::Chats(
                                 ChatsMessage::Submit,
-                                self.id,
+                                id,
                             )))
                         }
                         binding => binding,
@@ -215,7 +213,7 @@ impl Chats {
             .width(Length::Fixed(48.0))
         };
 
-        let upload = btn("upload.svg").on_press(Message::Chats(ChatsMessage::PickImage, self.id));
+        let upload = btn("upload.svg").on_press(Message::Chats(ChatsMessage::PickImage, id));
 
         let submit: Element<Message> = match self.state == State::Generating {
             true => btn("close.svg")
@@ -226,8 +224,8 @@ impl Chats {
                     crate::call::CallMessage::StartCall(self.model.clone()),
                 ));
                 let record =
-                    btn("record.svg").on_press(Message::Chats(ChatsMessage::Listen, self.id));
-                let send = btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, self.id));
+                    btn("record.svg").on_press(Message::Chats(ChatsMessage::Listen, id));
+                let send = btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, id));
 
                 row![record, call, send].into()
             }
@@ -240,7 +238,7 @@ impl Chats {
                         .style(style::button::transparent_text)
                         .on_press(Message::Chats(
                             ChatsMessage::RemoveImage(x.clone()),
-                            self.id,
+                            id,
                         ))
                         .into()
                 }))
@@ -278,8 +276,8 @@ impl Chats {
         let input = container(input).padding(10);
 
         let body = match self.markdown.is_empty() {
-            true => self.view_start(app),
-            false => self.view_chat(app),
+            true => self.view_start(app, id.clone()),
+            false => self.view_chat(app, &id),
         };
 
         container(column![body, input,])
@@ -287,7 +285,7 @@ impl Chats {
             .into()
     }
 
-    fn view_start<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
+    fn view_start<'a>(&'a self, app: &'a ChatApp, id: Id) -> Element<'a, Message> {
         let title = text("How can I help?")
             .size(32)
             .color(app.theme().palette().text)
@@ -318,7 +316,7 @@ impl Chats {
                 .style(style)
                 .on_press(Message::Chats(
                     ChatsMessage::ChangeStart(x.title.to_string()),
-                    self.id,
+                    id,
                 ))
                 .into()
             })
@@ -349,7 +347,7 @@ impl Chats {
                         ChatsMessage::Action(text_editor::Action::Edit(text_editor::Edit::Paste(
                             Arc::new(x.to_string()),
                         ))),
-                        self.id,
+                        id,
                     ))
                     .into()
                 })
@@ -371,8 +369,8 @@ impl Chats {
         .into()
     }
 
-    fn view_chat<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
-        container(scrollable::Scrollable::new(app.save.view_chat(self, app)).width(Length::Fill))
+    fn view_chat<'a>(&'a self, app: &'a ChatApp, id : &Id) -> Element<'a, Message> {
+        container(scrollable::Scrollable::new(app.save.view_chat(self, id, app)).width(Length::Fill))
             .width(Length::Fill)
             .height(Length::Fill)
             .padding(20)

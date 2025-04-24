@@ -9,6 +9,7 @@ use chats::SavedChats;
 use iced::Element;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::collections::HashMap;
 use std::time::SystemTime;
 use std::{fs::File, io::Read};
 
@@ -16,68 +17,28 @@ use std::{fs::File, io::Read};
 pub struct Save {
     pub theme: Option<usize>,
     pub use_panes: bool,
-    pub chats: Vec<SavedChats>,
+    pub chats: HashMap<Id, SavedChats>,
 }
 
 impl Save {
     pub fn new() -> Self {
-        let chat = SavedChats::new();
         Self {
             theme: None,
             use_panes: true,
-            chats: vec![chat.clone()],
+            chats: HashMap::from([(Id::new(), SavedChats::new())]),
         }
     }
 
-    pub fn view_chat<'a>(&'a self, chat: &'a Chats, app: &'a ChatApp) -> Element<'a, Message> {
-        chat.view(app)
+    pub fn view_chat<'a>(&'a self, chat: &'a Chats, id : &Id, app: &'a ChatApp) -> Element<'a, Message> {
+        chat.view(app, id)
     }
 
-    // pub fn get_current_chat(&self) -> Option<SavedChats>{
-    //     let index = self.get_index(self.last);
-    //     if let Some(index) = index{
-    //         return Some(self.chats[index].clone());
-    //     }
-    //
-    //     None
-    // }
-    //
-    //
-    // pub fn get_current_chat_num(&self) -> Option<usize>{
-    //     let index = self.get_index(self.last);
-    //     return index;
-    // }
-
-    pub fn set_chats(&mut self, chats: Vec<SavedChats>) {
+    pub fn set_chats(&mut self, chats: HashMap<Id,SavedChats>) {
         self.chats = chats;
     }
 
-    pub fn get_index(&self, id: Id) -> Option<usize> {
-        self.chats.iter().position(|x| x.1 == id)
-    }
-
-    pub fn update_chats(&mut self, chat: SavedChats) {
-        let mut new_chats = Vec::new();
-
-        let mut found = false;
-        for (i, existing_chat) in self.chats.iter().enumerate() {
-            if existing_chat.1 == chat.clone().1 {
-                new_chats.push(chat.clone());
-                println!("Adding");
-                // self.last = i as i32;
-                found = true
-            } else {
-                new_chats.push(existing_chat.clone());
-            }
-        }
-
-        if !found {
-            new_chats.push(chat.clone());
-        }
-
-        if self.chats.len() <= new_chats.len() {
-            self.chats = new_chats;
-        }
+    pub fn update_chats(&mut self, key : Id, chat: SavedChats) {
+        self.chats.entry(key).and_modify(|x| *x = chat.clone()).or_insert(chat);
     }
 
     pub fn save(&self, path: &str) {
@@ -119,11 +80,14 @@ impl Save {
     //     }
     // }
 
-    pub fn get_chat_previews(&self) -> Vec<(String, SystemTime)> {
+    pub fn get_chat_previews(&self) -> Vec<(Id, String, SystemTime)> {
         self.chats
             .clone()
             .iter()
-            .map(|x| x.get_preview())
-            .collect::<Vec<(String, SystemTime)>>()
+            .map(|(id, x)| {
+                let (title, time) = x.get_preview();
+                (id.clone(), title, time)
+            })
+            .collect::<Vec<(Id, String, SystemTime)>>()
     }
 }

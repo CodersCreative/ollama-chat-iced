@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::chats::Chats;
 use crate::common::Id;
 use crate::download::Download;
@@ -16,11 +18,11 @@ pub struct View {
     #[getset(get = "pub", set = "pub")]
     side_chats: SideChats,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
-    options: Vec<Options>,
+    options: HashMap<Id, Options>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
-    chats: Vec<Chats>,
+    chats: HashMap<Id, Chats>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
-    models: Vec<Models>,
+    models: HashMap<Id, Models>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     downloads: Vec<Download>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
@@ -30,22 +32,22 @@ pub struct View {
 }
 
 impl View {
-    pub fn add_to_chats(&mut self, chat: Chats) {
-        self.chats.push(chat);
+    pub fn add_to_chats(&mut self, key: Id, chat: Chats) {
+        self.chats.insert(key, chat);
     }
 
     pub fn update_chats<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Vec<Chats>),
+        F: FnMut(&mut HashMap<Id, Chats>),
     {
         f(&mut self.chats);
     }
 
-    pub fn update_chat<F>(&mut self, index: usize, mut f: F)
+    pub fn update_chat<F>(&mut self, key: &Id, mut f: F)
     where
-        F: FnMut(&mut Chats),
+        F: FnMut(Option<&mut Chats>),
     {
-        f(&mut self.chats[index]);
+        f(self.chats.get_mut(key));
     }
 
     pub fn update_chat_by_saved<F>(&mut self, id: &Id, mut f: F)
@@ -54,46 +56,46 @@ impl View {
     {
         self.chats
             .iter_mut()
-            .filter(|x| x.saved_chat() == id)
+            .filter(|x| x.1.saved_chat() == id)
             .for_each(|x| {
-                f(x);
+                f(x.1);
             });
     }
 
-    pub fn add_to_options(&mut self, options: Options) {
-        self.options.push(options);
+    pub fn add_to_options(&mut self, key: Id, options: Options) {
+        self.options.insert(key, options);
     }
 
     pub fn update_options<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Vec<Options>),
+        F: FnMut(&mut HashMap<Id, Options>),
     {
         f(&mut self.options);
     }
 
-    pub fn update_option<F>(&mut self, index: usize, mut f: F)
+    pub fn update_option<F>(&mut self, key: &Id, mut f: F)
     where
-        F: FnMut(&mut Options),
+        F: FnMut(Option<&mut Options>),
     {
-        f(&mut self.options[index]);
+        f(self.options.get_mut(key));
     }
 
-    pub fn add_model(&mut self, models: Models) {
-        self.models.push(models);
+    pub fn add_model(&mut self, key : Id, models: Models) {
+        self.models.insert(key, models);
     }
 
     pub fn update_models<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Vec<Models>),
+        F: FnMut(&mut HashMap<Id, Models>),
     {
         f(&mut self.models);
     }
 
-    pub fn update_model<F>(&mut self, index: usize, mut f: F)
+    pub fn update_model<F>(&mut self, key: &Id, mut f: F)
     where
-        F: FnMut(&mut Models),
+        F: FnMut(Option<&mut Models>),
     {
-        f(&mut self.models[index]);
+        f(self.models.get_mut(key));
     }
 
     pub fn add_download(&mut self, download: Download) {
@@ -125,9 +127,9 @@ impl View {
             side_state: SideBarState::Hidden,
             theme: Theme::CatppuccinMocha,
             side_chats: SideChats::new(Vec::new()),
-            options: Vec::new(),
-            chats: Vec::new(),
-            models: Vec::new(),
+            options: HashMap::new(),
+            chats: HashMap::new(),
+            models: HashMap::new(),
             downloads: Vec::new(),
             chat_streams: Vec::new(),
             id: 0,

@@ -23,31 +23,28 @@ use std::{fs::File, io::Read};
 pub const SETTINGS_FILE: &str = "settings.json";
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct Options(Id, String, Option<OptionKey>);
+pub struct Options(String, Option<OptionKey>);
 
 impl Options {
     pub fn new(model: String) -> Self {
-        Self(Id::new(), model, None)
+        Self(model, None)
     }
 
     pub fn model(&self) -> &str {
-        &self.1
-    }
-
-    pub fn set_model(&mut self, model: String) {
-        self.1 = model;
-    }
-
-    pub fn id(&self) -> &Id {
         &self.0
     }
 
+    pub fn set_model(&mut self, model: String) {
+        self.0 = model;
+    }
+
+
     pub fn key(&self) -> &Option<OptionKey> {
-        &self.2
+        &self.1
     }
 
     pub fn set_key(&mut self, key: Option<OptionKey>) {
-        self.2 = key;
+        self.1 = key;
     }
 }
 
@@ -74,7 +71,7 @@ impl SavedOptions {
         f(&mut self.0[index]);
     }
 
-    pub fn update_gen_option<F>(&mut self, model_index: usize, index: usize, mut f: F)
+    pub fn update_gen_option<F>(&mut self, model_index: usize, index: usize, f: F)
     where
         F: FnMut(&mut GenOption),
     {
@@ -98,11 +95,13 @@ pub enum OptionMessage {
 }
 
 impl OptionMessage {
-    pub fn handle<'a>(&'a self, options: Options, app: &'a mut ChatApp) -> Task<Message> {
+    pub fn handle<'a>(&'a self, key: Id, app: &'a mut ChatApp) -> Task<Message> {
+        let model = app.main_view.options().get(&key).unwrap().0.clone();
+        
         let mut get_indexes = |x: &OptionKey| -> (usize, usize) {
             let m_index = app
                 .options
-                .get_create_model_options_index(options.model().to_string());
+                .get_create_model_options_index(model.clone());
             (m_index, app.options.0[m_index].get_key_index(x.clone()))
         };
 
@@ -117,23 +116,28 @@ impl OptionMessage {
             }
             Self::ChangeModel(x) => {
                 app.main_view.update_option(
-                    Options::get_index(app, options.id().clone()),
+                    &key,
                     |option| {
-                        option.set_model(x.clone());
+                        if let Some(option) = option{
+                            option.set_model(x.clone());
+                        }
                     },
                 );
 
                 Task::none()
             }
             Self::DeleteModel => {
-                let index = Options::get_index(app, options.id().clone());
-                let model = app.main_view.options()[index].model().to_string();
+                let model = app.main_view.options().get(&key).unwrap().model().to_string();
 
                 if let Ok(i) = app.logic.models.binary_search(&model) {
                     app.logic.models.remove(i);
                     if let Some(m) = app.logic.models.first() {
                         app.main_view
-                            .update_option(index, |option| option.set_model(m.clone()));
+                            .update_option(&key, |option| {
+                                if let Some(option) = option{
+                                    option.set_model(m.clone());
+                                }
+                            });
                         return Task::perform(
                             delete_model(app.logic.ollama.clone(), model.clone()),
                             move |_| Message::None,
@@ -181,16 +185,14 @@ impl OptionMessage {
                 Task::none()
             }
             Self::ClickedOption(x) => {
-                let index = Options::get_index(app, options.id().clone());
-                if let Some(y) = &app.main_view.options()[index].2 {
+                if let Some(y) = &app.main_view.options().get(&key).unwrap().1 {
                     if x == y {
-                        app.main_view.update_option(index, |x| x.set_key(None));
+                        app.main_view.update_option(&key, |x| x.unwrap().set_key(None));
                         return Task::none();
                     }
                 }
 
-                app.main_view
-                    .update_option(index, |y| y.set_key(Some(x.clone())));
+                app.main_view.update_option(&key, |y| y.unwrap().set_key(Some(x.clone())));
                 Task::none()
             }
         }
@@ -283,22 +285,7 @@ impl SavedOptions {
 }
 
 impl Options {
-    pub fn get_from_id<'a>(app: &'a ChatApp, id: Id) -> &'a Self {
-        app.main_view
-            .options()
-            .iter()
-            .find(|x| x.id() == &id)
-            .unwrap()
-    }
-
-    pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
-        if let Some(i) = app.main_view.options().iter().position(|x| x.0 == id) {
-            return i;
-        }
-        0
-    }
-
-    pub fn view<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, key : Id, app: &'a ChatApp) -> Element<'a, Message> {
         let index = match app
             .options
             .get_model_options_index(self.model().to_string())
@@ -306,20 +293,20 @@ impl Options {
             Some(x) => x,
             None => return text("Failed").into(),
         };
-        self.view_with_index(app, index, self.id().clone(), &self.model())
+        self.view_with_index(app, index, key.clone(), &self.model())
     }
 
     pub fn view_with_index<'a>(
         &'a self,
         app: &'a ChatApp,
         index: usize,
-        id: Id,
+        key: Id,
         model: &'a str,
     ) -> Element<'a, Message> {
         container(column![
             container(row![
                 combo_box(&app.logic.combo_models, model, None, move |x| {
-                    Message::Option(OptionMessage::ChangeModel(x), id)
+                    Message::Option(OptionMessage::ChangeModel(x), key)
                 }),
                 button(
                     svg(svg::Handle::from_path(get_path_assets(
@@ -330,10 +317,10 @@ impl Options {
                     .height(24.0),
                 )
                 .style(style::button::transparent_text)
-                .on_press(Message::Option(OptionMessage::DeleteModel, id))
+                .on_press(Message::Option(OptionMessage::DeleteModel, key))
             ])
             .padding(10),
-            container(app.options.0[index].view(self))
+            container(app.options.0[index].view(app, key.clone()))
                 .padding(Padding::default().left(20).right(20).top(5).bottom(5))
         ])
         .into()
@@ -341,9 +328,9 @@ impl Options {
 }
 
 impl ModelOptions {
-    pub fn view<'a>(&'a self, options: &'a Options) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, app : &ChatApp, key : Id) -> Element<'a, Message> {
         scrollable(column(self.0.iter().map(|x| {
-            let shown = if let Some(y) = &options.2 {
+            let shown = if let Some(y) = &app.main_view.options().get(&key).unwrap().1{
                 if y.clone() == x.key {
                     true
                 } else {
@@ -353,7 +340,7 @@ impl ModelOptions {
                 false
             };
 
-            x.view(options, shown)
+            x.view(key, shown)
         })))
         .into()
     }
@@ -418,12 +405,12 @@ impl GenOption {
         self.num_type = num_type;
     }
 
-    pub fn view<'a>(&'a self, options: &'a Options, shown: bool) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, key: Id, shown: bool) -> Element<'a, Message> {
         if shown {
             let name = button(text(&self.name).center().size(16))
                 .on_press(Message::Option(
                     OptionMessage::ClickedOption(self.key.clone()),
-                    options.id().clone(),
+                    key.clone(),
                 ))
                 .style(style::button::chosen_chat);
             let index = self.key.get_doc_index();
@@ -433,9 +420,9 @@ impl GenOption {
             let mut widgets: Vec<Element<Message>> = vec![row![
                 toggler(self.bool_value)
                     .label("Activated")
-                    .on_toggle(|x| Message::Option(
+                    .on_toggle(move |x| Message::Option(
                         OptionMessage::ChangeOptionBool((x, self.key.clone())),
-                        options.id().clone()
+                        key.clone()
                     ))
                     .width(Length::FillPortion(3)),
                 button(
@@ -449,7 +436,7 @@ impl GenOption {
                 .style(style::button::not_chosen_chat)
                 .on_press(Message::Option(
                     OptionMessage::ResetOption(self.key.clone()),
-                    options.id().clone()
+                    key.clone()
                 )),
             ]
             .spacing(10)
@@ -458,15 +445,15 @@ impl GenOption {
             if let Some(x) = self.num_value {
                 widgets.push(
                     text_input(&x.1.to_string(), &self.temp)
-                        .on_input(|x| {
+                        .on_input(move |x| {
                             Message::Option(
                                 OptionMessage::ChangeOptionNum((x, self.key.clone())),
-                                options.id().clone(),
+                                key.clone(),
                             )
                         })
                         .on_submit(Message::Option(
                             OptionMessage::SubmitOptionNum(self.key.clone()),
-                            options.id().clone(),
+                            key.clone(),
                         ))
                         .into(),
                 );
@@ -481,7 +468,7 @@ impl GenOption {
             button(text(&self.name).center().size(16))
                 .on_press(Message::Option(
                     OptionMessage::ClickedOption(self.key.clone()),
-                    options.id().clone(),
+                    key.clone(),
                 ))
                 .style(style::button::not_chosen_chat)
                 .into()

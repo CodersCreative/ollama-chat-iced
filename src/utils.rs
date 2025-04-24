@@ -1,4 +1,4 @@
-use crate::{save::chats::SavedChats, PREVIEW_LEN};
+use crate::{common::Id, save::chats::SavedChats, PREVIEW_LEN};
 use base64_stream::ToBase64Reader;
 use color_art::Color as Colour;
 use iced::Color;
@@ -144,7 +144,7 @@ pub fn get_preview(chat: &SavedChats) -> (String, SystemTime) {
             let i = chat.0.len() - 2;
             let prev = split_text(chat.0[i].content().to_string());
             if prev.len() > 0 {
-                return (prev[0].clone(), chat.3);
+                return (prev[0].clone(), chat.2, );
             }
         }
     }

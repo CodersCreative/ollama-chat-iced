@@ -27,14 +27,14 @@ pub enum Pane {
 
 impl Pane {
     pub fn new_settings(app: &mut ChatApp, model: String) -> Self {
-        let model = Options::new(model.clone());
-        app.main_view.add_to_options(model.clone());
-        return Self::Settings(model.id().clone());
+        let option = (Id::new(), Options::new(model.clone()));
+        app.main_view.add_to_options(option.0.clone(), option.1);
+        return Self::Settings(option.0);
     }
 
     pub fn new_models(app: &mut ChatApp) -> Self {
-        let model = Models::new(app);
-        app.main_view.add_model(model.clone());
+        let model = (Id::new(), Models::new(app));
+        app.main_view.add_model(model.0.clone(), model.1);
         return Self::Models(model.0);
     }
 }
@@ -187,10 +187,8 @@ impl PaneMessage {
                         Pane::new_settings(app, app.logic.models.first().unwrap().clone())
                     }
                     Pane::Chat(x) => {
-                        let mut chat = Chats::get_from_id(app, x.clone()).clone();
                         let id = Id::new();
-                        chat.set_id(id);
-                        app.main_view.add_to_chats(chat);
+                        app.main_view.add_to_chats(id.clone(), app.main_view.chats().get(x).unwrap().clone());
                         Pane::Chat(id)
                     }
                     Pane::Models(_) => Pane::new_models(app),
@@ -251,10 +249,8 @@ impl Panes {
         let value = match pane {
             Pane::Settings(_) => Pane::new_settings(app, app.logic.models.first().unwrap().clone()),
             Pane::Chat(x) => {
-                let mut chat = Chats::get_from_id(app, x.clone()).clone();
                 let id = Id::new();
-                chat.set_id(id);
-                app.main_view.add_to_chats(chat);
+                app.main_view.add_to_chats(id.clone(), app.main_view.chats().get(&x).unwrap().clone());
                 Pane::Chat(id)
             }
             Pane::Models(_) => Pane::new_models(app),
@@ -304,36 +300,34 @@ impl Panes {
                 None => None,
             };
 
-            let options_view =
-                |x: Id| -> Element<Message> { Options::get_from_id(app, x).view(app) };
+            // let options_view =
+            //     |x: Id| -> Element<Message> { Options::get_from_id(app, x).view(app) };
 
             pane_grid::Content::new(match state {
                 Pane::Settings(x) => {
-                    add_to_window(app, pane, state.clone(), "Settings", pick, options_view(*x))
+                    add_to_window(app, pane, state.clone(), "Settings", pick, app.main_view.options().get(x).unwrap().view(x.clone(), app))
                 }
                 Pane::Call => {
                     add_to_window(app, pane, state.clone(), "Call", pick, app.call.view(app))
                 }
                 Pane::Chat(x) => {
-                    let index = Chats::get_index(app, x.clone());
                     add_to_window(
                         app,
                         pane,
                         state.clone(),
                         "Chat",
                         pick,
-                        app.main_view.chats()[index.clone()].chat_view(app, x.clone()),
+                        app.main_view.chats().get(x).unwrap().chat_view(app, x.clone()),
                     )
                 }
                 Pane::Models(x) => {
-                    let index = Models::get_index(app, x.clone());
                     add_to_window(
                         app,
                         pane,
                         state.clone(),
                         "Models",
                         pick,
-                        app.main_view.models()[index.clone()].view(app),
+                        app.main_view.models().get(x).unwrap().view(x.clone(), app),
                     )
                 }
                 Pane::NoModel => text("Please install Ollama to use this app.").into(),

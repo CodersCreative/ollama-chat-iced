@@ -10,31 +10,23 @@ use iced::Task;
 impl ChatsMessage {
     pub fn new_chat(app: &mut ChatApp, _id: Id) -> Task<Message> {
         let chat = SavedChats::new();
-        app.save.chats.push(chat.clone());
+        app.save.chats.insert(Id::new(), chat.clone());
         app.regenerate_side_chats();
         Task::none()
     }
 }
 
 impl ChatApp {
-    pub fn remove_chat(&mut self, o_index: usize) -> Task<Message> {
-        for c in self.main_view.chats() {
-            if c.state() != &State::Idle {
-                return Task::none();
-            }
-        }
-
-        let id = self.save.chats[o_index].1;
-        self.save.chats.remove(o_index);
+    pub fn remove_chat(&mut self, key: Id) -> Task<Message> {
+        self.save.chats.remove(&key);
 
         for c in self.main_view.chats_mut() {
-            if c.saved_chat() == &id {
-                c.set_saved_chat(self.save.chats.last().unwrap().1.clone());
-                c.set_markdown(Vec::new());
+            if c.1.saved_chat() == &key {
+                c.1.set_saved_chat(self.save.chats.iter().last().unwrap().0.clone());
+                c.1.set_markdown(Vec::new());
             }
         }
 
-        // self.logic.chat = Some(self.save.chats.len() - 1);
         self.regenerate_side_chats();
         Task::none()
     }

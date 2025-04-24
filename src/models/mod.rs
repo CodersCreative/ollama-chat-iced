@@ -49,30 +49,36 @@ pub enum ModelsMessage {
 }
 
 impl ModelsMessage {
-    pub fn handle(&self, models: Models, app: &mut ChatApp) -> Task<Message> {
+    pub fn handle(&self, key : Id, app: &mut ChatApp) -> Task<Message> {
         match self {
             Self::Expand(x) => {
                 app.main_view
-                    .update_model(Models::get_index(app, models.0), |model| {
-                        if models.1 != Some(x.clone()) {
-                            model.1 = Some(x.clone());
-                        } else {
-                            model.1 = None;
+                    .update_model(&key, |model| {
+                        if let Some(model) = model{
+                            if model.0 != Some(x.clone()) {
+                                model.0 = Some(x.clone());
+                            } else {
+                                model.0 = None;
+                            }
                         }
                     });
                 Task::none()
             }
             Self::Input(x) => {
                 app.main_view
-                    .update_model(Models::get_index(app, models.0), |model| {
-                        model.2 = x.clone();
+                    .update_model(&key, |model| {
+                        if let Some(model) = model{
+                            model.1 = x.clone();
+                        }
                     });
                 Task::none()
             }
             Self::Search => {
                 app.main_view
-                    .update_model(Models::get_index(app, models.0), |model| {
-                        model.3 = app.model_info.search(models.2.clone()).unwrap();
+                    .update_model(&key, |model| {
+                        if let Some(model) = model{
+                            model.2 = app.model_info.search(model.1.clone()).unwrap();
+                        }
                     });
                 Task::none()
             }
@@ -349,54 +355,41 @@ impl SavedModels {
 }
 
 #[derive(Debug, Clone)]
-pub struct Models(pub Id, pub Option<String>, pub String, pub Vec<ModelInfo>);
+pub struct Models(pub Option<String>, pub String, pub Vec<ModelInfo>);
 
 impl Models {
     pub fn new(app: &ChatApp) -> Self {
         Self(
-            Id::new(),
             None,
             String::new(),
             app.model_info.models.clone(),
         )
     }
 
-    pub fn get_from_id<'a>(app: &'a ChatApp, id: Id) -> &'a Self {
-        app.main_view.models().iter().find(|x| x.0 == id).unwrap()
-    }
-
-    pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
-        if let Some(i) = app.main_view.models().iter().position(|x| x.0 == id) {
-            return i;
-        }
-        0
-    }
-
-    pub fn view_models<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
-        keyed_column(self.3.iter().enumerate().map(|(i, model)| {
+    pub fn view_models<'a>(&'a self, app: &'a ChatApp, id : Id) -> Element<'a, Message> {
+        keyed_column(self.2.iter().enumerate().map(|(_i, model)| {
             let mut expand = false;
 
-            if let Some(x) = &self.1 {
+            if let Some(x) = &self.0 {
                 expand = x == &model.name;
             }
-
-            (0, model.view(app, self.0, expand))
+            (0, model.view(app, id.clone(), expand))
         }))
         .spacing(10)
         .into()
     }
 
-    pub fn view<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
-        let input = text_input::<Message, Theme, Renderer>("Enter your message", &self.2)
-            .on_input(|x| Message::Models(ModelsMessage::Input(x), self.0))
-            .on_submit(Message::Models(ModelsMessage::Search, self.0))
+    pub fn view<'a>(&'a self, key : Id, app: &'a ChatApp) -> Element<'a, Message> {
+        let input = text_input::<Message, Theme, Renderer>("Enter your message", &self.1)
+            .on_input(move |x| Message::Models(ModelsMessage::Input(x), key.clone()))
+            .on_submit(Message::Models(ModelsMessage::Search, key))
             .size(16)
             .style(style::text_input::input)
             .width(Length::Fill);
 
         container(column![
             input,
-            scrollable::Scrollable::new(self.view_models(app)).width(Length::Fill)
+            scrollable::Scrollable::new(self.view_models(app, key.clone())).width(Length::Fill)
         ])
         .width(Length::Fill)
         .height(Length::Fill)

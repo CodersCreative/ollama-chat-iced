@@ -1,3 +1,4 @@
+use crate::common::Id;
 use crate::save::chats::ChatsMessage;
 use crate::{style, ChatApp, Message};
 use iced::alignment::{Horizontal, Vertical};
@@ -9,12 +10,11 @@ use std::time::SystemTime;
 pub struct Chat {
     title: String,
     time: SystemTime,
-    id: usize,
 }
 
 impl Chat {
-    pub fn new(title: String, time: SystemTime, id: usize) -> Self {
-        return Self { title, time, id };
+    pub fn new(title: String, time: SystemTime) -> Self {
+        return Self { title, time,};
     }
 
     pub fn get_title(&self) -> &str {
@@ -25,11 +25,7 @@ impl Chat {
         &self.time
     }
 
-    pub fn get_id(&self) -> &usize {
-        &self.id
-    }
-
-    pub fn view(&self, app: &ChatApp) -> Element<Message> {
+    pub fn view(&self, app: &ChatApp, id : &Id) -> Element<Message> {
         let style = style::button::side_bar_chat;
         let title = button(
             text(self.get_title())
@@ -40,7 +36,7 @@ impl Chat {
         )
         .style(style)
         .on_press(Message::Chats(
-            ChatsMessage::ChangeChat(self.get_id().clone()),
+            ChatsMessage::ChangeChat(id.clone()),
             app.panes.last_chat,
         ))
         .width(Length::FillPortion(7))
@@ -54,7 +50,7 @@ impl Chat {
                 .size(20),
         )
         .style(style)
-        .on_press(Message::RemoveChat(self.get_id().clone()))
+        .on_press(Message::RemoveChat(id.clone()))
         .width(Length::FillPortion(1))
         .padding(Padding::from(10));
         row![title, remove,].padding(5).into()
