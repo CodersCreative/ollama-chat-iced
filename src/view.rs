@@ -7,6 +7,7 @@ use crate::llm::ChatStream;
 use crate::sidebar::chats::Chats as SideChats;
 use crate::{models::Models, options::Options, sidebar::SideBarState};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
+use iced::widget::text_editor;
 use iced::Theme;
 
 #[derive(Getters, Setters, MutGetters, CopyGetters)]
@@ -21,6 +22,8 @@ pub struct View {
     options: HashMap<Id, Options>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     chats: HashMap<Id, Chats>,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    edits: HashMap<Id, usize>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     models: HashMap<Id, Models>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
@@ -46,6 +49,20 @@ impl View {
         F: FnMut(Option<&mut Chats>),
     {
         f(self.chats.get_mut(key));
+    }
+
+    pub fn update_edits<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut HashMap<Id, usize>),
+    {
+        f(&mut self.edits);
+    }
+
+    pub fn update_edit<F>(&mut self, key: &Id, mut f: F)
+    where
+        F: FnMut(Option<&mut usize>),
+    {
+        f(self.edits.get_mut(key));
     }
 
     pub fn update_chat_by_saved<F>(&mut self, id: &Id, mut f: F)
@@ -128,6 +145,7 @@ impl View {
             options: HashMap::new(),
             chats: HashMap::new(),
             models: HashMap::new(),
+            edits: HashMap::new(),
             downloads: HashMap::new(),
             chat_streams: HashMap::new(),
         }

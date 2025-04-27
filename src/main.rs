@@ -242,7 +242,6 @@ impl ChatApp {
                     let mut mk = Chat::generate_mk(x.content.as_str());
                     let mut first = true;
                     if let Some(chat) = self.save.chats.get_mut(&id) {
-                        //self.save.chats.iter_mut().find(|chat| chat.1 == id) {
                         let index = chat.0.len() - 1;
                         if chat.0.last().unwrap().role() == &save::chat::Role::AI {
                             chat.0[index].add_to_content(x.content.as_str());

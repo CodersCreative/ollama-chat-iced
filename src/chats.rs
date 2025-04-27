@@ -21,6 +21,8 @@ pub struct Chats {
     #[getset(get = "pub", set = "pub")]
     markdown: Vec<Vec<markdown::Item>>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    edit: text_editor::Content,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
     images: Vec<PathBuf>,
     #[getset(get = "pub", set = "pub")]
     state: State,
@@ -105,6 +107,7 @@ impl Chats {
             model,
             saved_chat,
             markdown,
+            edit: text_editor::Content::new(),
             start: "General".to_string(),
             state: State::Idle,
             content: text_editor::Content::new(),
@@ -114,14 +117,27 @@ impl Chats {
         }
     }
 
+    fn check_is_edit(app: &ChatApp, index: &usize, id: &Id) -> bool {
+        let edit = app.main_view.edits().get(id);
+
+        if let Some(edit) = edit {
+            return index == edit;
+        }
+
+        false
+    }
+
     pub fn view<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         if let Some(chat) = app.save.chats.get(self.saved_chat()) {
-            keyed_column(
-                chat.0
-                    .iter()
-                    .enumerate()
-                    .map(|(i, chat)| (0, chat.view(id, &self.markdown[i], &app.theme()))),
-            )
+            keyed_column(chat.0.iter().enumerate().map(|(i, chat)| {
+                (
+                    0,
+                    match Self::check_is_edit(app, &i, id) {
+                        false => chat.view(id, &self.markdown[i], &app.theme()),
+                        true => chat.view_editing(id.clone(), &self.edit),
+                    },
+                )
+            }))
             .spacing(10)
             .into()
         } else {

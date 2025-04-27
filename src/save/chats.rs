@@ -25,9 +25,13 @@ pub struct TooledOptions {
 #[derive(Debug, Clone)]
 pub enum ChatsMessage {
     Regenerate,
+    SaveEdit,
+    CancelEdit,
+    Edit(String),
     Submit,
     ChangeModel(String),
     Action(text_editor::Action),
+    EditAction(text_editor::Action),
     ChangeStart(String),
     ChangeChat(Id),
     NewChat,
@@ -67,6 +71,57 @@ impl ChatsMessage {
                     );
                 }
 
+                Task::none()
+            }
+            Self::Edit(m) => {
+                let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
+                if let Some(index) = app
+                    .save
+                    .chats
+                    .get(&saved_id)
+                    .unwrap()
+                    .0
+                    .iter()
+                    .position(|x| x.content() == m)
+                {
+                    app.main_view.update_edits(|edits| {
+                        edits.insert(id, index);
+                    });
+                    app.main_view.update_chat(&id, |chat| {
+                        chat.unwrap().set_edit(text_editor::Content::with_text(
+                            app.save.chats.get(&saved_id).unwrap().0[index].content(),
+                        ));
+                    });
+                }
+
+                Task::none()
+            }
+            Self::SaveEdit => {
+                let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
+                let mut mk = Vec::new();
+
+                if let Some(edit) = app.main_view.edits().get(&id) {
+                    if let Some(chat) = app.save.chats.get_mut(&saved_id) {
+                        chat.0[edit.clone()]
+                            .set_content(app.main_view.chats().get(&id).unwrap().edit().text());
+                        mk = chat.to_mk();
+                        app.save.save(SAVE_FILE);
+                    }
+                }
+
+                app.main_view.update_chat_by_saved(&saved_id, |x| {
+                    x.set_markdown(mk.clone());
+                    // x.add_markdown(Chat::generate_mk(chat.content()));
+                });
+                app.main_view.update_edits(|edits| {
+                    edits.remove(&id);
+                });
+                Task::none()
+            }
+            Self::CancelEdit => {
+                app.main_view.update_edits(|edits| {
+                    edits.remove(&id);
+                });
                 Task::none()
             }
             Self::Listen => {
@@ -167,6 +222,14 @@ impl ChatsMessage {
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {
                         chat.content_perform(x.clone())
+                    }
+                });
+                Task::none()
+            }
+            Self::EditAction(x) => {
+                app.main_view.update_chat(&id, |chat| {
+                    if let Some(chat) = chat {
+                        chat.edit_mut().perform(x.clone());
                     }
                 });
                 Task::none()

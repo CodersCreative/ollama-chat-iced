@@ -13,7 +13,7 @@ use iced::{
     widget::{
         button, column, container, image, markdown, row,
         scrollable::{self, Direction, Scrollbar},
-        svg, text,
+        svg, text, text_editor, Button,
     },
     Padding, Theme,
 };
@@ -118,10 +118,10 @@ impl Into<ChatMessage> for &Chat {
 }
 
 impl Chat {
-    pub fn new(role: &Role, messasge: &str, images: Vec<PathBuf>, tools: Vec<ToolCall>) -> Self {
+    pub fn new(role: &Role, message: &str, images: Vec<PathBuf>, tools: Vec<ToolCall>) -> Self {
         return Self {
             role: role.clone(),
-            content: messasge.to_string(),
+            content: message.to_string(),
             images,
             tools,
             timestamp: SystemTime::now(),
@@ -147,39 +147,27 @@ impl Chat {
         //markdown::view_with(markdown, theme, &style::markdown::CustomViewer).into()
     }
 
-    pub fn view<'a>(
+    pub fn view_editing<'a>(
         &'a self,
-        id: &Id,
-        markdown: &'a Vec<markdown::Item>,
-        theme: &Theme,
+        id: Id,
+        content: &'a text_editor::Content,
     ) -> Element<'a, Message> {
         let is_ai = self.role == Role::AI;
+
         let style = match is_ai {
             true => style::container::chat_ai,
             false => style::container::chat,
         };
 
-        let copy = button(
-            svg(svg::Handle::from_path(get_path_assets(
-                "copy.svg".to_string(),
-            )))
-            .style(style::svg::white)
-            .width(16.0)
-            .height(16.0),
-        )
-        .style(style::button::transparent_text)
-        .on_press(Message::SaveToClipboard(self.content().to_string()));
-
-        let regenerate = button(
-            svg(svg::Handle::from_path(get_path_assets(
-                "restart.svg".to_string(),
-            )))
-            .style(style::svg::white)
-            .width(16.0)
-            .height(16.0),
-        )
-        .style(style::button::transparent_text)
-        .on_press(Message::Chats(ChatsMessage::Regenerate, id.clone()));
+        let btn = |img: &str| -> Button<Message> {
+            button(
+                svg(svg::Handle::from_path(get_path_assets(img.to_string())))
+                    .style(style::svg::white)
+                    .width(16.0)
+                    .height(16.0),
+            )
+            .style(style::button::transparent_text)
+        };
 
         let name = container(
             row![
@@ -191,8 +179,89 @@ impl Chat {
                 .align_x(Horizontal::Left)
                 .align_y(Vertical::Center)
                 .width(Length::Fill),
-                regenerate,
-                copy,
+                btn("save.svg").on_press(Message::Chats(ChatsMessage::SaveEdit, id.clone())),
+                btn("close.svg").on_press(Message::Chats(ChatsMessage::CancelEdit, id.clone())),
+            ]
+            .spacing(10),
+        )
+        .style(style)
+        .width(Length::Fill)
+        .padding(3);
+
+        let images = container(
+            scrollable::Scrollable::new(
+                row(self.images.iter().map(|x| {
+                    button(image(image::Handle::from_path(x)).height(Length::Fixed(200.0)))
+                        .style(style::button::transparent_text)
+                        .into()
+                }))
+                .align_y(Vertical::Center)
+                .spacing(10),
+            )
+            .direction(Direction::Horizontal(Scrollbar::new())),
+        )
+        .padding(Padding::from([0, 20]))
+        .style(style::container::bottom_input_back);
+
+        let editor = container(
+            text_editor(content)
+                .placeholder("Type your message here...")
+                .on_action(move |action| Message::Chats(ChatsMessage::EditAction(action), id))
+                .padding(Padding::from(20))
+                .size(20)
+                .style(style::text_editor::input),
+        )
+        .padding(20);
+
+        let style = match is_ai {
+            true => style::container::chat_back_ai,
+            false => style::container::chat_back,
+        };
+        container(column![name, images, editor,].width(Length::Fill))
+            .style(style)
+            .width(Length::FillPortion(5))
+            .into()
+    }
+
+    pub fn view<'a>(
+        &'a self,
+        id: &Id,
+        markdown: &'a Vec<markdown::Item>,
+        theme: &Theme,
+    ) -> Element<'a, Message> {
+        let is_ai = self.role == Role::AI;
+
+        let style = match is_ai {
+            true => style::container::chat_ai,
+            false => style::container::chat,
+        };
+
+        let btn = |img: &str| -> Button<Message> {
+            button(
+                svg(svg::Handle::from_path(get_path_assets(img.to_string())))
+                    .style(style::svg::white)
+                    .width(16.0)
+                    .height(16.0),
+            )
+            .style(style::button::transparent_text)
+        };
+
+        let name = container(
+            row![
+                text(match self.role {
+                    Role::User => "User",
+                    Role::AI => "Assistant",
+                })
+                .size(16)
+                .align_x(Horizontal::Left)
+                .align_y(Vertical::Center)
+                .width(Length::Fill),
+                btn("edit.svg").on_press(Message::Chats(
+                    ChatsMessage::Edit(self.content().clone()),
+                    id.clone()
+                )),
+                btn("restart.svg").on_press(Message::Chats(ChatsMessage::Regenerate, id.clone())),
+                btn("copy.svg").on_press(Message::SaveToClipboard(self.content().to_string())),
             ]
             .spacing(10),
         )
