@@ -144,7 +144,6 @@ pub fn run_ollama_stream(
 
 #[derive(Debug)]
 pub struct ChatStream {
-    pub id: Id,
     pub state: State,
     pub chats: Arc<Vec<ChatMessage>>,
     pub options: ModelOptions,
@@ -172,15 +171,26 @@ pub fn chat(
 
 impl ChatStream {
     pub fn new(app: &ChatApp, id: Id, option: usize) -> Self {
-        Self {
-            id,
-            state: State::Generating(ChatMessage::new(
-                ollama_rs::generation::chat::MessageRole::Assistant,
-                String::new(),
-            )),
-            chats: Arc::new(app.save.chats.get(&id).unwrap().get_chat_messages()),
-            options: app.options.model_options()[option].clone(),
-            tools: Arc::new(app.save.chats.get(&id).unwrap().1.clone()),
+        if let Some(chat) = app.save.chats.get(&id) {
+            Self {
+                state: State::Generating(ChatMessage::new(
+                    ollama_rs::generation::chat::MessageRole::Assistant,
+                    String::new(),
+                )),
+                chats: Arc::new(chat.get_chat_messages()),
+                options: app.options.model_options()[option].clone(),
+                tools: Arc::new(chat.1.clone()),
+            }
+        } else {
+            Self {
+                state: State::Generating(ChatMessage::new(
+                    ollama_rs::generation::chat::MessageRole::Assistant,
+                    String::new(),
+                )),
+                chats: Arc::new(Vec::new()),
+                options: app.options.model_options()[option].clone(),
+                tools: Arc::new(Vec::new()),
+            }
         }
     }
 
@@ -200,10 +210,10 @@ impl ChatStream {
         }
     }
 
-    pub fn subscription(&self, app: &ChatApp) -> Subscription<Message> {
+    pub fn subscription(&self, app: &ChatApp, id: Id) -> Subscription<Message> {
         match self.state {
             State::Generating(_) => chat(
-                self.id,
+                id,
                 self.chats.clone(),
                 self.options.clone(),
                 app.logic.ollama.clone(),

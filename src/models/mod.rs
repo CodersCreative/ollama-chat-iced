@@ -49,37 +49,34 @@ pub enum ModelsMessage {
 }
 
 impl ModelsMessage {
-    pub fn handle(&self, key : Id, app: &mut ChatApp) -> Task<Message> {
+    pub fn handle(&self, key: Id, app: &mut ChatApp) -> Task<Message> {
         match self {
             Self::Expand(x) => {
-                app.main_view
-                    .update_model(&key, |model| {
-                        if let Some(model) = model{
-                            if model.0 != Some(x.clone()) {
-                                model.0 = Some(x.clone());
-                            } else {
-                                model.0 = None;
-                            }
+                app.main_view.update_model(&key, |model| {
+                    if let Some(model) = model {
+                        if model.0 != Some(x.clone()) {
+                            model.0 = Some(x.clone());
+                        } else {
+                            model.0 = None;
                         }
-                    });
+                    }
+                });
                 Task::none()
             }
             Self::Input(x) => {
-                app.main_view
-                    .update_model(&key, |model| {
-                        if let Some(model) = model{
-                            model.1 = x.clone();
-                        }
-                    });
+                app.main_view.update_model(&key, |model| {
+                    if let Some(model) = model {
+                        model.1 = x.clone();
+                    }
+                });
                 Task::none()
             }
             Self::Search => {
-                app.main_view
-                    .update_model(&key, |model| {
-                        if let Some(model) = model{
-                            model.2 = app.model_info.search(model.1.clone()).unwrap();
-                        }
-                    });
+                app.main_view.update_model(&key, |model| {
+                    if let Some(model) = model {
+                        model.2 = app.model_info.search(model.1.clone()).unwrap();
+                    }
+                });
                 Task::none()
             }
         }
@@ -234,7 +231,9 @@ impl SaveableModels {
 
         if let Ok(mut reader) = reader {
             let mut data = String::new();
-            let _ = reader.read_to_string(&mut data).unwrap();
+            let _ = reader
+                .read_to_string(&mut data)
+                .map_err(|e| e.to_string())?;
 
             let de_data = serde_json::from_str(&data);
 
@@ -258,12 +257,13 @@ impl SaveableModels {
         let mut index_writer: IndexWriter = index.writer(50_000_000)?;
 
         for model in &self.models {
-            let d = self.descriptions.get(model.name.as_str()).unwrap().clone();
-            index_writer.add_document(doc!(
-                name => model.name.clone(),
-                desc => d.as_str(),
-                author => model.author.clone()
-            ))?;
+            if let Some(d) = self.descriptions.get(model.name.as_str()) {
+                index_writer.add_document(doc!(
+                    name => model.name.clone(),
+                    desc => d.as_str(),
+                    author => model.author.clone()
+                ))?;
+            }
         }
 
         index_writer.commit()?;
@@ -341,9 +341,9 @@ impl SavedModels {
         for (_score, doc_address) in top_docs {
             let retrieved_doc = searcher.doc::<TantivyDocument>(doc_address)?;
 
-            let model: String = match retrieved_doc.get_first(self.data.1[0].clone()).unwrap() {
-                OwnedValue::Str(x) => x.clone(),
-                _ => "".to_string(),
+            let model: String = match retrieved_doc.get_first(self.data.1[0].clone()) {
+                Some(OwnedValue::Str(x)) => x.clone(),
+                _ => continue,
             };
 
             let model = self.models.iter().find(|x| x.name == model).unwrap();
@@ -359,14 +359,10 @@ pub struct Models(pub Option<String>, pub String, pub Vec<ModelInfo>);
 
 impl Models {
     pub fn new(app: &ChatApp) -> Self {
-        Self(
-            None,
-            String::new(),
-            app.model_info.models.clone(),
-        )
+        Self(None, String::new(), app.model_info.models.clone())
     }
 
-    pub fn view_models<'a>(&'a self, app: &'a ChatApp, id : Id) -> Element<'a, Message> {
+    pub fn view_models<'a>(&'a self, app: &'a ChatApp, id: Id) -> Element<'a, Message> {
         keyed_column(self.2.iter().enumerate().map(|(_i, model)| {
             let mut expand = false;
 
@@ -379,7 +375,7 @@ impl Models {
         .into()
     }
 
-    pub fn view<'a>(&'a self, key : Id, app: &'a ChatApp) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, key: Id, app: &'a ChatApp) -> Element<'a, Message> {
         let input = text_input::<Message, Theme, Renderer>("Enter your message", &self.1)
             .on_input(move |x| Message::Models(ModelsMessage::Input(x), key.clone()))
             .on_submit(Message::Models(ModelsMessage::Search, key))
@@ -408,8 +404,8 @@ fn extract_model_description(python_code: &str) -> Result<HashMap<String, String
 
     let pairs: Vec<&str> = code_without_prefix.split(",\n").map(|s| s.trim()).collect();
 
-    let key_regex = Regex::new(r"'([^']+)'").unwrap();
-    let value_regex = Regex::new(r#"_\("([^"]+)"\)"#).unwrap();
+    let key_regex = Regex::new(r"'([^']+)'").map_err(|e| e.to_string())?;
+    let value_regex = Regex::new(r#"_\("([^"]+)"\)"#).map_err(|e| e.to_string())?;
 
     for pair in pairs {
         if pair.is_empty() {

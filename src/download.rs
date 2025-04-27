@@ -1,4 +1,4 @@
-use crate::{style, ChatApp, Message};
+use crate::{common::Id, style, ChatApp, Message};
 use iced::{
     alignment::{Horizontal, Vertical},
     futures::{SinkExt, Stream, StreamExt},
@@ -12,7 +12,6 @@ use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct Download {
-    pub id: usize,
     download: String,
     pub state: State,
 }
@@ -25,9 +24,8 @@ pub enum State {
 }
 
 impl Download {
-    pub fn new(id: usize, download: String) -> Self {
+    pub fn new(download: String) -> Self {
         Download {
-            id,
             download,
             state: State::Downloading(0.0, String::new()),
         }
@@ -50,10 +48,10 @@ impl Download {
         }
     }
 
-    pub fn subscription(&self, app: &ChatApp) -> Subscription<Message> {
+    pub fn subscription(&self, app: &ChatApp, id: Id) -> Subscription<Message> {
         match self.state {
             State::Downloading(_, _) => {
-                pull(self.id, self.download.clone(), app.logic.ollama.clone()).map(Message::Pulling)
+                pull(id, self.download.clone(), app.logic.ollama.clone()).map(Message::Pulling)
             }
             _ => Subscription::none(),
         }
@@ -69,7 +67,7 @@ impl Download {
             .into()
     }
 
-    pub fn view(&self, app: &ChatApp) -> Element<Message> {
+    pub fn view(&self, app: &ChatApp, id: Id) -> Element<Message> {
         let (per, message) = match &self.state {
             State::Downloading(x, y) => (x.clone(), y.to_string()),
             _ => (100.0, String::new()),
@@ -85,7 +83,7 @@ impl Download {
         container(
             button(column![bar, info, message])
                 .style(style::button::transparent_text)
-                .on_press(Message::StopPull(self.id)),
+                .on_press(Message::StopPull(id)),
         )
         .padding(10)
         .into()
@@ -99,10 +97,10 @@ pub enum DownloadProgress {
 }
 
 pub fn pull(
-    id: usize,
+    id: Id,
     model: String,
     ollama: Arc<Mutex<Ollama>>,
-) -> iced::Subscription<(usize, Result<DownloadProgress, String>)> {
+) -> iced::Subscription<(Id, Result<DownloadProgress, String>)> {
     Subscription::run_with_id(
         id,
         download_stream(model, ollama).map(move |progress| (id, progress)),

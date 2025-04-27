@@ -90,12 +90,12 @@ pub enum Message {
     ChangeUsePanels(bool),
     ShowSettings,
     SideBar,
-    Pulling((usize, Result<DownloadProgress, String>)),
+    Pulling((Id, Result<DownloadProgress, String>)),
     Generating((Id, Result<ChatProgress, String>)),
     Generated(Id, Result<ChatMessage, String>),
     StopGenerating(Id),
     Pull(String),
-    StopPull(usize),
+    StopPull(Id),
     EventOccurred(Event),
     None,
 }
@@ -152,7 +152,6 @@ impl ChatApp {
         if !models.is_empty() {
             if app.save.chats.is_empty() {
                 app.save.chats.insert(Id::new(), SavedChats::new());
-                // app.save.chats.push(SavedChats::new());
             } else {
                 app.save.chats.iter_mut().for_each(|(i, x)| {
                     if let Some(y) = x.0.last() {
@@ -166,7 +165,14 @@ impl ChatApp {
             app.main_view
                 .set_side_chats(SideChats::new(app.save.get_chat_previews()));
             let saved = app.save.chats.iter().last().unwrap();
-            let first = (Id::new(), chats::Chats::new(models.first().unwrap().clone(), saved.0.clone(), saved.1.to_mk()));
+            let first = (
+                Id::new(),
+                chats::Chats::new(
+                    models.first().unwrap().clone(),
+                    saved.0.clone(),
+                    saved.1.to_mk(),
+                ),
+            );
 
             app.panes = Panes::new(panes::Pane::Chat(first.0.clone()));
             app.panes.last_chat = first.0.clone();
@@ -174,7 +180,6 @@ impl ChatApp {
             app.options
                 .get_create_model_options_index(models.first().unwrap().clone());
         }
-        // app.logic.chat = app.save.get_current_chat_num();
 
         (app, Task::none())
     }
@@ -236,7 +241,8 @@ impl ChatApp {
                 if let Ok(x) = x {
                     let mut mk = Chat::generate_mk(x.content.as_str());
                     let mut first = true;
-                    if let Some(chat) = self.save.chats.get_mut(&id){ //self.save.chats.iter_mut().find(|chat| chat.1 == id) {
+                    if let Some(chat) = self.save.chats.get_mut(&id) {
+                        //self.save.chats.iter_mut().find(|chat| chat.1 == id) {
                         let index = chat.0.len() - 1;
                         if chat.0.last().unwrap().role() == &save::chat::Role::AI {
                             chat.0[index].add_to_content(x.content.as_str());
@@ -262,7 +268,6 @@ impl ChatApp {
                                     chat.update_markdown(|x| {
                                         x.remove(x.len() - 1);
                                     });
-                                    // chat.markdown.remove(chat.markdown.len() - 1);
                                 }
                                 chat.set_state(chats::State::Generating);
                                 chat.add_markdown(mk.clone());
@@ -289,14 +294,13 @@ impl ChatApp {
             }
             Message::Pull(x) => {
                 self.main_view
-                    .add_download(Download::new(self.main_view.id().clone(), x.clone()));
-                self.main_view.set_id(self.main_view.id() + 1);
+                    .add_download(Id::new(), Download::new(x.clone()));
                 Task::none()
             }
 
             Message::Generating((id, progress)) => {
                 self.main_view.update_chat_streams(|streams| {
-                    if let Some(chat) = streams.iter_mut().find(|chat| chat.id == id) {
+                    if let Some(chat) = streams.get_mut(&id) {
                         chat.progress(progress.clone());
                     }
                 });
@@ -357,7 +361,7 @@ impl ChatApp {
             }
             Message::Pulling((id, progress)) => {
                 self.main_view.update_downloads(move |x| {
-                    if let Some(download) = x.iter_mut().find(|download| download.id == id) {
+                    if let Some(download) = x.get_mut(&id) {
                         download.progress(progress.clone());
                     }
                 });
@@ -382,12 +386,12 @@ impl ChatApp {
             .main_view
             .downloads()
             .iter()
-            .map(|x| x.subscription(self))
+            .map(|(i, x)| x.subscription(self, i.clone()))
             .collect();
         self.main_view
             .chat_streams()
             .iter()
-            .for_each(|x| actions.push(x.subscription(self)));
+            .for_each(|(i, x)| actions.push(x.subscription(self, i.clone())));
         actions.push(event::listen().map(Message::EventOccurred));
         Subscription::batch(actions)
     }

@@ -1,6 +1,10 @@
 use super::chats::ChatsMessage;
 use crate::{
-    chats::Chats, common::Id, style::{self}, utils::{convert_image, get_path_assets}, Message
+    chats::Chats,
+    common::Id,
+    style::{self},
+    utils::{convert_image, get_path_assets},
+    Message,
 };
 use derive_builder::Builder;
 use getset::{Getters, Setters};
@@ -145,7 +149,6 @@ impl Chat {
 
     pub fn view<'a>(
         &'a self,
-        // chats: &Chats,
         id: &Id,
         markdown: &'a Vec<markdown::Item>,
         theme: &Theme,

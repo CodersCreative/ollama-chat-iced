@@ -29,16 +29,24 @@ impl Save {
         }
     }
 
-    pub fn view_chat<'a>(&'a self, chat: &'a Chats, id : &Id, app: &'a ChatApp) -> Element<'a, Message> {
+    pub fn view_chat<'a>(
+        &'a self,
+        chat: &'a Chats,
+        id: &Id,
+        app: &'a ChatApp,
+    ) -> Element<'a, Message> {
         chat.view(app, id)
     }
 
-    pub fn set_chats(&mut self, chats: HashMap<Id,SavedChats>) {
+    pub fn set_chats(&mut self, chats: HashMap<Id, SavedChats>) {
         self.chats = chats;
     }
 
-    pub fn update_chats(&mut self, key : Id, chat: SavedChats) {
-        self.chats.entry(key).and_modify(|x| *x = chat.clone()).or_insert(chat);
+    pub fn update_chats(&mut self, key: Id, chat: SavedChats) {
+        self.chats
+            .entry(key)
+            .and_modify(|x| *x = chat.clone())
+            .or_insert(chat);
     }
 
     pub fn save(&self, path: &str) {
@@ -60,7 +68,9 @@ impl Save {
 
         if let Ok(mut reader) = reader {
             let mut data = String::new();
-            let _ = reader.read_to_string(&mut data).unwrap();
+            let _ = reader
+                .read_to_string(&mut data)
+                .map_err(|e| e.to_string())?;
 
             let de_data = serde_json::from_str(&data);
 
@@ -72,13 +82,6 @@ impl Save {
 
         return Err("Failed to open file".to_string());
     }
-
-    // pub fn get_current_preview(&self) -> (String, SystemTime){
-    //     match self.get_current_chat(){
-    //         Some(x) => x.get_preview(),
-    //         None => ("New".to_string(), SystemTime::now()),
-    //     }
-    // }
 
     pub fn get_chat_previews(&self) -> Vec<(Id, String, SystemTime)> {
         self.chats

@@ -14,7 +14,7 @@ pub struct Chat {
 
 impl Chat {
     pub fn new(title: String, time: SystemTime) -> Self {
-        return Self { title, time,};
+        return Self { title, time };
     }
 
     pub fn get_title(&self) -> &str {
@@ -25,7 +25,7 @@ impl Chat {
         &self.time
     }
 
-    pub fn view(&self, app: &ChatApp, id : &Id) -> Element<Message> {
+    pub fn view(&self, app: &ChatApp, id: &Id) -> Element<Message> {
         let style = style::button::side_bar_chat;
         let title = button(
             text(self.get_title())

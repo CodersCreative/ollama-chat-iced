@@ -7,7 +7,6 @@ use tokio::sync::Mutex as TMutex;
 pub struct Logic {
     pub combo_models: combo_box::State<String>,
     pub models: Vec<String>,
-    // pub chat: Option<usize>,
     pub ollama: Arc<TMutex<Ollama>>,
 }
 
@@ -16,7 +15,6 @@ impl Logic {
         let mut val = Self {
             combo_models: combo_box::State::new(Vec::new()),
             models: Vec::new(),
-            // chat: None,
             ollama: Arc::new(TMutex::new(get_model())),
         };
 

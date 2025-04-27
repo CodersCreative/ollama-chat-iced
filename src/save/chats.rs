@@ -45,26 +45,27 @@ impl ChatsMessage {
             Self::Regenerate => {
                 let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
 
-                for x in app
-                    .save
-                    .chats
-                    .iter_mut()
-                    .filter(|x| x.0 == &saved_id)
-                {
-                    x.1.0.remove(x.1.0.len() - 1);
+                for x in app.save.chats.iter_mut().filter(|x| x.0 == &saved_id) {
+                    x.1 .0.remove(x.1 .0.len() - 1);
                     break;
                 }
+
                 app.main_view.update_chat_by_saved(&saved_id, |chat| {
                     chat.update_markdown(|x| {
                         x.remove(x.len() - 1);
                     });
                 });
 
-                let option = app.options.get_create_model_options_index(
-                    app.main_view.chats().get(&id).unwrap().model().to_string(),
-                );
-                app.main_view
-                    .add_chat_stream(crate::llm::ChatStream::new(app, saved_id, option));
+                if let Some(chat) = app.main_view.chats().get(&id) {
+                    let option = app
+                        .options
+                        .get_create_model_options_index(chat.model().to_string());
+
+                    app.main_view.add_chat_stream(
+                        saved_id,
+                        crate::llm::ChatStream::new(app, saved_id, option),
+                    );
+                }
 
                 Task::none()
             }
@@ -73,27 +74,29 @@ impl ChatsMessage {
                 let stream = mic.stream();
 
                 app.main_view.update_chat(&id, |chat| {
-                    if let Some(chat) = chat{
+                    if let Some(chat) = chat {
                         chat.set_state(State::Listening);
                     }
                 });
+
                 Task::perform(get_audio(stream), move |x| {
                     Message::Chats(ChatsMessage::Convert(x), id)
                 })
             }
             Self::Convert(x) => {
                 app.main_view.update_chat(&id, |chat| {
-                    if let Some(chat) = chat{
+                    if let Some(chat) = chat {
                         chat.set_state(State::Generating);
                     }
                 });
+
                 Task::perform(transcribe(x.clone()), move |x| {
                     Message::Chats(ChatsMessage::Listened(x), id)
                 })
             }
             Self::Listened(x) => {
                 app.main_view.update_chat(&id, |chat| {
-                    if let Some(chat) = chat{
+                    if let Some(chat) = chat {
                         if let Ok(str) = x {
                             chat.set_content_text(str);
                         }
@@ -106,7 +109,7 @@ impl ChatsMessage {
             }
             Self::RemoveImage(x) => {
                 app.main_view.update_chat(&id, |chat| {
-                    if let Some(chat) = chat{
+                    if let Some(chat) = chat {
                         if let Ok(x) = chat.images().binary_search(&x) {
                             chat.images_mut().remove(x);
                         }
@@ -118,18 +121,17 @@ impl ChatsMessage {
             Self::PickedImage(x) => {
                 if let Ok(x) = x {
                     let mut x = x.clone();
-                    app.main_view
-                        .update_chat(&id, |chat| {
-                            if let Some(chat) = chat{
-                                chat.add_images(&mut x)
-                            }
-                        });
+                    app.main_view.update_chat(&id, |chat| {
+                        if let Some(chat) = chat {
+                            chat.add_images(&mut x)
+                        }
+                    });
                 }
                 Task::none()
             }
             Self::ChangeModel(x) => {
                 app.main_view.update_chat(&id, |chat| {
-                    if let Some(chat) = chat{
+                    if let Some(chat) = chat {
                         if chat.state() == &State::Idle {
                             chat.set_model(x.clone());
                             app.save.save(SAVE_FILE);
@@ -142,7 +144,7 @@ impl ChatsMessage {
             }
             Self::ChangeStart(x) => {
                 app.main_view.update_chat(&id, |chat| {
-                    if let Some(chat) = chat{
+                    if let Some(chat) = chat {
                         chat.set_start(x.clone());
                     }
                 });
@@ -150,11 +152,10 @@ impl ChatsMessage {
             }
             Self::ChangeChat(x) => {
                 app.main_view.update_chat(&id, |chat| {
-                    if let Some(chat) = chat{
+                    if let Some(chat) = chat {
                         if chat.state() == &State::Idle {
                             chat.set_saved_chat(x.clone());
                             chat.set_markdown(app.save.chats.get(x).unwrap().to_mk());
-                            // app.logic.chat = Some(Chats::get_index(app, id));
                             app.save.save(SAVE_FILE);
                         }
                     }
@@ -163,65 +164,74 @@ impl ChatsMessage {
                 Task::none()
             }
             Self::Action(x) => {
-                app.main_view
-                    .update_chat(&id, |chat| {
-                        if let Some(chat) = chat{
-                            chat.content_perform(x.clone())
-                        }
-                    });
+                app.main_view.update_chat(&id, |chat| {
+                    if let Some(chat) = chat {
+                        chat.content_perform(x.clone())
+                    }
+                });
                 Task::none()
             }
             Self::NewChat => {
-                if app.main_view.chats().get(&id).unwrap().state() == &State::Idle {
-                    return Self::new_chat(app, id);
+                if let Some(chat) = app.main_view.chats().get(&id) {
+                    if chat.state() == &State::Idle {
+                        return Self::new_chat(app, id);
+                    }
                 }
+
                 Task::none()
             }
             Self::Submit => {
-                let chat = ChatBuilder::default()
-                    .content(app.main_view.chats().get(&id).unwrap().get_content_text())
-                    .images(app.main_view.chats().get(&id).unwrap().images().clone())
-                    .build()
-                    .unwrap();
+                let (chat, saved_id, option) = if let Some(chat) = app.main_view.chats().get(&id) {
+                    (
+                        ChatBuilder::default()
+                            .content(chat.get_content_text())
+                            .images(chat.images().clone())
+                            .build()
+                            .unwrap(),
+                        chat.saved_chat().clone(),
+                        app.options
+                            .get_create_model_options_index(chat.model().to_string()),
+                    )
+                } else {
+                    return Task::none();
+                };
 
-                // let mut s_index = 0;
-                let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
-
-                if let Some(x) = app.save.chats.get_mut(&saved_id){
+                let mut tools = &Vec::new();
+                if let Some(x) = app.save.chats.get_mut(&saved_id) {
                     x.0.push(chat.clone());
+                    tools = &x.1;
                 }
 
                 app.main_view.update_chat_by_saved(&saved_id, |x| {
                     x.add_markdown(Chat::generate_mk(chat.content()));
                 });
 
-                let option = app.options.get_create_model_options_index(
-                    app.main_view.chats().get(&id).unwrap().model().to_string(),
-                );
-
-                if app.save.chats.get(&saved_id).unwrap().1.is_empty() {
-                    app.main_view.add_chat_stream(crate::llm::ChatStream::new(
-                        app, saved_id, option
-                    ));
+                if tools.is_empty() {
+                    app.main_view.add_chat_stream(
+                        saved_id,
+                        crate::llm::ChatStream::new(app, saved_id, option),
+                    );
                 }
 
                 app.main_view.update_chat(&id, |chat| {
-                    if let Some(chat) = chat{
-                        if app.save.chats.get(&saved_id).unwrap().1.is_empty() {
-                            chat.set_state(State::Generating);
-                        } else {
-                            let tooled = TooledOptions {
-                                chats: app.save.chats.get(&saved_id).unwrap().get_chat_messages(),
-                                // tools : app.save.chats[s_index].2.clone(),
-                                tools: vec![Tools::DuckDuckGo],
-                            };
+                    if let Some(chat) = chat {
+                        if let Some(saved_chat) = app.save.chats.get(&saved_id) {
+                            if saved_chat.1.is_empty() {
+                                chat.set_state(State::Generating);
+                            } else {
+                                let tooled = TooledOptions {
+                                    chats: saved_chat.get_chat_messages(),
+                                    // tools : app.save.chats[s_index].2.clone(),
+                                    tools: vec![Tools::DuckDuckGo],
+                                };
 
-                            chat.set_tools(Arc::new(tooled));
+                                chat.set_tools(Arc::new(tooled));
 
-                            // return Task::perform(run_ollama_tools(app.main_view.chats[index].tools.clone(), app.options.0[option].clone(), app.logic.ollama.clone()), |x| Message::None)
+                                // return Task::perform(run_ollama_tools(app.main_view.chats[index].tools.clone(), app.options.0[option].clone(), app.logic.ollama.clone()), |x| Message::None)
+                            }
+
+                            chat.set_images(Vec::new());
                         }
-
-                        chat.set_images(Vec::new());
                     }
                 });
 
@@ -246,7 +256,7 @@ impl SavedChats {
     }
 
     pub fn new_with_chats_tools(chats: Vec<Chat>, tools: Vec<Tools>) -> Self {
-        return Self(chats,  tools, SystemTime::now());
+        return Self(chats, tools, SystemTime::now());
     }
 
     pub fn new_with_chats(chats: Vec<Chat>) -> Self {

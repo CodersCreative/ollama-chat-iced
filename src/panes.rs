@@ -188,7 +188,10 @@ impl PaneMessage {
                     }
                     Pane::Chat(x) => {
                         let id = Id::new();
-                        app.main_view.add_to_chats(id.clone(), app.main_view.chats().get(x).unwrap().clone());
+                        app.main_view.add_to_chats(
+                            id.clone(),
+                            app.main_view.chats().get(x).unwrap().clone(),
+                        );
                         Pane::Chat(id)
                     }
                     Pane::Models(_) => Pane::new_models(app),
@@ -250,7 +253,8 @@ impl Panes {
             Pane::Settings(_) => Pane::new_settings(app, app.logic.models.first().unwrap().clone()),
             Pane::Chat(x) => {
                 let id = Id::new();
-                app.main_view.add_to_chats(id.clone(), app.main_view.chats().get(&x).unwrap().clone());
+                app.main_view
+                    .add_to_chats(id.clone(), app.main_view.chats().get(&x).unwrap().clone());
                 Pane::Chat(id)
             }
             Pane::Models(_) => Pane::new_models(app),
@@ -304,32 +308,37 @@ impl Panes {
             //     |x: Id| -> Element<Message> { Options::get_from_id(app, x).view(app) };
 
             pane_grid::Content::new(match state {
-                Pane::Settings(x) => {
-                    add_to_window(app, pane, state.clone(), "Settings", pick, app.main_view.options().get(x).unwrap().view(x.clone(), app))
-                }
+                Pane::Settings(x) => add_to_window(
+                    app,
+                    pane,
+                    state.clone(),
+                    "Settings",
+                    pick,
+                    app.main_view.options().get(x).unwrap().view(x.clone(), app),
+                ),
                 Pane::Call => {
                     add_to_window(app, pane, state.clone(), "Call", pick, app.call.view(app))
                 }
-                Pane::Chat(x) => {
-                    add_to_window(
-                        app,
-                        pane,
-                        state.clone(),
-                        "Chat",
-                        pick,
-                        app.main_view.chats().get(x).unwrap().chat_view(app, x.clone()),
-                    )
-                }
-                Pane::Models(x) => {
-                    add_to_window(
-                        app,
-                        pane,
-                        state.clone(),
-                        "Models",
-                        pick,
-                        app.main_view.models().get(x).unwrap().view(x.clone(), app),
-                    )
-                }
+                Pane::Chat(x) => add_to_window(
+                    app,
+                    pane,
+                    state.clone(),
+                    "Chat",
+                    pick,
+                    app.main_view
+                        .chats()
+                        .get(x)
+                        .unwrap()
+                        .chat_view(app, x.clone()),
+                ),
+                Pane::Models(x) => add_to_window(
+                    app,
+                    pane,
+                    state.clone(),
+                    "Models",
+                    pick,
+                    app.main_view.models().get(x).unwrap().view(x.clone(), app),
+                ),
                 Pane::NoModel => text("Please install Ollama to use this app.").into(),
             })
         })

@@ -24,11 +24,9 @@ pub struct View {
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     models: HashMap<Id, Models>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
-    downloads: Vec<Download>,
+    downloads: HashMap<Id, Download>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
-    chat_streams: Vec<ChatStream>,
-    #[getset(get = "pub", set = "pub", get_copy = "pub with_prefix")]
-    id: usize,
+    chat_streams: HashMap<Id, ChatStream>,
 }
 
 impl View {
@@ -80,7 +78,7 @@ impl View {
         f(self.options.get_mut(key));
     }
 
-    pub fn add_model(&mut self, key : Id, models: Models) {
+    pub fn add_model(&mut self, key: Id, models: Models) {
         self.models.insert(key, models);
     }
 
@@ -98,24 +96,24 @@ impl View {
         f(self.models.get_mut(key));
     }
 
-    pub fn add_download(&mut self, download: Download) {
-        self.downloads.push(download);
+    pub fn add_download(&mut self, id: Id, download: Download) {
+        self.downloads.insert(id, download);
     }
 
     pub fn update_downloads<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Vec<Download>),
+        F: FnMut(&mut HashMap<Id, Download>),
     {
         f(&mut self.downloads);
     }
 
-    pub fn add_chat_stream(&mut self, stream: ChatStream) {
-        self.chat_streams.push(stream);
+    pub fn add_chat_stream(&mut self, id: Id, stream: ChatStream) {
+        self.chat_streams.insert(id, stream);
     }
 
     pub fn update_chat_streams<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Vec<ChatStream>),
+        F: FnMut(&mut HashMap<Id, ChatStream>),
     {
         f(&mut self.chat_streams);
     }
@@ -130,25 +128,20 @@ impl View {
             options: HashMap::new(),
             chats: HashMap::new(),
             models: HashMap::new(),
-            downloads: Vec::new(),
-            chat_streams: Vec::new(),
-            id: 0,
+            downloads: HashMap::new(),
+            chat_streams: HashMap::new(),
         }
     }
 
-    pub fn remove_download_by_id(&mut self, id: &usize) {
+    pub fn remove_download_by_id(&mut self, id: &Id) {
         self.update_downloads(|downloads| {
-            if let Some(index) = downloads.iter().position(|x| &x.id == id) {
-                downloads.remove(index);
-            }
+            let _ = downloads.remove(id);
         });
     }
 
     pub fn remove_chat_stream_by_id(&mut self, id: &Id) {
         self.update_chat_streams(|streams| {
-            if let Some(index) = streams.iter().position(|x| &x.id == id) {
-                streams.remove(index);
-            }
+            let _ = streams.remove(id);
         });
     }
 }

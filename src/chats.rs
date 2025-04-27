@@ -102,7 +102,6 @@ impl Chats {
 impl Chats {
     pub fn new(model: String, saved_chat: Id, markdown: Vec<Vec<markdown::Item>>) -> Self {
         Self {
-            // id: Id::new(),
             model,
             saved_chat,
             markdown,
@@ -115,50 +114,19 @@ impl Chats {
         }
     }
 
-    // pub fn get_from_id<'a>(app: &'a ChatApp, id: Id) -> &'a Self {
-    //     app.main_view.chats().iter().find(|x| x.id == id).unwrap()
-    // }
-    //
-    // pub fn get_from_id_mut<'a>(app: &'a mut ChatApp, id: Id) -> &'a mut Self {
-    //     app.main_view
-    //         .chats_mut()
-    //         .iter_mut()
-    //         .find(|x| x.id == id)
-    //         .unwrap()
-    // }
-
-    // pub fn get_index<'a>(app: &'a ChatApp, id: Id) -> usize {
-    //     if let Some(i) = app.main_view.chats().iter().position(|x| x.id() == &id) {
-    //         return i;
-    //     }
-    //     0
-    // }
-    //
-    // pub fn get_saved_index(&self, app: &ChatApp) -> Option<usize> {
-    //     app.save
-    //         .chats
-    //         .iter()
-    //         .position(|x| self.saved_chat() == &x.1)
-    // }
-
-    // pub fn view<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
-    //     let index = match self.get_saved_index(app) {
-    //         Some(x) => x,
-    //         None => return text("Failed").into(),
-    //     };
-    //     self.view_with_index(app, index)
-    // }
-
     pub fn view<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
-        keyed_column(
-            app.save.chats.get(self.saved_chat()).unwrap()
-                .0
-                .iter()
-                .enumerate()
-                .map(|(i, chat)| (0, chat.view(id, &self.markdown[i], &app.theme()))),
-        )
-        .spacing(10)
-        .into()
+        if let Some(chat) = app.save.chats.get(self.saved_chat()) {
+            keyed_column(
+                chat.0
+                    .iter()
+                    .enumerate()
+                    .map(|(i, chat)| (0, chat.view(id, &self.markdown[i], &app.theme()))),
+            )
+            .spacing(10)
+            .into()
+        } else {
+            text("Failed to get Chat.").into()
+        }
     }
 
     pub fn chat_view<'a>(&'a self, app: &'a ChatApp, id: Id) -> Element<'a, Message> {
@@ -173,12 +141,9 @@ impl Chats {
                     let modifiers = key_press.modifiers;
 
                     match text_editor::Binding::from_key_press(key_press) {
-                        Some(text_editor::Binding::Enter) if !modifiers.shift() => {
-                            Some(text_editor::Binding::Custom(Message::Chats(
-                                ChatsMessage::Submit,
-                                id,
-                            )))
-                        }
+                        Some(text_editor::Binding::Enter) if !modifiers.shift() => Some(
+                            text_editor::Binding::Custom(Message::Chats(ChatsMessage::Submit, id)),
+                        ),
                         binding => binding,
                     }
                 })
@@ -223,8 +188,7 @@ impl Chats {
                 let call = btn("call.svg").on_press(Message::Call(
                     crate::call::CallMessage::StartCall(self.model.clone()),
                 ));
-                let record =
-                    btn("record.svg").on_press(Message::Chats(ChatsMessage::Listen, id));
+                let record = btn("record.svg").on_press(Message::Chats(ChatsMessage::Listen, id));
                 let send = btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, id));
 
                 row![record, call, send].into()
@@ -236,10 +200,7 @@ impl Chats {
                 row(self.images.iter().map(|x| {
                     button(image(image::Handle::from_path(x)).height(Length::Fixed(100.0)))
                         .style(style::button::transparent_text)
-                        .on_press(Message::Chats(
-                            ChatsMessage::RemoveImage(x.clone()),
-                            id,
-                        ))
+                        .on_press(Message::Chats(ChatsMessage::RemoveImage(x.clone()), id))
                         .into()
                 }))
                 .align_y(Vertical::Center)
@@ -369,11 +330,13 @@ impl Chats {
         .into()
     }
 
-    fn view_chat<'a>(&'a self, app: &'a ChatApp, id : &Id) -> Element<'a, Message> {
-        container(scrollable::Scrollable::new(app.save.view_chat(self, id, app)).width(Length::Fill))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .padding(20)
-            .into()
+    fn view_chat<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
+        container(
+            scrollable::Scrollable::new(app.save.view_chat(self, id, app)).width(Length::Fill),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding(20)
+        .into()
     }
 }

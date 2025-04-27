@@ -78,7 +78,13 @@ impl View {
             return Self::txt("None".to_string(), self.theme().palette().text);
         }
 
-        column(app.main_view.downloads().iter().map(|x| x.view(app))).into()
+        column(
+            app.main_view
+                .downloads()
+                .iter()
+                .map(|(i, x)| x.view(app, i.clone())),
+        )
+        .into()
     }
 
     fn hide_button<'a>(title: &'a str) -> button::Button<'a, Message, Theme, Renderer> {
@@ -184,7 +190,6 @@ impl View {
 
     pub fn view_chats<'a>(&'a self, app: &'a ChatApp) -> Element<Message> {
         if app.main_view.side_chats().chats.len() >= 8 {
-            
             let view = |chats: HashMap<&'a Id, &'a Chat>| -> Element<Message> {
                 let chats: Vec<Element<Message>> =
                     chats.iter().map(|(i, x)| x.view(app, i)).clone().collect();
@@ -196,8 +201,7 @@ impl View {
                 view(
                     (&app.main_view.side_chats().chats)
                         .iter()
-                        .filter(|(_, x)| 
-                            x
+                        .filter(|(_, x)| x
                             .get_time()
                             .duration_since(SystemTime::now())
                             .unwrap_or(Duration::new(0, 0))

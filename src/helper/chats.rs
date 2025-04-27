@@ -20,10 +20,12 @@ impl ChatApp {
     pub fn remove_chat(&mut self, key: Id) -> Task<Message> {
         self.save.chats.remove(&key);
 
-        for c in self.main_view.chats_mut() {
-            if c.1.saved_chat() == &key {
-                c.1.set_saved_chat(self.save.chats.iter().last().unwrap().0.clone());
-                c.1.set_markdown(Vec::new());
+        if let Some(saved) = self.save.chats.iter().last() {
+            for c in self.main_view.chats_mut() {
+                if c.1.saved_chat() == &key {
+                    c.1.set_saved_chat(saved.0.clone());
+                    c.1.set_markdown(Vec::new());
+                }
             }
         }
 

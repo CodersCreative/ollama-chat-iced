@@ -38,7 +38,6 @@ impl Options {
         self.0 = model;
     }
 
-
     pub fn key(&self) -> &Option<OptionKey> {
         &self.1
     }
@@ -97,11 +96,9 @@ pub enum OptionMessage {
 impl OptionMessage {
     pub fn handle<'a>(&'a self, key: Id, app: &'a mut ChatApp) -> Task<Message> {
         let model = app.main_view.options().get(&key).unwrap().0.clone();
-        
+
         let mut get_indexes = |x: &OptionKey| -> (usize, usize) {
-            let m_index = app
-                .options
-                .get_create_model_options_index(model.clone());
+            let m_index = app.options.get_create_model_options_index(model.clone());
             (m_index, app.options.0[m_index].get_key_index(x.clone()))
         };
 
@@ -115,29 +112,31 @@ impl OptionMessage {
                 Task::none()
             }
             Self::ChangeModel(x) => {
-                app.main_view.update_option(
-                    &key,
-                    |option| {
-                        if let Some(option) = option{
-                            option.set_model(x.clone());
-                        }
-                    },
-                );
+                app.main_view.update_option(&key, |option| {
+                    if let Some(option) = option {
+                        option.set_model(x.clone());
+                    }
+                });
 
                 Task::none()
             }
             Self::DeleteModel => {
-                let model = app.main_view.options().get(&key).unwrap().model().to_string();
+                let model = app
+                    .main_view
+                    .options()
+                    .get(&key)
+                    .unwrap()
+                    .model()
+                    .to_string();
 
                 if let Ok(i) = app.logic.models.binary_search(&model) {
                     app.logic.models.remove(i);
                     if let Some(m) = app.logic.models.first() {
-                        app.main_view
-                            .update_option(&key, |option| {
-                                if let Some(option) = option{
-                                    option.set_model(m.clone());
-                                }
-                            });
+                        app.main_view.update_option(&key, |option| {
+                            if let Some(option) = option {
+                                option.set_model(m.clone());
+                            }
+                        });
                         return Task::perform(
                             delete_model(app.logic.ollama.clone(), model.clone()),
                             move |_| Message::None,
@@ -187,12 +186,14 @@ impl OptionMessage {
             Self::ClickedOption(x) => {
                 if let Some(y) = &app.main_view.options().get(&key).unwrap().1 {
                     if x == y {
-                        app.main_view.update_option(&key, |x| x.unwrap().set_key(None));
+                        app.main_view
+                            .update_option(&key, |x| x.unwrap().set_key(None));
                         return Task::none();
                     }
                 }
 
-                app.main_view.update_option(&key, |y| y.unwrap().set_key(Some(x.clone())));
+                app.main_view
+                    .update_option(&key, |y| y.unwrap().set_key(Some(x.clone())));
                 Task::none()
             }
         }
@@ -270,7 +271,9 @@ impl SavedOptions {
 
         if let Ok(mut reader) = reader {
             let mut data = String::new();
-            let _ = reader.read_to_string(&mut data).unwrap();
+            let _ = reader
+                .read_to_string(&mut data)
+                .map_err(|e| e.to_string())?;
 
             let de_data = serde_json::from_str(&data);
 
@@ -285,7 +288,7 @@ impl SavedOptions {
 }
 
 impl Options {
-    pub fn view<'a>(&'a self, key : Id, app: &'a ChatApp) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, key: Id, app: &'a ChatApp) -> Element<'a, Message> {
         let index = match app
             .options
             .get_model_options_index(self.model().to_string())
@@ -328,9 +331,9 @@ impl Options {
 }
 
 impl ModelOptions {
-    pub fn view<'a>(&'a self, app : &ChatApp, key : Id) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, app: &ChatApp, key: Id) -> Element<'a, Message> {
         scrollable(column(self.0.iter().map(|x| {
-            let shown = if let Some(y) = &app.main_view.options().get(&key).unwrap().1{
+            let shown = if let Some(y) = &app.main_view.options().get(&key).unwrap().1 {
                 if y.clone() == x.key {
                     true
                 } else {
