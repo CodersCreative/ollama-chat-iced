@@ -1,7 +1,7 @@
 use crate::{
+    chats::chat::{Chat, ChatBuilder},
     llm::run_ollama,
     panes::Panes,
-    chats::chat::{Chat, ChatBuilder},
     sound::{get_audio, transcribe},
     style,
     utils::{get_path_assets, get_path_src, play_wav_file, split_text_gtts},

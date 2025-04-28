@@ -1,28 +1,21 @@
 pub mod convert;
 pub mod doc;
-pub mod values;
 pub mod message;
+pub mod values;
 pub mod view;
 
-use crate::{
-    common::Id,
-    style,
-    utils::{get_path_settings},
-    ChatApp, Message,
-};
+use crate::{common::Id, style, utils::get_path_settings, ChatApp, Message};
 use doc::DOCS;
 use iced::{
     alignment::{Horizontal, Vertical},
-    widget::{
-        button, column,container, row, scrollable, text, text_input, toggler,
-    },
-    Element, Length
+    widget::{button, column, container, row, scrollable, text, text_input, toggler},
+    Element, Length,
 };
 use message::OptionMessage;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use values::OptionKey;
 use std::{fs::File, io::Read};
+use values::OptionKey;
 
 pub const SETTINGS_FILE: &str = "settings.json";
 
@@ -60,7 +53,6 @@ impl SavedOptions {
         &self.model_options()[model_index].options()[index]
     }
 }
-
 
 impl SavedOptions {
     pub fn get_model_options_index(&self, model: String) -> Option<usize> {

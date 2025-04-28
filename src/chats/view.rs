@@ -260,7 +260,8 @@ impl Chats {
             row![upload, input, submit]
                 .align_y(Vertical::Center)
                 .spacing(5),
-        ).max_height(350);
+        )
+        .max_height(350);
 
         let input = container(column![
             images,
@@ -392,7 +393,9 @@ impl Chats {
 
     fn view_chat<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         container(
-            scrollable::Scrollable::new(self.view(app, id)).width(Length::Fill).anchor_bottom(),
+            scrollable::Scrollable::new(self.view(app, id))
+                .width(Length::Fill)
+                .anchor_bottom(),
         )
         .width(Length::Fill)
         .height(Length::Fill)

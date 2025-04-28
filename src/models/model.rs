@@ -1,6 +1,10 @@
 use std::str::FromStr;
 
-use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, container, row, text}, Element, Length};
+use iced::{
+    alignment::{Horizontal, Vertical},
+    widget::{button, column, container, row, text},
+    Element, Length,
+};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -26,8 +30,6 @@ pub struct ModelInfo {
     pub categories: Vec<String>,
     pub languages: Vec<String>,
 }
-
-
 
 impl ModelInfo {
     pub fn view<'a>(&'a self, app: &'a ChatApp, id: Id, expand: bool) -> Element<'a, Message> {

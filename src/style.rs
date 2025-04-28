@@ -19,8 +19,8 @@ pub mod container {
                 0.01,
             ))),
             border: iced::Border::default()
-                .width(10)
-                .color(change_alpha(theme.palette().primary.clone(), 0.05))
+                .width(1)
+                .color(theme.palette().primary)
                 .rounded(20),
             ..Default::default()
         }
@@ -50,22 +50,22 @@ pub mod container {
 
     pub fn chat(theme: &Theme) -> Style {
         Style {
-            background: Some(iced::Background::Color(change_alpha(
-                theme.palette().primary.clone(),
-                0.4,
-            ))),
-            border: iced::Border::default().rounded(5),
+            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            border: iced::Border::default()
+                .rounded(5)
+                .width(1)
+                .color(theme.palette().primary),
             text_color: Some(theme.palette().text.clone()),
             ..Default::default()
         }
     }
     pub fn chat_ai(theme: &Theme) -> Style {
         Style {
-            background: Some(iced::Background::Color(change_alpha(
-                theme.palette().danger.clone(),
-                0.4,
-            ))),
-            border: iced::Border::default().rounded(5),
+            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            border: iced::Border::default()
+                .rounded(5)
+                .width(1)
+                .color(theme.palette().danger),
             text_color: Some(theme.palette().text.clone()),
             ..Default::default()
         }

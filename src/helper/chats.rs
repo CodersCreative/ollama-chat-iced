@@ -1,9 +1,6 @@
 use crate::chats::message::ChatsMessage;
 use crate::chats::SavedChat;
-use crate::{
-    common::Id,
-    sidebar::chats::SideChats,
-};
+use crate::{common::Id, sidebar::chats::SideChats};
 use crate::{ChatApp, Message};
 use iced::Task;
 

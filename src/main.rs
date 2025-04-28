@@ -69,7 +69,7 @@ pub struct ChatApp {
     pub options: SavedOptions,
     pub model_info: SavedModels,
     pub prompts: SavedPrompts,
-    pub chats : SavedChats,
+    pub chats: SavedChats,
     pub logic: Logic,
     pub panes: Panes,
     pub tts: NaturalTts,

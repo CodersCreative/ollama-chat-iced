@@ -1,6 +1,6 @@
 pub mod message;
-pub mod view;
 pub mod model;
+pub mod view;
 
 use crate::utils::get_path_settings;
 use model::{ModelInfo, TempInfo};

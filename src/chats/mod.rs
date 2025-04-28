@@ -1,11 +1,11 @@
+pub mod chat;
 pub mod message;
 pub mod view;
-pub mod chat;
 
-use chat::{Chat};
-use crate::{common::Id, llm::Tools};
 use crate::utils::{get_path_settings, get_preview};
-use iced::widget::{markdown};
+use crate::{common::Id, llm::Tools};
+use chat::Chat;
+use iced::widget::markdown;
 use ollama_rs::generation::chat::ChatMessage;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -17,7 +17,7 @@ pub const CHATS_FILE: &str = "chat.json";
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SavedChats(pub HashMap<Id, SavedChat>);
 
-impl SavedChats{
+impl SavedChats {
     pub fn set_chats(&mut self, chats: HashMap<Id, SavedChat>) {
         self.0 = chats;
     }
@@ -80,7 +80,7 @@ pub struct TooledOptions {
     pub tools: Vec<Tools>,
 }
 
-impl Default for SavedChats{
+impl Default for SavedChats {
     fn default() -> Self {
         Self(HashMap::from([(Id::new(), SavedChat::new())]))
     }

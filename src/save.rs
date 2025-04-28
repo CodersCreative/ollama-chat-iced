@@ -11,7 +11,7 @@ pub struct Save {
     pub use_panes: bool,
 }
 
-impl Default for Save{
+impl Default for Save {
     fn default() -> Self {
         Self {
             theme: None,
@@ -54,5 +54,4 @@ impl Save {
 
         return Err("Failed to open file".to_string());
     }
-
 }

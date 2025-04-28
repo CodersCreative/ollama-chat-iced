@@ -1,4 +1,7 @@
-use iced::{widget::{button, column, combo_box, container, row, svg, text}, Element, Padding};
+use iced::{
+    widget::{button, column, combo_box, container, row, svg, text},
+    Element, Padding,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{common::Id, style, utils::get_path_assets, ChatApp, Message};
@@ -28,7 +31,7 @@ impl Options {
     pub fn set_key(&mut self, key: Option<OptionKey>) {
         self.1 = key;
     }
-    
+
     pub fn view<'a>(&'a self, key: Id, app: &'a ChatApp) -> Element<'a, Message> {
         let index = match app
             .options

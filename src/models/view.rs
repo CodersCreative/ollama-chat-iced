@@ -1,4 +1,7 @@
-use iced::{widget::{column, container, keyed_column, scrollable, text_input}, Element, Length, Renderer, Theme};
+use iced::{
+    widget::{column, container, keyed_column, scrollable, text_input},
+    Element, Length, Renderer, Theme,
+};
 
 use crate::{common::Id, style, ChatApp, Message};
 

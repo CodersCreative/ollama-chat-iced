@@ -5,9 +5,19 @@ use iced::{widget::text_editor, Task};
 use kalosm_sound::MicInput;
 use rodio::buffer::SamplesBuffer;
 
-use crate::{common::Id, llm::Tools, prompts::view::get_command_input, sound::{get_audio, transcribe}, ChatApp, Message};
+use crate::{
+    common::Id,
+    llm::Tools,
+    prompts::view::get_command_input,
+    sound::{get_audio, transcribe},
+    ChatApp, Message,
+};
 
-use super::{chat::{Chat, ChatBuilder}, view::State, TooledOptions, CHATS_FILE};
+use super::{
+    chat::{Chat, ChatBuilder},
+    view::State,
+    TooledOptions, CHATS_FILE,
+};
 
 #[derive(Debug, Clone)]
 pub enum ChatsMessage {

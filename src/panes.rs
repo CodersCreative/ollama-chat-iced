@@ -1,5 +1,11 @@
 use crate::{
-    common::Id, models::view::Models, options::view::Options, prompts::view::Prompts, style::{self}, utils::get_path_assets, ChatApp, Message
+    common::Id,
+    models::view::Models,
+    options::view::Options,
+    prompts::view::Prompts,
+    style::{self},
+    utils::get_path_assets,
+    ChatApp, Message,
 };
 use iced::{
     alignment::{Horizontal, Vertical},

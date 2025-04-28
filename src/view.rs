@@ -8,7 +8,7 @@ use crate::models::view::Models;
 use crate::options::view::Options;
 use crate::prompts::view::Prompts;
 use crate::sidebar::chats::SideChats;
-use crate::{sidebar::SideBarState};
+use crate::sidebar::SideBarState;
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::Theme;
 

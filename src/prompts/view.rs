@@ -11,7 +11,7 @@ use iced::{
 use url::Url;
 
 use crate::{
-    chats::message::ChatsMessage, common::Id, style, utils::get_path_assets, ChatApp, Message
+    chats::message::ChatsMessage, common::Id, style, utils::get_path_assets, ChatApp, Message,
 };
 
 use super::{message::PromptsMessage, Prompt, SavedPrompts};
@@ -19,27 +19,25 @@ use super::{message::PromptsMessage, Prompt, SavedPrompts};
 impl SavedPrompts {
     pub fn input_view(&self, input: &str, id: &Id, selected: Option<usize>) -> Element<Message> {
         if let Some(input) = get_command_input(input) {
-            if let Ok(prompts) = self.search(input){
-                return keyed_column(prompts.iter().enumerate().map(
-                    |(i, prompt)| {
-                        let theme = match selected {
-                            None => style::button::transparent_text,
-                            Some(x) if x == i => style::button::side_bar_chat,
-                            Some(_) => style::button::transparent_text,
-                        };
+            if let Ok(prompts) = self.search(input) {
+                return keyed_column(prompts.iter().enumerate().map(|(i, prompt)| {
+                    let theme = match selected {
+                        None => style::button::transparent_text,
+                        Some(x) if x == i => style::button::side_bar_chat,
+                        Some(_) => style::button::transparent_text,
+                    };
 
-                        (
-                            0,
-                            button(text(prompt.command.clone()))
-                                .on_press(Message::Chats(
-                                    ChatsMessage::PickedPrompt(prompt.command.clone()),
-                                    id.clone(),
-                                ))
-                                .style(theme)
-                                .into(),
-                        )
-                    },
-                ))
+                    (
+                        0,
+                        button(text(prompt.command.clone()))
+                            .on_press(Message::Chats(
+                                ChatsMessage::PickedPrompt(prompt.command.clone()),
+                                id.clone(),
+                            ))
+                            .style(theme)
+                            .into(),
+                    )
+                }))
                 .spacing(10)
                 .into();
             }
