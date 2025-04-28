@@ -74,7 +74,7 @@ impl ModelsMessage {
             Self::Search => {
                 app.main_view.update_model(&key, |model| {
                     if let Some(model) = model {
-                        model.2 = app.model_info.search(model.1.clone()).unwrap();
+                        model.2 = app.model_info.search(&model.1).unwrap();
                     }
                 });
                 Task::none()
@@ -96,6 +96,7 @@ impl ModelInfo {
                     .align_y(Vertical::Center)
                     .align_x(Horizontal::Left),
             )
+            .padding(0)
             .style(style::button::transparent_back)
             .on_press(Message::Models(
                 ModelsMessage::Expand(self.name.clone()),
@@ -323,7 +324,7 @@ impl SavedModels {
         let saveable: SaveableModels = SaveableModels::load(path)?;
         Ok(saveable.into())
     }
-    pub fn search<'a>(&'a self, input: String) -> Result<Vec<ModelInfo>, Box<dyn Error>> {
+    pub fn search<'a>(&'a self, input: &'a str) -> Result<Vec<ModelInfo>, Box<dyn Error>> {
         if input.is_empty() {
             return Ok(self.models.clone());
         }
@@ -332,7 +333,7 @@ impl SavedModels {
         let searcher = reader.searcher();
 
         let query_parser = QueryParser::for_index(&self.data.0, self.data.1.clone());
-        let query = query_parser.parse_query(&input)?;
+        let query = query_parser.parse_query(input)?;
 
         let top_docs: Vec<(Score, DocAddress)> =
             searcher.search(&query, &TopDocs::with_limit(10))?;

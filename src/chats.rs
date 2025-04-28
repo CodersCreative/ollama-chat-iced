@@ -234,6 +234,7 @@ impl Chats {
 
         let input = container(column![
             images,
+            self.view_commands(app, &id),
             container(
                 combo_box(&app.logic.combo_models, self.model(), None, move |x| {
                     Message::Chats(ChatsMessage::ChangeModel(x), id)
@@ -343,6 +344,13 @@ impl Chats {
         ])
         .center_x(Length::Fill)
         .center_y(Length::Fill)
+        .into()
+    }
+    
+    fn view_commands<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
+        container(
+            scrollable::Scrollable::new(app.prompts.input_view(&app.main_view.chats().get(id).unwrap().content.text(), id)).width(Length::Fill),
+        )
         .into()
     }
 

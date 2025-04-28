@@ -28,16 +28,16 @@ pub mod container {
 
     pub fn chat_back(theme: &Theme) -> Style {
         Style {
-            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
-            border: iced::Border::default()
-                .width(2)
-                .color(theme.palette().primary.clone())
-                .rounded(5),
+            background: Some(iced::Background::Color(darken_colour(
+                theme.palette().background.clone(),
+                0.01,
+            ))),
+            border: iced::Border::default().rounded(5),
             ..Default::default()
         }
     }
 
-    pub fn chat_back_ai(theme: &Theme) -> Style {
+    pub fn window_back(theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
             border: iced::Border::default()
@@ -50,7 +50,10 @@ pub mod container {
 
     pub fn chat(theme: &Theme) -> Style {
         Style {
-            background: Some(iced::Background::Color(theme.palette().primary.clone())),
+            background: Some(iced::Background::Color(change_alpha(
+                theme.palette().primary.clone(),
+                0.4,
+            ))),
             border: iced::Border::default().rounded(5),
             text_color: Some(theme.palette().text.clone()),
             ..Default::default()
@@ -58,7 +61,10 @@ pub mod container {
     }
     pub fn chat_ai(theme: &Theme) -> Style {
         Style {
-            background: Some(iced::Background::Color(theme.palette().danger.clone())),
+            background: Some(iced::Background::Color(change_alpha(
+                theme.palette().danger.clone(),
+                0.4,
+            ))),
             border: iced::Border::default().rounded(5),
             text_color: Some(theme.palette().text.clone()),
             ..Default::default()

@@ -41,3 +41,4 @@ derive_builder = { version = "0.20.2"}
 sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio-rustls"] }
 uuid = { version = "1.16.0", features = ["v4", "v7"] }
 getset = "0.1.5"
+clipboard-rs = "0.2.4"

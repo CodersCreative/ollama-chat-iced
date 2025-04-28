@@ -5,10 +5,12 @@ use crate::llm::Tools;
 use crate::sound::{get_audio, transcribe};
 use crate::utils::get_preview;
 use crate::{ChatApp, Message, SAVE_FILE};
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
 use iced::widget::{markdown, text_editor};
-use iced::Task;
+use iced::{clipboard, Task};
 use kalosm_sound::{rodio::buffer::SamplesBuffer, MicInput};
 use ollama_rs::generation::chat::ChatMessage;
+use ollama_rs::IntoUrlSealed;
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 use std::{path::PathBuf, sync::Arc};
@@ -24,6 +26,8 @@ pub struct TooledOptions {
 
 #[derive(Debug, Clone)]
 pub enum ChatsMessage {
+    PickedPrompt(String),
+    SetPrompt(Option<String>, String),
     Regenerate,
     SaveEdit,
     CancelEdit,
@@ -71,6 +75,37 @@ impl ChatsMessage {
                     );
                 }
 
+                Task::none()
+            }
+            Self::PickedPrompt(x) => {
+                let clip = {
+                    if let Ok(mut clip_ctx) = ClipboardContext::new(){
+                        clip_ctx.get_contents().unwrap_or(String::new())
+                    }else{
+                        String::new()
+                    }
+                };
+
+                app.main_view.update_chat(&id, |chat| {
+                    if let Some(chat) = chat {
+                        if let Some(command) = app.prompts.prompts.iter().find(|y| &y.1.command == x){
+                            chat.set_content(text_editor::Content::with_text(&command.1.content.replace("{{CLIPBOARD}}", clip.as_str())));
+                        }
+                    }
+                });
+                Task::none()
+            }
+            Self::SetPrompt(c , x) => {
+
+                if let Some(c) = c{
+                    app.main_view.update_chat(&id, |chat| {
+                        if let Some(chat) = chat {
+                            if let Some(command) = app.prompts.prompts.iter().find(|y| &y.1.command == x){
+                                chat.set_content(text_editor::Content::with_text(&command.1.content.replace("{{clipboard}}", c.as_str())));
+                            }
+                        }
+                    });
+                }
                 Task::none()
             }
             Self::Edit(m) => {

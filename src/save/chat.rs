@@ -213,12 +213,8 @@ impl Chat {
         )
         .padding(20);
 
-        let style = match is_ai {
-            true => style::container::chat_back_ai,
-            false => style::container::chat_back,
-        };
         container(column![name, images, editor,].width(Length::Fill))
-            .style(style)
+            .style(style::container::chat_back)
             .width(Length::FillPortion(5))
             .into()
     }
@@ -285,12 +281,8 @@ impl Chat {
         .style(style::container::bottom_input_back);
         let mark = container(self.view_mk(markdown, theme)).padding(20);
 
-        let style = match is_ai {
-            true => style::container::chat_back_ai,
-            false => style::container::chat_back,
-        };
         container(column![name, images, mark,].width(Length::Fill))
-            .style(style)
+            .style(style::container::chat_back)
             .width(Length::FillPortion(5))
             .into()
     }

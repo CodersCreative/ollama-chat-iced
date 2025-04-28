@@ -4,6 +4,7 @@ use crate::chats::Chats;
 use crate::common::Id;
 use crate::download::Download;
 use crate::llm::ChatStream;
+use crate::prompts::view::Prompts;
 use crate::sidebar::chats::Chats as SideChats;
 use crate::{models::Models, options::Options, sidebar::SideBarState};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
@@ -26,6 +27,8 @@ pub struct View {
     edits: HashMap<Id, usize>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     models: HashMap<Id, Models>,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    prompts: HashMap<Id, Prompts>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     downloads: HashMap<Id, Download>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
@@ -113,6 +116,24 @@ impl View {
         f(self.models.get_mut(key));
     }
 
+    pub fn add_prompt(&mut self, key: Id, prompts: Prompts) {
+        self.prompts.insert(key, prompts);
+    }
+
+    pub fn update_prompts<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut HashMap<Id, Prompts>),
+    {
+        f(&mut self.prompts);
+    }
+
+    pub fn update_prompt<F>(&mut self, key: &Id, mut f: F)
+    where
+        F: FnMut(Option<&mut Prompts>),
+    {
+        f(self.prompts.get_mut(key));
+    }
+
     pub fn add_download(&mut self, id: Id, download: Download) {
         self.downloads.insert(id, download);
     }
@@ -145,6 +166,7 @@ impl View {
             options: HashMap::new(),
             chats: HashMap::new(),
             models: HashMap::new(),
+            prompts: HashMap::new(),
             edits: HashMap::new(),
             downloads: HashMap::new(),
             chat_streams: HashMap::new(),

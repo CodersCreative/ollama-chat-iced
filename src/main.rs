@@ -7,6 +7,7 @@ pub mod llm;
 pub mod models;
 pub mod options;
 pub mod panes;
+pub mod prompts;
 pub mod save;
 pub mod sidebar;
 pub mod sound;
@@ -36,6 +37,7 @@ use ollama_rs::generation::chat::ChatMessage;
 use options::{OptionMessage, Options, SavedOptions};
 use panes::PaneMessage;
 use panes::Panes;
+use prompts::{message::PromptsMessage, SavedPrompts};
 use save::{
     chat::{Chat, Role},
     chats::{ChatsMessage, SavedChats},
@@ -69,6 +71,7 @@ pub struct ChatApp {
     pub main_view: View,
     pub options: SavedOptions,
     pub model_info: SavedModels,
+    pub prompts : SavedPrompts,
     pub logic: Logic,
     pub panes: Panes,
     pub tts: NaturalTts,
@@ -81,6 +84,7 @@ pub enum Message {
     Pane(PaneMessage),
     Call(CallMessage),
     Models(ModelsMessage, Id),
+    Prompts(PromptsMessage, Id),
     Option(OptionMessage, Id),
     Chats(ChatsMessage, Id),
     ChangeTheme(Theme),
@@ -120,6 +124,7 @@ impl ChatApp {
             logic: Logic::new(),
             model_info: SavedModels::init().unwrap(),
             options: SavedOptions::default(),
+            prompts: SavedPrompts::default(),
             tts: NaturalTtsBuilder::default()
                 .default_model(natural_tts::Model::Gtts)
                 .gtts_model(GttsModel::default())
@@ -140,6 +145,11 @@ impl ChatApp {
         app.options = match SavedOptions::load(options::SETTINGS_FILE) {
             Ok(x) => x,
             Err(_) => SavedOptions::default(),
+        };
+
+        app.prompts = match SavedPrompts::load(prompts::PROMPTS_PATH) {
+            Ok(x) => x,
+            Err(_) => SavedPrompts::default(),
         };
 
         let models = app.logic.get_models();
@@ -197,9 +207,9 @@ impl ChatApp {
                 Task::none()
             }
             Message::Models(x, k) => x.handle(k, self),
+            Message::Prompts(x, k) => x.handle(k, self),
             Message::None => Task::none(),
             Message::SaveToClipboard(x) => {
-                println!("Save Clip {}", x);
                 clipboard::write::<Message>(x.clone())
             }
             Message::Chats(x, i) => x.handle(i, self),

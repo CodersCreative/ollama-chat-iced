@@ -1,11 +1,5 @@
 use crate::{
-    chats::Chats,
-    common::Id,
-    models::Models,
-    options::Options,
-    style::{self},
-    utils::get_path_assets,
-    ChatApp, Message,
+    chats::Chats, common::Id, models::Models, options::Options, prompts::view::Prompts, style::{self}, utils::get_path_assets, ChatApp, Message
 };
 use iced::{
     alignment::{Horizontal, Vertical},
@@ -21,6 +15,7 @@ pub enum Pane {
     Settings(Id),
     Chat(Id),
     Models(Id),
+    Prompts(Id),
     Call,
     NoModel,
 }
@@ -36,6 +31,12 @@ impl Pane {
         let model = (Id::new(), Models::new(app));
         app.main_view.add_model(model.0.clone(), model.1);
         return Self::Models(model.0);
+    }
+    
+    pub fn new_prompts(app: &mut ChatApp) -> Self {
+        let prompt = (Id::new(), Prompts::new(app));
+        app.main_view.add_prompt(prompt.0.clone(), prompt.1);
+        return Self::Prompts(prompt.0);
     }
 }
 
@@ -103,7 +104,7 @@ pub fn add_to_window<'a>(
                 pick.clone()
             ))),
         ]))
-        .style(style::container::chat_back_ai)
+        .style(style::container::window_back)
         .into();
     }
 
@@ -122,6 +123,10 @@ pub fn add_to_window<'a>(
             window_button("star.svg", 16).on_press(Message::Pane(PaneMessage::Pick(
                 pane,
                 Pane::Models(Id::new())
+            ))),
+            window_button("prompt.svg", 16).on_press(Message::Pane(PaneMessage::Pick(
+                pane,
+                Pane::Prompts(Id::new())
             ))),
             window_button("settings.svg", 16).on_press(Message::Pane(PaneMessage::Pick(
                 pane,
@@ -195,6 +200,7 @@ impl PaneMessage {
                         Pane::Chat(id)
                     }
                     Pane::Models(_) => Pane::new_models(app),
+                    Pane::Prompts(_) => Pane::new_prompts(app),
                     Pane::Call => Pane::Call,
                     _ => Pane::NoModel,
                 };
@@ -258,6 +264,7 @@ impl Panes {
                 Pane::Chat(id)
             }
             Pane::Models(_) => Pane::new_models(app),
+            Pane::Prompts(_) => Pane::new_prompts(app),
             Pane::Call => Pane::Call,
             _ => Pane::NoModel,
         };
@@ -338,6 +345,14 @@ impl Panes {
                     "Models",
                     pick,
                     app.main_view.models().get(x).unwrap().view(x.clone(), app),
+                ),
+                Pane::Prompts(x) => add_to_window(
+                    app,
+                    pane,
+                    state.clone(),
+                    "Prompts",
+                    pick,
+                    app.main_view.prompts().get(x).unwrap().view(x.clone(), app),
                 ),
                 Pane::NoModel => text("Please install Ollama to use this app.").into(),
             })
