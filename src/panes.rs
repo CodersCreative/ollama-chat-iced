@@ -1,5 +1,12 @@
 use crate::{
-    chats::Chats, common::Id, models::Models, options::Options, prompts::view::Prompts, style::{self}, utils::get_path_assets, ChatApp, Message
+    chats::Chats,
+    common::Id,
+    models::Models,
+    options::Options,
+    prompts::view::Prompts,
+    style::{self},
+    utils::get_path_assets,
+    ChatApp, Message,
 };
 use iced::{
     alignment::{Horizontal, Vertical},
@@ -32,7 +39,7 @@ impl Pane {
         app.main_view.add_model(model.0.clone(), model.1);
         return Self::Models(model.0);
     }
-    
+
     pub fn new_prompts(app: &mut ChatApp) -> Self {
         let prompt = (Id::new(), Prompts::new(app));
         app.main_view.add_prompt(prompt.0.clone(), prompt.1);

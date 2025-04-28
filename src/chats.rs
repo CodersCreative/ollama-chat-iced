@@ -1,4 +1,5 @@
 use crate::common::Id;
+use crate::prompts::view::get_command_input;
 use crate::save::chats::{ChatsMessage, TooledOptions};
 use crate::start::{self, Section};
 use crate::style;
@@ -6,6 +7,7 @@ use crate::utils::{change_alpha, get_path_assets, lighten_colour};
 use crate::{ChatApp, Message};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::alignment::{Horizontal, Vertical};
+use iced::widget::text_editor::Motion;
 use iced::widget::{
     button, column, combo_box, container, horizontal_space, image, keyed_column, markdown, row,
     scrollable,
@@ -32,6 +34,8 @@ pub struct Chats {
     content: text_editor::Content,
     #[getset(get = "pub", set = "pub")]
     saved_chat: Id,
+    #[getset(get = "pub", set = "pub")]
+    selected_prompt: Option<usize>,
     #[getset(get = "pub", set = "pub")]
     model: String,
     #[getset(get = "pub", set = "pub")]
@@ -113,6 +117,7 @@ impl Chats {
             content: text_editor::Content::new(),
             images: Vec::new(),
             desc: None,
+            selected_prompt: None,
             tools: Arc::new(TooledOptions::default()),
         }
     }
@@ -156,7 +161,31 @@ impl Chats {
                 .key_binding(move |key_press| {
                     let modifiers = key_press.modifiers;
 
+                    let is_command = get_command_input(&self.content().text()).is_some();
+
                     match text_editor::Binding::from_key_press(key_press) {
+                        Some(text_editor::Binding::Enter) if !modifiers.shift() && is_command => {
+                            Some(text_editor::Binding::Custom(Message::Chats(
+                                ChatsMessage::SubmitPrompt,
+                                id,
+                            )))
+                        }
+                        Some(text_editor::Binding::Move(Motion::Up))
+                            if !modifiers.shift() && is_command =>
+                        {
+                            Some(text_editor::Binding::Custom(Message::Chats(
+                                ChatsMessage::ChangePrompt(Motion::Up),
+                                id,
+                            )))
+                        }
+                        Some(text_editor::Binding::Move(Motion::Down))
+                            if !modifiers.shift() && is_command =>
+                        {
+                            Some(text_editor::Binding::Custom(Message::Chats(
+                                ChatsMessage::ChangePrompt(Motion::Down),
+                                id,
+                            )))
+                        }
                         Some(text_editor::Binding::Enter) if !modifiers.shift() => Some(
                             text_editor::Binding::Custom(Message::Chats(ChatsMessage::Submit, id)),
                         ),
@@ -346,10 +375,15 @@ impl Chats {
         .center_y(Length::Fill)
         .into()
     }
-    
+
     fn view_commands<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         container(
-            scrollable::Scrollable::new(app.prompts.input_view(&app.main_view.chats().get(id).unwrap().content.text(), id)).width(Length::Fill),
+            scrollable::Scrollable::new(app.prompts.input_view(
+                &app.main_view.chats().get(id).unwrap().content.text(),
+                id,
+                self.selected_prompt,
+            ))
+            .width(Length::Fill),
         )
         .into()
     }

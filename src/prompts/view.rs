@@ -1,24 +1,45 @@
 use std::str::FromStr;
 
-use iced::{alignment::{Horizontal, Vertical}, widget::{button, column, container, keyed_column, row, scrollable, svg, text, text_editor, text_input, vertical_space, Container, Space}, Element, Length, Renderer, Theme};
+use iced::{
+    alignment::{Horizontal, Vertical},
+    widget::{
+        button, column, container, keyed_column, row, scrollable, svg, text, text_editor,
+        text_input, vertical_space, Container, Space,
+    },
+    Element, Length, Renderer, Theme,
+};
 use ollama_rs::IntoUrlSealed;
 use url::Url;
 
-use crate::{common::Id, save::chats::ChatsMessage, style, utils::get_path_assets, ChatApp, Message};
+use crate::{
+    common::Id, save::chats::ChatsMessage, style, utils::get_path_assets, ChatApp, Message,
+};
 
 use super::{message::PromptsMessage, Prompt, SavedPrompts};
 
-impl SavedPrompts{
-    pub fn input_view(&self, input : &str, id: &Id) -> Element<Message>{
-        if let Some(input) = get_command_input(input){
-            return keyed_column(self.search(input).unwrap().iter().enumerate().map(|(_, prompt)| {
-                (
-                    0,
-                    button(text(prompt.command.clone()))
-                    .on_press(Message::Chats(ChatsMessage::PickedPrompt(prompt.command.clone()), id.clone()))
-                    .style(style::button::transparent_text).into(),
-                )
-            }))
+impl SavedPrompts {
+    pub fn input_view(&self, input: &str, id: &Id, selected: Option<usize>) -> Element<Message> {
+        if let Some(input) = get_command_input(input) {
+            return keyed_column(self.search(input).unwrap().iter().enumerate().map(
+                |(i, prompt)| {
+                    let theme = match selected {
+                        None => style::button::transparent_text,
+                        Some(x) if x == i => style::button::side_bar_chat,
+                        Some(_) => style::button::transparent_text,
+                    };
+
+                    (
+                        0,
+                        button(text(prompt.command.clone()))
+                            .on_press(Message::Chats(
+                                ChatsMessage::PickedPrompt(prompt.command.clone()),
+                                id.clone(),
+                            ))
+                            .style(theme)
+                            .into(),
+                    )
+                },
+            ))
             .spacing(10)
             .into();
         }
@@ -26,9 +47,9 @@ impl SavedPrompts{
     }
 }
 
-fn get_command_input(input : &str) -> Option<&str>{
-    if let Some(split) = input.split_whitespace().last(){
-        if split.contains("/"){
+pub fn get_command_input(input: &str) -> Option<&str> {
+    if let Some(split) = input.split_whitespace().last() {
+        if split.contains("/") {
             return Some(split.trim_start_matches("/"));
         }
     }
@@ -37,23 +58,28 @@ fn get_command_input(input : &str) -> Option<&str>{
 }
 
 #[derive(Default)]
-pub struct Prompts{pub expand : Option<String>, pub input : String, pub prompts : Vec<Prompt>, pub edit : Edit}
-
-#[derive(Default)]
-pub struct Edit{
-    pub content : text_editor::Content,
-    pub title : String,
-    pub command : String,
-    pub og_command : String
+pub struct Prompts {
+    pub expand: Option<String>,
+    pub input: String,
+    pub prompts: Vec<Prompt>,
+    pub edit: Edit,
 }
 
-impl From<Prompt> for Edit{
+#[derive(Default)]
+pub struct Edit {
+    pub content: text_editor::Content,
+    pub title: String,
+    pub command: String,
+    pub og_command: String,
+}
+
+impl From<Prompt> for Edit {
     fn from(value: Prompt) -> Self {
-        Self{
+        Self {
             content: text_editor::Content::with_text(&value.content),
-            title : value.title.clone(),
-            command : value.command.clone(),
-            og_command : value.command.clone(),
+            title: value.title.clone(),
+            command: value.command.clone(),
+            og_command: value.command.clone(),
         }
     }
 }
@@ -71,12 +97,12 @@ impl From<Prompt> for Edit{
 //     input : text_editor::Content,
 // }
 
-impl Prompts{
+impl Prompts {
     pub fn new(app: &ChatApp) -> Self {
-        Self{
+        Self {
             expand: None,
-            input : String::new(),
-            prompts : app.prompts.prompts.iter().map(|x| x.1.clone()).collect(),
+            input: String::new(),
+            prompts: app.prompts.prompts.iter().map(|x| x.1.clone()).collect(),
             edit: Edit::default(),
         }
     }
@@ -125,7 +151,7 @@ Utilize {{CLIPBOARD}} variable to have them replaced with clipboard content.\nPr
             .width(Length::Fill)
             .align_y(Vertical::Center)
             .align_x(Horizontal::Left)).style(style::button::not_chosen_chat).padding(6).on_press(Message::URLClicked(Url::from_str("https://openwebui.com/prompts").unwrap()));
-        
+
         container(column![
             input,
             scrollable::Scrollable::new(self.view_prompts(app, key.clone())).width(Length::Fill),

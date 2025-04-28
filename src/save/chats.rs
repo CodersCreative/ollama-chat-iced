@@ -2,6 +2,7 @@ use super::chat::{Chat, ChatBuilder};
 use crate::chats::{Chats, State};
 use crate::common::Id;
 use crate::llm::Tools;
+use crate::prompts::view::get_command_input;
 use crate::sound::{get_audio, transcribe};
 use crate::utils::get_preview;
 use crate::{ChatApp, Message, SAVE_FILE};
@@ -28,6 +29,8 @@ pub struct TooledOptions {
 pub enum ChatsMessage {
     PickedPrompt(String),
     SetPrompt(Option<String>, String),
+    ChangePrompt(text_editor::Motion),
+    SubmitPrompt,
     Regenerate,
     SaveEdit,
     CancelEdit,
@@ -48,6 +51,27 @@ pub enum ChatsMessage {
 }
 
 impl ChatsMessage {
+    fn set_picked_prompt(app: &mut ChatApp, x: &str, id: &Id) {
+        let clip = {
+            if let Ok(mut clip_ctx) = ClipboardContext::new() {
+                clip_ctx.get_contents().unwrap_or(String::new())
+            } else {
+                String::new()
+            }
+        };
+
+        app.main_view.update_chat(&id, |chat| {
+            if let Some(chat) = chat {
+                if let Some(command) = app.prompts.prompts.iter().find(|y| &y.1.command == x) {
+                    chat.set_content(text_editor::Content::with_text(
+                        &command.1.content.replace("{{CLIPBOARD}}", clip.as_str()),
+                    ));
+                }
+                chat.set_selected_prompt(None);
+            }
+        });
+    }
+
     pub fn handle(&self, id: Id, app: &mut ChatApp) -> Task<Message> {
         match self {
             Self::Regenerate => {
@@ -78,33 +102,79 @@ impl ChatsMessage {
                 Task::none()
             }
             Self::PickedPrompt(x) => {
-                let clip = {
-                    if let Ok(mut clip_ctx) = ClipboardContext::new(){
-                        clip_ctx.get_contents().unwrap_or(String::new())
-                    }else{
-                        String::new()
-                    }
-                };
-
+                Self::set_picked_prompt(app, x, &id);
+                Task::none()
+            }
+            Self::SetPrompt(c, x) => {
+                if let Some(c) = c {
+                    app.main_view.update_chat(&id, |chat| {
+                        if let Some(chat) = chat {
+                            if let Some(command) =
+                                app.prompts.prompts.iter().find(|y| &y.1.command == x)
+                            {
+                                chat.set_content(text_editor::Content::with_text(
+                                    &command.1.content.replace("{{clipboard}}", c.as_str()),
+                                ));
+                            }
+                        }
+                    });
+                }
+                Task::none()
+            }
+            Self::ChangePrompt(x) => {
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {
-                        if let Some(command) = app.prompts.prompts.iter().find(|y| &y.1.command == x){
-                            chat.set_content(text_editor::Content::with_text(&command.1.content.replace("{{CLIPBOARD}}", clip.as_str())));
+                        if let Some(command_input) = get_command_input(&chat.content().text()) {
+                            if let Ok(prompts) = app.prompts.search(command_input) {
+                                match x {
+                                    text_editor::Motion::Up => {
+                                        if let Some(selected) = chat.selected_prompt() {
+                                            if selected > &0 {
+                                                chat.set_selected_prompt(Some(
+                                                    selected.clone() - 1,
+                                                ));
+                                            } else if selected >= &prompts.len() {
+                                                chat.set_selected_prompt(Some(0));
+                                            } else {
+                                                chat.set_selected_prompt(Some(prompts.len() - 1));
+                                            }
+                                        } else if prompts.len() > 0 {
+                                            chat.set_selected_prompt(Some(prompts.len() - 1));
+                                        }
+                                    }
+                                    _ => {
+                                        if let Some(selected) = chat.selected_prompt() {
+                                            if selected < &(prompts.len() - 2) {
+                                                chat.set_selected_prompt(Some(
+                                                    selected.clone() + 1,
+                                                ));
+                                            } else {
+                                                chat.set_selected_prompt(Some(0));
+                                            }
+                                        } else if prompts.len() > 0 {
+                                            chat.set_selected_prompt(Some(0));
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 });
                 Task::none()
             }
-            Self::SetPrompt(c , x) => {
-
-                if let Some(c) = c{
-                    app.main_view.update_chat(&id, |chat| {
-                        if let Some(chat) = chat {
-                            if let Some(command) = app.prompts.prompts.iter().find(|y| &y.1.command == x){
-                                chat.set_content(text_editor::Content::with_text(&command.1.content.replace("{{clipboard}}", c.as_str())));
+            Self::SubmitPrompt => {
+                if let Some(chat) = app.main_view.chats().get(&id) {
+                    if let Some(command_input) = get_command_input(&chat.content().text()) {
+                        if let Ok(prompts) = app.prompts.search(command_input) {
+                            if let Some(selected) = chat.selected_prompt() {
+                                Self::set_picked_prompt(
+                                    app,
+                                    &prompts[selected.clone()].command,
+                                    &id,
+                                );
                             }
                         }
-                    });
+                    }
                 }
                 Task::none()
             }
@@ -256,7 +326,13 @@ impl ChatsMessage {
             Self::Action(x) => {
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {
-                        chat.content_perform(x.clone())
+                        chat.content_perform(x.clone());
+                        if let Some(command_input) = get_command_input(&chat.content().text()) {
+                            if let Ok(_) = app.prompts.search(command_input) {
+                                return;
+                            }
+                        }
+                        chat.set_selected_prompt(None);
                     }
                 });
                 Task::none()

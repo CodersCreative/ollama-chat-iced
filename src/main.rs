@@ -71,7 +71,7 @@ pub struct ChatApp {
     pub main_view: View,
     pub options: SavedOptions,
     pub model_info: SavedModels,
-    pub prompts : SavedPrompts,
+    pub prompts: SavedPrompts,
     pub logic: Logic,
     pub panes: Panes,
     pub tts: NaturalTts,
@@ -209,9 +209,7 @@ impl ChatApp {
             Message::Models(x, k) => x.handle(k, self),
             Message::Prompts(x, k) => x.handle(k, self),
             Message::None => Task::none(),
-            Message::SaveToClipboard(x) => {
-                clipboard::write::<Message>(x.clone())
-            }
+            Message::SaveToClipboard(x) => clipboard::write::<Message>(x.clone()),
             Message::Chats(x, i) => x.handle(i, self),
             Message::Pane(x) => x.handle(self),
             Message::Call(x) => x.handle(self),
