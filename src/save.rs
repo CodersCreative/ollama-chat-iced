@@ -1,54 +1,26 @@
-pub mod chat;
-pub mod chats;
-
-use crate::chats::Chats;
-use crate::common::Id;
 use crate::utils::get_path_settings;
-use crate::{ChatApp, Message};
-use chats::SavedChats;
-use iced::Element;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::HashMap;
-use std::time::SystemTime;
 use std::{fs::File, io::Read};
+
+pub const SAVE_FILE: &str = "chat.json";
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Save {
     pub theme: Option<usize>,
     pub use_panes: bool,
-    pub chats: HashMap<Id, SavedChats>,
 }
 
-impl Save {
-    pub fn new() -> Self {
+impl Default for Save{
+    fn default() -> Self {
         Self {
             theme: None,
             use_panes: true,
-            chats: HashMap::from([(Id::new(), SavedChats::new())]),
         }
     }
+}
 
-    pub fn view_chat<'a>(
-        &'a self,
-        chat: &'a Chats,
-        id: &Id,
-        app: &'a ChatApp,
-    ) -> Element<'a, Message> {
-        chat.view(app, id)
-    }
-
-    pub fn set_chats(&mut self, chats: HashMap<Id, SavedChats>) {
-        self.chats = chats;
-    }
-
-    pub fn update_chats(&mut self, key: Id, chat: SavedChats) {
-        self.chats
-            .entry(key)
-            .and_modify(|x| *x = chat.clone())
-            .or_insert(chat);
-    }
-
+impl Save {
     pub fn save(&self, path: &str) {
         let path = get_path_settings(path.to_string());
         let writer = File::create(path);
@@ -83,14 +55,4 @@ impl Save {
         return Err("Failed to open file".to_string());
     }
 
-    pub fn get_chat_previews(&self) -> Vec<(Id, String, SystemTime)> {
-        self.chats
-            .clone()
-            .iter()
-            .map(|(id, x)| {
-                let (title, time) = x.get_preview();
-                (id.clone(), title, time)
-            })
-            .collect::<Vec<(Id, String, SystemTime)>>()
-    }
 }

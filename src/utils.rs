@@ -1,4 +1,3 @@
-use crate::{common::Id, save::chats::SavedChats, PREVIEW_LEN};
 use base64_stream::ToBase64Reader;
 use color_art::Color as Colour;
 use iced::Color;
@@ -19,6 +18,8 @@ use std::{
 use text_splitter::TextSplitter;
 
 use rodio::{Decoder, OutputStream, Sink};
+
+use crate::{chats::SavedChat, PREVIEW_LEN};
 
 pub fn play_wav_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let (_stream, stream_handle) = OutputStream::try_default()?;
@@ -138,7 +139,7 @@ pub fn convert_image(path: &Path) -> Result<Image, Box<dyn Error>> {
     Ok(Image::from_base64(&base64))
 }
 
-pub fn get_preview(chat: &SavedChats) -> (String, SystemTime) {
+pub fn get_preview(chat: &SavedChat) -> (String, SystemTime) {
     if !chat.0.is_empty() {
         if chat.0.len() > 1 {
             let i = chat.0.len() - 2;

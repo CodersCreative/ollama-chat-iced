@@ -1,188 +1,20 @@
-use crate::common::Id;
+pub mod message;
+pub mod view;
+pub mod model;
+
 use crate::utils::get_path_settings;
-use crate::{style, ChatApp, Message};
-use iced::{
-    alignment::{Horizontal, Vertical},
-    widget::{
-        button, column, container, keyed_column, row, scrollable, text, text_input, Renderer,
-    },
-    Element, Length, Task, Theme,
-};
+use model::{ModelInfo, TempInfo};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::{error::Error, fs::File, io::Read};
 use tantivy::collector::TopDocs;
 use tantivy::index::Index;
 use tantivy::query::QueryParser;
 use tantivy::schema::{Field, OwnedValue, Schema, STORED, TEXT};
 use tantivy::{doc, DocAddress, IndexWriter, Score, TantivyDocument};
-use url::Url;
 
 const MODELS_PATH: &str = "models.json";
-
-#[derive(Serialize, Deserialize, Debug)]
-struct TempInfo {
-    url: String,
-    tags: Vec<Vec<String>>,
-    author: String,
-    categories: Vec<String>,
-    languages: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct ModelInfo {
-    pub name: String,
-    pub url: String,
-    pub tags: Vec<Vec<String>>,
-    pub author: String,
-    pub categories: Vec<String>,
-    pub languages: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ModelsMessage {
-    Expand(String),
-    Search,
-    Input(String),
-}
-
-impl ModelsMessage {
-    pub fn handle(&self, key: Id, app: &mut ChatApp) -> Task<Message> {
-        match self {
-            Self::Expand(x) => {
-                app.main_view.update_model(&key, |model| {
-                    if let Some(model) = model {
-                        if model.0 != Some(x.clone()) {
-                            model.0 = Some(x.clone());
-                        } else {
-                            model.0 = None;
-                        }
-                    }
-                });
-                Task::none()
-            }
-            Self::Input(x) => {
-                app.main_view.update_model(&key, |model| {
-                    if let Some(model) = model {
-                        model.1 = x.clone();
-                    }
-                });
-                Task::none()
-            }
-            Self::Search => {
-                app.main_view.update_model(&key, |model| {
-                    if let Some(model) = model {
-                        model.2 = app.model_info.search(&model.1).unwrap();
-                    }
-                });
-                Task::none()
-            }
-        }
-    }
-}
-
-impl ModelInfo {
-    fn view<'a>(&'a self, app: &'a ChatApp, id: Id, expand: bool) -> Element<'a, Message> {
-        let mut widgets: Vec<Element<Message>> = Vec::new();
-
-        widgets.push(
-            button(
-                text(self.name.clone())
-                    .color(app.theme().palette().primary)
-                    .size(24)
-                    .width(Length::Fill)
-                    .align_y(Vertical::Center)
-                    .align_x(Horizontal::Left),
-            )
-            .padding(0)
-            .style(style::button::transparent_back)
-            .on_press(Message::Models(
-                ModelsMessage::Expand(self.name.clone()),
-                id,
-            ))
-            .into(),
-        );
-
-        widgets.push(
-            text(&self.author)
-                .color(app.theme().palette().danger)
-                .size(20)
-                .width(Length::Fill)
-                .align_y(Vertical::Center)
-                .align_x(Horizontal::Left)
-                .into(),
-        );
-
-        if let Some(x) = app.model_info.descriptions.get(&self.name) {
-            widgets.push(
-                text(x)
-                    .color(app.theme().palette().text)
-                    .size(16)
-                    .width(Length::Fill)
-                    .align_y(Vertical::Center)
-                    .align_x(Horizontal::Left)
-                    .into(),
-            );
-        }
-
-        if expand {
-            widgets.push(
-                button(text(&self.url).size(16))
-                    .style(style::button::chosen_chat)
-                    .on_press(Message::URLClicked(Url::from_str(&self.url).unwrap()))
-                    .into(),
-            );
-            for tag in &self.tags {
-                widgets.push(
-                    button(row![
-                        text(tag[0].clone())
-                            .align_x(Horizontal::Center)
-                            .align_y(Vertical::Center)
-                            .width(Length::Fill)
-                            .size(16),
-                        text(tag[1].clone())
-                            .align_x(Horizontal::Center)
-                            .align_y(Vertical::Center)
-                            .width(Length::Fill)
-                            .size(16)
-                    ])
-                    .style(style::button::not_chosen_chat)
-                    .on_press(Message::Pull(format!("{}:{}", self.name, tag[0])))
-                    .width(Length::Fill)
-                    .padding(10)
-                    .into(),
-                );
-            }
-        }
-
-        container(column(widgets).padding(10))
-            .padding(5)
-            .style(style::container::side_bar)
-            .into()
-    }
-
-    fn search_format(&self) -> String {
-        format!(
-            "{}, {:?}, {}, {:?}",
-            self.name, self.tags, self.author, self.categories
-        )
-    }
-}
-
-impl Into<ModelInfo> for TempInfo {
-    fn into(self) -> ModelInfo {
-        ModelInfo {
-            name: String::new(),
-            url: self.url,
-            tags: self.tags,
-            author: self.author,
-            categories: self.categories,
-            languages: self.languages,
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct SavedModels {
@@ -352,46 +184,6 @@ impl SavedModels {
         }
 
         Ok(models)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Models(pub Option<String>, pub String, pub Vec<ModelInfo>);
-
-impl Models {
-    pub fn new(app: &ChatApp) -> Self {
-        Self(None, String::new(), app.model_info.models.clone())
-    }
-
-    pub fn view_models<'a>(&'a self, app: &'a ChatApp, id: Id) -> Element<'a, Message> {
-        keyed_column(self.2.iter().enumerate().map(|(_i, model)| {
-            let mut expand = false;
-
-            if let Some(x) = &self.0 {
-                expand = x == &model.name;
-            }
-            (0, model.view(app, id.clone(), expand))
-        }))
-        .spacing(10)
-        .into()
-    }
-
-    pub fn view<'a>(&'a self, key: Id, app: &'a ChatApp) -> Element<'a, Message> {
-        let input = text_input::<Message, Theme, Renderer>("Enter your message", &self.1)
-            .on_input(move |x| Message::Models(ModelsMessage::Input(x), key.clone()))
-            .on_submit(Message::Models(ModelsMessage::Search, key))
-            .size(16)
-            .style(style::text_input::input)
-            .width(Length::Fill);
-
-        container(column![
-            input,
-            scrollable::Scrollable::new(self.view_models(app, key.clone())).width(Length::Fill)
-        ])
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .padding(20)
-        .into()
     }
 }
 

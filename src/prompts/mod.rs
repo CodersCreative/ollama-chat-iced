@@ -10,14 +10,12 @@ use crate::{
 use derive_builder::Builder;
 use iced::{
     alignment::{Horizontal, Vertical},
-    widget::{button, column, container, row, svg, text, text_editor, text_input, Space},
+    widget::{button, column, container, row, svg, text, text_editor, text_input},
     Element, Length, Padding, Renderer, Theme,
 };
 use message::PromptsMessage;
-use ollama_rs::IntoUrlSealed;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::{collections::HashMap, error::Error, fs::File, io::Read, str::FromStr};
+use std::{collections::HashMap, error::Error, fs::File, io::Read};
 use tantivy::{
     collector::TopDocs,
     doc,
@@ -25,7 +23,6 @@ use tantivy::{
     schema::{Field, OwnedValue, Schema, STORED, TEXT},
     DocAddress, Index, IndexWriter, Score, TantivyDocument,
 };
-use url::Url;
 use view::Edit;
 
 pub const PROMPTS_PATH: &str = "prompts.json";

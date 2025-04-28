@@ -4,15 +4,14 @@ use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
         button, column, container, keyed_column, row, scrollable, svg, text, text_editor,
-        text_input, vertical_space, Container, Space,
+        text_input, vertical_space, Space,
     },
     Element, Length, Renderer, Theme,
 };
-use ollama_rs::IntoUrlSealed;
 use url::Url;
 
 use crate::{
-    common::Id, save::chats::ChatsMessage, style, utils::get_path_assets, ChatApp, Message,
+    chats::message::ChatsMessage, common::Id, style, utils::get_path_assets, ChatApp, Message
 };
 
 use super::{message::PromptsMessage, Prompt, SavedPrompts};
@@ -20,28 +19,30 @@ use super::{message::PromptsMessage, Prompt, SavedPrompts};
 impl SavedPrompts {
     pub fn input_view(&self, input: &str, id: &Id, selected: Option<usize>) -> Element<Message> {
         if let Some(input) = get_command_input(input) {
-            return keyed_column(self.search(input).unwrap().iter().enumerate().map(
-                |(i, prompt)| {
-                    let theme = match selected {
-                        None => style::button::transparent_text,
-                        Some(x) if x == i => style::button::side_bar_chat,
-                        Some(_) => style::button::transparent_text,
-                    };
+            if let Ok(prompts) = self.search(input){
+                return keyed_column(prompts.iter().enumerate().map(
+                    |(i, prompt)| {
+                        let theme = match selected {
+                            None => style::button::transparent_text,
+                            Some(x) if x == i => style::button::side_bar_chat,
+                            Some(_) => style::button::transparent_text,
+                        };
 
-                    (
-                        0,
-                        button(text(prompt.command.clone()))
-                            .on_press(Message::Chats(
-                                ChatsMessage::PickedPrompt(prompt.command.clone()),
-                                id.clone(),
-                            ))
-                            .style(theme)
-                            .into(),
-                    )
-                },
-            ))
-            .spacing(10)
-            .into();
+                        (
+                            0,
+                            button(text(prompt.command.clone()))
+                                .on_press(Message::Chats(
+                                    ChatsMessage::PickedPrompt(prompt.command.clone()),
+                                    id.clone(),
+                                ))
+                                .style(theme)
+                                .into(),
+                        )
+                    },
+                ))
+                .spacing(10)
+                .into();
+            }
         }
         Space::with_height(0).into()
     }
@@ -84,19 +85,6 @@ impl From<Prompt> for Edit {
     }
 }
 
-// impl Into<Edit> for Prompt{
-//     fn into(self) -> Edit {
-//         Edit{
-//             content: text_editor::Content::with_text(&self.content),
-//             title : self.title.clone(),
-//             command : self.command.clone(),
-//         }
-//     }
-// }
-// struct Prompts{
-//     input : text_editor::Content,
-// }
-
 impl Prompts {
     pub fn new(app: &ChatApp) -> Self {
         Self {
@@ -121,9 +109,9 @@ impl Prompts {
     }
 
     pub fn view<'a>(&'a self, key: Id, app: &'a ChatApp) -> Element<'a, Message> {
-        let input = text_input::<Message, Theme, Renderer>("Enter your message", &self.input)
+        let input = text_input::<Message, Theme, Renderer>("Search or Add Prompts", &self.input)
             .on_input(move |x| Message::Prompts(PromptsMessage::Input(x), key.clone()))
-            .on_submit(Message::Prompts(PromptsMessage::Search, key))
+            .on_submit(Message::Prompts(PromptsMessage::Add, key))
             .size(16)
             .style(style::text_input::input)
             .width(Length::Fill);

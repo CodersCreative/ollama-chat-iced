@@ -1,12 +1,5 @@
 use crate::{
-    chats::Chats,
-    common::Id,
-    models::Models,
-    options::Options,
-    prompts::view::Prompts,
-    style::{self},
-    utils::get_path_assets,
-    ChatApp, Message,
+    common::Id, models::view::Models, options::view::Options, prompts::view::Prompts, style::{self}, utils::get_path_assets, ChatApp, Message
 };
 use iced::{
     alignment::{Horizontal, Vertical},
@@ -317,9 +310,6 @@ impl Panes {
                 }
                 None => None,
             };
-
-            // let options_view =
-            //     |x: Id| -> Element<Message> { Options::get_from_id(app, x).view(app) };
 
             pane_grid::Content::new(match state {
                 Pane::Settings(x) => add_to_window(

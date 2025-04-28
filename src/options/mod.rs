@@ -1,51 +1,30 @@
 pub mod convert;
 pub mod doc;
 pub mod values;
+pub mod message;
+pub mod view;
+
 use crate::{
     common::Id,
-    llm::delete_model,
     style,
-    utils::{get_path_assets, get_path_settings},
+    utils::{get_path_settings},
     ChatApp, Message,
 };
 use doc::DOCS;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, combo_box, container, row, scrollable, svg, text, text_input, toggler,
+        button, column,container, row, scrollable, text, text_input, toggler,
     },
-    Element, Length, Padding, Task,
+    Element, Length
 };
+use message::OptionMessage;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use values::OptionKey;
 use std::{fs::File, io::Read};
 
 pub const SETTINGS_FILE: &str = "settings.json";
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct Options(String, Option<OptionKey>);
-
-impl Options {
-    pub fn new(model: String) -> Self {
-        Self(model, None)
-    }
-
-    pub fn model(&self) -> &str {
-        &self.0
-    }
-
-    pub fn set_model(&mut self, model: String) {
-        self.0 = model;
-    }
-
-    pub fn key(&self) -> &Option<OptionKey> {
-        &self.1
-    }
-
-    pub fn set_key(&mut self, key: Option<OptionKey>) {
-        self.1 = key;
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct SavedOptions(Vec<ModelOptions>);
@@ -82,123 +61,6 @@ impl SavedOptions {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum OptionMessage {
-    ChangeOptionNum((String, OptionKey)),
-    SubmitOptionNum(OptionKey),
-    ChangeOptionBool((bool, OptionKey)),
-    ClickedOption(OptionKey),
-    ResetOption(OptionKey),
-    ChangeModel(String),
-    DeleteModel,
-}
-
-impl OptionMessage {
-    pub fn handle<'a>(&'a self, key: Id, app: &'a mut ChatApp) -> Task<Message> {
-        let model = app.main_view.options().get(&key).unwrap().0.clone();
-
-        let mut get_indexes = |x: &OptionKey| -> (usize, usize) {
-            let m_index = app.options.get_create_model_options_index(model.clone());
-            (m_index, app.options.0[m_index].get_key_index(x.clone()))
-        };
-
-        match self {
-            Self::ChangeOptionBool(x) => {
-                let (m_index, index) = get_indexes(&x.1);
-
-                app.options
-                    .update_gen_option(m_index, index, |option| option.bool_value = x.0);
-                app.options.save(SETTINGS_FILE);
-                Task::none()
-            }
-            Self::ChangeModel(x) => {
-                app.main_view.update_option(&key, |option| {
-                    if let Some(option) = option {
-                        option.set_model(x.clone());
-                    }
-                });
-
-                Task::none()
-            }
-            Self::DeleteModel => {
-                let model = app
-                    .main_view
-                    .options()
-                    .get(&key)
-                    .unwrap()
-                    .model()
-                    .to_string();
-
-                if let Ok(i) = app.logic.models.binary_search(&model) {
-                    app.logic.models.remove(i);
-                    if let Some(m) = app.logic.models.first() {
-                        app.main_view.update_option(&key, |option| {
-                            if let Some(option) = option {
-                                option.set_model(m.clone());
-                            }
-                        });
-                        return Task::perform(
-                            delete_model(app.logic.ollama.clone(), model.clone()),
-                            move |_| Message::None,
-                        );
-                    }
-                }
-
-                Task::none()
-            }
-            Self::ChangeOptionNum(x) => {
-                let (m_index, index) = get_indexes(&x.1);
-                app.options
-                    .update_gen_option(m_index, index, |option| option.temp = x.0.clone());
-                Task::none()
-            }
-            Self::SubmitOptionNum(x) => {
-                let (m_index, index) = get_indexes(&x);
-
-                app.options.update_gen_option(m_index, index, |option| {
-                    if let Ok(num) = option.temp.parse::<f32>() {
-                        let mut value = option.num_value.unwrap();
-                        value.0 = num;
-                        option.num_value = Some(value);
-                    } else {
-                        option.temp = option.num_value.unwrap().0.to_string()
-                    }
-                });
-
-                app.options.save(SETTINGS_FILE);
-
-                Task::none()
-            }
-            Self::ResetOption(x) => {
-                let (m_index, index) = get_indexes(&x);
-
-                app.options.update_gen_option(m_index, index, |option| {
-                    let mut value = option.num_value.unwrap();
-                    value.0 = value.1;
-                    option.num_value = Some(value);
-                    option.temp = value.1.to_string();
-                    option.bool_value = false;
-                });
-
-                app.options.save(SETTINGS_FILE);
-                Task::none()
-            }
-            Self::ClickedOption(x) => {
-                if let Some(y) = &app.main_view.options().get(&key).unwrap().1 {
-                    if x == y {
-                        app.main_view
-                            .update_option(&key, |x| x.unwrap().set_key(None));
-                        return Task::none();
-                    }
-                }
-
-                app.main_view
-                    .update_option(&key, |y| y.unwrap().set_key(Some(x.clone())));
-                Task::none()
-            }
-        }
-    }
-}
 
 impl SavedOptions {
     pub fn get_model_options_index(&self, model: String) -> Option<usize> {
@@ -287,49 +149,6 @@ impl SavedOptions {
     }
 }
 
-impl Options {
-    pub fn view<'a>(&'a self, key: Id, app: &'a ChatApp) -> Element<'a, Message> {
-        let index = match app
-            .options
-            .get_model_options_index(self.model().to_string())
-        {
-            Some(x) => x,
-            None => return text("Failed").into(),
-        };
-        self.view_with_index(app, index, key.clone(), &self.model())
-    }
-
-    pub fn view_with_index<'a>(
-        &'a self,
-        app: &'a ChatApp,
-        index: usize,
-        key: Id,
-        model: &'a str,
-    ) -> Element<'a, Message> {
-        container(column![
-            container(row![
-                combo_box(&app.logic.combo_models, model, None, move |x| {
-                    Message::Option(OptionMessage::ChangeModel(x), key)
-                }),
-                button(
-                    svg(svg::Handle::from_path(get_path_assets(
-                        "delete.svg".to_string()
-                    )))
-                    .style(style::svg::white)
-                    .width(24.0)
-                    .height(24.0),
-                )
-                .style(style::button::transparent_text)
-                .on_press(Message::Option(OptionMessage::DeleteModel, key))
-            ])
-            .padding(10),
-            container(app.options.0[index].view(app, key.clone()))
-                .padding(Padding::default().left(20).right(20).top(5).bottom(5))
-        ])
-        .into()
-    }
-}
-
 impl ModelOptions {
     pub fn view<'a>(&'a self, app: &ChatApp, key: Id) -> Element<'a, Message> {
         scrollable(column(self.0.iter().map(|x| {
@@ -347,26 +166,6 @@ impl ModelOptions {
         })))
         .into()
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum OptionKey {
-    Mirostat,
-    MirostatETA,
-    MirostatTau,
-    CtxWindow,
-    NumGQA,
-    GPULayers,
-    NumThreads,
-    RepeatN,
-    RepeatPenalty,
-    Temperature,
-    Seed,
-    StopSequence,
-    TailFreeZ,
-    NumberPredict,
-    TopK,
-    TopP,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

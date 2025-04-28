@@ -18,8 +18,9 @@ pub mod utils;
 pub mod view;
 // pub mod database;
 
-use crate::{save::Save, sidebar::chats::Chats as SideChats};
+use crate::{save::Save, sidebar::chats::SideChats};
 use call::{Call, CallMessage};
+use chats::{chat::Chat, message::ChatsMessage, view::Chats, SavedChat, SavedChats};
 use common::Id;
 use download::{Download, DownloadProgress};
 use iced::{
@@ -28,26 +29,22 @@ use iced::{
     window, Element, Event, Font, Subscription, Task, Theme,
 };
 use llm::ChatProgress;
-use models::{Models, ModelsMessage, SavedModels};
+use models::{message::ModelsMessage, SavedModels};
 use natural_tts::{
     models::{gtts::GttsModel, tts_rs::TtsModel},
     NaturalTts, NaturalTtsBuilder,
 };
 use ollama_rs::generation::chat::ChatMessage;
-use options::{OptionMessage, Options, SavedOptions};
+use options::{message::OptionMessage, SavedOptions};
 use panes::PaneMessage;
 use panes::Panes;
 use prompts::{message::PromptsMessage, SavedPrompts};
-use save::{
-    chat::{Chat, Role},
-    chats::{ChatsMessage, SavedChats},
-};
+use save::SAVE_FILE;
 use sidebar::SideBarState;
 use update::Logic;
 use view::View;
 
 pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
-const SAVE_FILE: &str = "chat.json";
 const PREVIEW_LEN: usize = 25;
 const MIN_WIDTH: f32 = 300.0;
 
@@ -72,6 +69,7 @@ pub struct ChatApp {
     pub options: SavedOptions,
     pub model_info: SavedModels,
     pub prompts: SavedPrompts,
+    pub chats : SavedChats,
     pub logic: Logic,
     pub panes: Panes,
     pub tts: NaturalTts,
@@ -113,7 +111,7 @@ impl Default for ChatApp {
 
 impl ChatApp {
     fn new() -> Self {
-        Self::new_with_save(Save::new())
+        Self::new_with_save(Save::default())
     }
 
     fn new_with_save(save: Save) -> Self {
@@ -125,6 +123,7 @@ impl ChatApp {
             model_info: SavedModels::init().unwrap(),
             options: SavedOptions::default(),
             prompts: SavedPrompts::default(),
+            chats: SavedChats::default(),
             tts: NaturalTtsBuilder::default()
                 .default_model(natural_tts::Model::Gtts)
                 .gtts_model(GttsModel::default())
@@ -139,7 +138,7 @@ impl ChatApp {
     fn init() -> (ChatApp, Task<Message>) {
         let mut app = Self::new_with_save(match Save::load(SAVE_FILE) {
             Ok(x) => x,
-            Err(_) => Save::new(),
+            Err(_) => Save::default(),
         });
 
         app.options = match SavedOptions::load(options::SETTINGS_FILE) {
@@ -152,6 +151,11 @@ impl ChatApp {
             Err(_) => SavedPrompts::default(),
         };
 
+        app.chats = match SavedChats::load(chats::CHATS_FILE) {
+            Ok(x) => x,
+            Err(_) => SavedChats::default(),
+        };
+
         let models = app.logic.get_models();
         app.logic.combo_models = combo_box::State::new(models.clone());
 
@@ -160,24 +164,22 @@ impl ChatApp {
         }
 
         if !models.is_empty() {
-            if app.save.chats.is_empty() {
-                app.save.chats.insert(Id::new(), SavedChats::new());
+            if app.chats.0.is_empty() {
+                app.chats.0.insert(Id::new(), SavedChat::new());
             } else {
-                app.save.chats.iter_mut().for_each(|(i, x)| {
+                app.chats.0.iter_mut().for_each(|(i, x)| {
                     if let Some(y) = x.0.last() {
-                        if y.role() != &Role::AI {
+                        if y.role() != &chats::chat::Role::AI {
                             x.0.remove(x.0.len() - 1);
                         }
                     }
                 });
             }
-
-            app.main_view
-                .set_side_chats(SideChats::new(app.save.get_chat_previews()));
-            let saved = app.save.chats.iter().last().unwrap();
+            app.regenerate_side_chats();
+            let saved = app.chats.0.iter().last().unwrap();
             let first = (
                 Id::new(),
-                chats::Chats::new(
+                Chats::new(
                     models.first().unwrap().clone(),
                     saved.0.clone(),
                     saved.1.to_mk(),
@@ -249,15 +251,15 @@ impl ChatApp {
                 if let Ok(x) = x {
                     let mut mk = Chat::generate_mk(x.content.as_str());
                     let mut first = true;
-                    if let Some(chat) = self.save.chats.get_mut(&id) {
+                    if let Some(chat) = self.chats.0.get_mut(&id) {
                         let index = chat.0.len() - 1;
-                        if chat.0.last().unwrap().role() == &save::chat::Role::AI {
+                        if chat.0.last().unwrap().role() == &chats::chat::Role::AI {
                             chat.0[index].add_to_content(x.content.as_str());
                             mk = Chat::generate_mk(&chat.0[index].content());
                             first = false;
                         } else {
                             chat.0.push(Chat::new(
-                                &save::chat::Role::AI,
+                                &chats::chat::Role::AI,
                                 &x.content,
                                 Vec::new(),
                                 x.tool_calls,
@@ -276,14 +278,13 @@ impl ChatApp {
                                         x.remove(x.len() - 1);
                                     });
                                 }
-                                chat.set_state(chats::State::Generating);
+                                chat.set_state(chats::view::State::Generating);
                                 chat.add_markdown(mk.clone());
                             });
                     });
 
                     self.save.save(SAVE_FILE);
-                    self.main_view
-                        .set_side_chats(SideChats::new(self.save.get_chat_previews()));
+                    self.regenerate_side_chats();
 
                     self.main_view.update_chats(|chats| {
                         chats
@@ -292,7 +293,7 @@ impl ChatApp {
                             .for_each(|(_, chat)| {
                                 chat.set_content(text_editor::Content::new());
                                 chat.set_images(Vec::new());
-                                chat.set_state(chats::State::Idle);
+                                chat.set_state(chats::view::State::Idle);
                             });
                     });
                 }
@@ -316,15 +317,15 @@ impl ChatApp {
                     let mut mk = Chat::generate_mk(progress.content.as_str());
                     let mut first = true;
 
-                    if let Some(chat) = self.save.chats.get_mut(&id) {
+                    if let Some(chat) = self.chats.0.get_mut(&id) {
                         let index = chat.0.len() - 1;
-                        if chat.0.last().unwrap().role() == &save::chat::Role::AI {
+                        if chat.0.last().unwrap().role() == &chats::chat::Role::AI {
                             chat.0[index].add_to_content(progress.content.as_str());
                             mk = Chat::generate_mk(&chat.0[index].content());
                             first = false;
                         } else {
                             chat.0.push(Chat::new(
-                                &save::chat::Role::AI,
+                                &chats::chat::Role::AI,
                                 &progress.content,
                                 Vec::new(),
                                 progress.tool_calls,
@@ -343,14 +344,13 @@ impl ChatApp {
                                         x.remove(x.len() - 1);
                                     });
                                 }
-                                chat.set_state(chats::State::Generating);
+                                chat.set_state(chats::view::State::Generating);
                                 chat.add_markdown(mk.clone());
                             });
                     });
                 } else if let Ok(ChatProgress::Finished) = progress {
                     self.save.save(SAVE_FILE);
-                    self.main_view
-                        .set_side_chats(SideChats::new(self.save.get_chat_previews()));
+                    self.regenerate_side_chats();
 
                     self.main_view.update_chats(|chats| {
                         chats
@@ -359,7 +359,7 @@ impl ChatApp {
                             .for_each(|(_, chat)| {
                                 chat.set_content(text_editor::Content::new());
                                 chat.set_images(Vec::new());
-                                chat.set_state(chats::State::Idle);
+                                chat.set_state(chats::view::State::Idle);
                             });
                     });
                 }

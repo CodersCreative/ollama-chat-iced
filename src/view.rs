@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 
-use crate::chats::Chats;
+use crate::chats::view::Chats;
 use crate::common::Id;
 use crate::download::Download;
 use crate::llm::ChatStream;
+use crate::models::view::Models;
+use crate::options::view::Options;
 use crate::prompts::view::Prompts;
-use crate::sidebar::chats::Chats as SideChats;
-use crate::{models::Models, options::Options, sidebar::SideBarState};
+use crate::sidebar::chats::SideChats;
+use crate::{sidebar::SideBarState};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
-use iced::widget::text_editor;
 use iced::Theme;
 
 #[derive(Getters, Setters, MutGetters, CopyGetters)]

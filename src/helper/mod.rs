@@ -1,7 +1,7 @@
 pub mod chats;
 pub mod image;
 
-use crate::{sidebar::SideBarState, ChatApp, Message, SAVE_FILE};
+use crate::{save::SAVE_FILE, sidebar::SideBarState, ChatApp, Message};
 use iced::{Task, Theme};
 
 impl ChatApp {

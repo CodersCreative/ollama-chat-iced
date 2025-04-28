@@ -1,7 +1,9 @@
+use crate::chats::message::ChatsMessage;
 use crate::common::Id;
+use crate::utils::get_path_assets;
 use crate::view::View;
-use crate::{save::chats::ChatsMessage, sidebar::chat::Chat, utils::get_path_assets};
 use crate::{style, ChatApp, Message};
+use chat::SideChat;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
@@ -190,7 +192,7 @@ impl View {
 
     pub fn view_chats<'a>(&'a self, app: &'a ChatApp) -> Element<Message> {
         if app.main_view.side_chats().chats.len() >= 8 {
-            let view = |chats: HashMap<&'a Id, &'a Chat>| -> Element<Message> {
+            let view = |chats: HashMap<&'a Id, &'a SideChat>| -> Element<Message> {
                 let chats: Vec<Element<Message>> =
                     chats.iter().map(|(i, x)| x.view(app, i)).clone().collect();
                 return scrollable(column(chats).spacing(2)).into();
@@ -207,7 +209,7 @@ impl View {
                             .unwrap_or(Duration::new(0, 0))
                             .as_secs()
                             < 2629746)
-                        .collect::<HashMap<&Id, &Chat>>()
+                        .collect::<HashMap<&Id, &SideChat>>()
                 ),
                 Self::txt("Old".to_string(), self.theme().palette().primary),
                 view(
@@ -219,7 +221,7 @@ impl View {
                             .unwrap_or(Duration::new(0, 0))
                             .as_secs()
                             > 2629746)
-                        .collect::<HashMap<&Id, &Chat>>()
+                        .collect::<HashMap<&Id, &SideChat>>()
                 ),
             ]
             .into();

@@ -1,16 +1,16 @@
+use crate::chats::message::ChatsMessage;
+use crate::chats::SavedChat;
 use crate::{
-    chats::State,
     common::Id,
-    save::chats::{ChatsMessage, SavedChats},
-    sidebar::chats::Chats as SideChats,
+    sidebar::chats::SideChats,
 };
 use crate::{ChatApp, Message};
 use iced::Task;
 
 impl ChatsMessage {
     pub fn new_chat(app: &mut ChatApp, _id: Id) -> Task<Message> {
-        let chat = SavedChats::new();
-        app.save.chats.insert(Id::new(), chat.clone());
+        let chat = SavedChat::new();
+        app.chats.0.insert(Id::new(), chat.clone());
         app.regenerate_side_chats();
         Task::none()
     }
@@ -18,9 +18,9 @@ impl ChatsMessage {
 
 impl ChatApp {
     pub fn remove_chat(&mut self, key: Id) -> Task<Message> {
-        self.save.chats.remove(&key);
+        self.chats.0.remove(&key);
 
-        if let Some(saved) = self.save.chats.iter().last() {
+        if let Some(saved) = self.chats.0.iter().last() {
             for c in self.main_view.chats_mut() {
                 if c.1.saved_chat() == &key {
                     c.1.set_saved_chat(saved.0.clone());
@@ -35,6 +35,6 @@ impl ChatApp {
 
     pub fn regenerate_side_chats(&mut self) {
         self.main_view
-            .set_side_chats(SideChats::new(self.save.get_chat_previews()));
+            .set_side_chats(SideChats::new(self.chats.get_chat_previews()));
     }
 }

@@ -1,4 +1,4 @@
-use crate::{common::Id, options::ModelOptions, save::chats::TooledOptions, ChatApp, Message};
+use crate::{chats::TooledOptions, common::Id, options::ModelOptions, ChatApp, Message};
 use iced::{
     futures::{SinkExt, Stream, StreamExt},
     stream::try_channel,
@@ -171,7 +171,7 @@ pub fn chat(
 
 impl ChatStream {
     pub fn new(app: &ChatApp, id: Id, option: usize) -> Self {
-        if let Some(chat) = app.save.chats.get(&id) {
+        if let Some(chat) = app.chats.0.get(&id) {
             Self {
                 state: State::Generating(ChatMessage::new(
                     ollama_rs::generation::chat::MessageRole::Assistant,

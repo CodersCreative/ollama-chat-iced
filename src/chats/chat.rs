@@ -1,6 +1,4 @@
-use super::chats::ChatsMessage;
 use crate::{
-    chats::Chats,
     common::Id,
     style::{self},
     utils::{convert_image, get_path_assets},
@@ -21,6 +19,8 @@ use iced::{Element, Length};
 use ollama_rs::generation::{chat::ChatMessage, tools::ToolCall};
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::SystemTime};
+
+use super::message::ChatsMessage;
 
 #[derive(Builder, Serialize, Deserialize, Debug, Clone, Getters, Setters)]
 pub struct Chat {

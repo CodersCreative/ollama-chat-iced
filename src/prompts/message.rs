@@ -1,11 +1,10 @@
-use std::path::{Path, PathBuf};
 
 use iced::{widget::text_editor, Task};
 
 use crate::{common::Id, ChatApp, Message};
 
 use super::{
-    view::{Edit, Prompts},
+    view::Edit,
     Prompt, PromptBuilder, SavedPrompts, PROMPTS_PATH,
 };
 
@@ -13,7 +12,6 @@ use super::{
 pub enum PromptsMessage {
     Expand(String),
     Add,
-    Search,
     Upload,
     Uploaded(Result<Vec<String>, String>),
     Input(String),
@@ -85,13 +83,6 @@ impl PromptsMessage {
                 app.main_view.update_prompt(&key, |prompt| {
                     if let Some(prompt) = prompt {
                         prompt.input = x.clone();
-                    }
-                });
-                Task::none()
-            }
-            Self::Search => {
-                app.main_view.update_prompt(&key, |prompt| {
-                    if let Some(prompt) = prompt {
                         prompt.prompts = app.prompts.search(&prompt.input).unwrap();
                     }
                 });

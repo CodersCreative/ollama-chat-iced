@@ -1,5 +1,5 @@
+use crate::chats::message::ChatsMessage;
 use crate::common::Id;
-use crate::save::chats::ChatsMessage;
 use crate::{style, ChatApp, Message};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{button, row, text};
@@ -7,12 +7,12 @@ use iced::{Element, Length, Padding};
 use std::time::SystemTime;
 
 #[derive(Clone)]
-pub struct Chat {
+pub struct SideChat {
     title: String,
     time: SystemTime,
 }
 
-impl Chat {
+impl SideChat {
     pub fn new(title: String, time: SystemTime) -> Self {
         return Self { title, time };
     }

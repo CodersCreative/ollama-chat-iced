@@ -1,5 +1,25 @@
 use super::*;
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum OptionKey {
+    Mirostat,
+    MirostatETA,
+    MirostatTau,
+    CtxWindow,
+    NumGQA,
+    GPULayers,
+    NumThreads,
+    RepeatN,
+    RepeatPenalty,
+    Temperature,
+    Seed,
+    StopSequence,
+    TailFreeZ,
+    NumberPredict,
+    TopK,
+    TopP,
+}
+
 impl ModelOptions {
     pub fn new(model: String) -> Self {
         Self(

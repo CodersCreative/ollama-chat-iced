@@ -1,29 +1,13 @@
-use super::chat::{Chat, ChatBuilder};
-use crate::chats::{Chats, State};
-use crate::common::Id;
-use crate::llm::Tools;
-use crate::prompts::view::get_command_input;
-use crate::sound::{get_audio, transcribe};
-use crate::utils::get_preview;
-use crate::{ChatApp, Message, SAVE_FILE};
-use cli_clipboard::{ClipboardContext, ClipboardProvider};
-use iced::widget::{markdown, text_editor};
-use iced::{clipboard, Task};
-use kalosm_sound::{rodio::buffer::SamplesBuffer, MicInput};
-use ollama_rs::generation::chat::ChatMessage;
-use ollama_rs::IntoUrlSealed;
-use serde::{Deserialize, Serialize};
-use std::time::SystemTime;
 use std::{path::PathBuf, sync::Arc};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct SavedChats(pub Vec<Chat>, pub Vec<Tools>, pub SystemTime);
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
+use iced::{widget::text_editor, Task};
+use kalosm_sound::MicInput;
+use rodio::buffer::SamplesBuffer;
 
-#[derive(Default, Debug)]
-pub struct TooledOptions {
-    pub chats: Vec<ChatMessage>,
-    pub tools: Vec<Tools>,
-}
+use crate::{common::Id, llm::Tools, prompts::view::get_command_input, sound::{get_audio, transcribe}, ChatApp, Message};
+
+use super::{chat::{Chat, ChatBuilder}, view::State, TooledOptions, CHATS_FILE};
 
 #[derive(Debug, Clone)]
 pub enum ChatsMessage {
@@ -77,7 +61,7 @@ impl ChatsMessage {
             Self::Regenerate => {
                 let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
 
-                for x in app.save.chats.iter_mut().filter(|x| x.0 == &saved_id) {
+                for x in app.chats.0.iter_mut().filter(|x| x.0 == &saved_id) {
                     x.1 .0.remove(x.1 .0.len() - 1);
                     break;
                 }
@@ -181,8 +165,8 @@ impl ChatsMessage {
             Self::Edit(m) => {
                 let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
                 if let Some(index) = app
-                    .save
                     .chats
+                    .0
                     .get(&saved_id)
                     .unwrap()
                     .0
@@ -194,7 +178,7 @@ impl ChatsMessage {
                     });
                     app.main_view.update_chat(&id, |chat| {
                         chat.unwrap().set_edit(text_editor::Content::with_text(
-                            app.save.chats.get(&saved_id).unwrap().0[index].content(),
+                            app.chats.0.get(&saved_id).unwrap().0[index].content(),
                         ));
                     });
                 }
@@ -206,11 +190,11 @@ impl ChatsMessage {
                 let mut mk = Vec::new();
 
                 if let Some(edit) = app.main_view.edits().get(&id) {
-                    if let Some(chat) = app.save.chats.get_mut(&saved_id) {
+                    if let Some(chat) = app.chats.0.get_mut(&saved_id) {
                         chat.0[edit.clone()]
                             .set_content(app.main_view.chats().get(&id).unwrap().edit().text());
                         mk = chat.to_mk();
-                        app.save.save(SAVE_FILE);
+                        app.chats.save(CHATS_FILE);
                     }
                 }
 
@@ -294,7 +278,7 @@ impl ChatsMessage {
                     if let Some(chat) = chat {
                         if chat.state() == &State::Idle {
                             chat.set_model(x.clone());
-                            app.save.save(SAVE_FILE);
+                            app.chats.save(CHATS_FILE);
                             let _ = app.options.get_create_model_options_index(x.clone());
                         }
                     }
@@ -315,8 +299,8 @@ impl ChatsMessage {
                     if let Some(chat) = chat {
                         if chat.state() == &State::Idle {
                             chat.set_saved_chat(x.clone());
-                            chat.set_markdown(app.save.chats.get(x).unwrap().to_mk());
-                            app.save.save(SAVE_FILE);
+                            chat.set_markdown(app.chats.0.get(x).unwrap().to_mk());
+                            app.chats.save(CHATS_FILE);
                         }
                     }
                 });
@@ -371,7 +355,7 @@ impl ChatsMessage {
                 };
 
                 let mut tools = &Vec::new();
-                if let Some(x) = app.save.chats.get_mut(&saved_id) {
+                if let Some(x) = app.chats.0.get_mut(&saved_id) {
                     x.0.push(chat.clone());
                     tools = &x.1;
                 }
@@ -389,7 +373,7 @@ impl ChatsMessage {
 
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {
-                        if let Some(saved_chat) = app.save.chats.get(&saved_id) {
+                        if let Some(saved_chat) = app.chats.0.get(&saved_id) {
                             if saved_chat.1.is_empty() {
                                 chat.set_state(State::Generating);
                             } else {
@@ -413,35 +397,5 @@ impl ChatsMessage {
             }
             Self::PickImage => ChatApp::pick_images(id),
         }
-    }
-}
-
-impl SavedChats {
-    pub fn new() -> Self {
-        Self(Vec::new(), Vec::new(), SystemTime::now())
-    }
-
-    pub fn to_mk(&self) -> Vec<Vec<markdown::Item>> {
-        return self
-            .0
-            .iter()
-            .map(|x| Chat::generate_mk(&x.content()))
-            .collect();
-    }
-
-    pub fn new_with_chats_tools(chats: Vec<Chat>, tools: Vec<Tools>) -> Self {
-        return Self(chats, tools, SystemTime::now());
-    }
-
-    pub fn new_with_chats(chats: Vec<Chat>) -> Self {
-        return Self(chats, Vec::new(), SystemTime::now());
-    }
-
-    pub fn get_preview(&self) -> (String, SystemTime) {
-        return get_preview(self);
-    }
-
-    pub fn get_chat_messages(&self) -> Vec<ChatMessage> {
-        self.0.iter().map(|x| x.into()).collect()
     }
 }

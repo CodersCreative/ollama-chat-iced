@@ -1,6 +1,5 @@
 use crate::common::Id;
 use crate::prompts::view::get_command_input;
-use crate::save::chats::{ChatsMessage, TooledOptions};
 use crate::start::{self, Section};
 use crate::style;
 use crate::utils::{change_alpha, get_path_assets, lighten_colour};
@@ -16,7 +15,9 @@ use iced::widget::{
 };
 use iced::{Element, Length, Padding, Theme};
 use std::{path::PathBuf, sync::Arc};
-// use super::chat::Chat;
+
+use super::message::ChatsMessage;
+use super::TooledOptions;
 
 #[derive(Debug, Getters, Setters, MutGetters, CopyGetters)]
 pub struct Chats {
@@ -133,7 +134,7 @@ impl Chats {
     }
 
     pub fn view<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
-        if let Some(chat) = app.save.chats.get(self.saved_chat()) {
+        if let Some(chat) = app.chats.0.get(self.saved_chat()) {
             keyed_column(chat.0.iter().enumerate().map(|(i, chat)| {
                 (
                     0,
@@ -259,7 +260,7 @@ impl Chats {
             row![upload, input, submit]
                 .align_y(Vertical::Center)
                 .spacing(5),
-        );
+        ).max_height(350);
 
         let input = container(column![
             images,
@@ -385,12 +386,13 @@ impl Chats {
             ))
             .width(Length::Fill),
         )
+        .max_height(250)
         .into()
     }
 
     fn view_chat<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         container(
-            scrollable::Scrollable::new(app.save.view_chat(self, id, app)).width(Length::Fill),
+            scrollable::Scrollable::new(self.view(app, id)).width(Length::Fill).anchor_bottom(),
         )
         .width(Length::Fill)
         .height(Length::Fill)

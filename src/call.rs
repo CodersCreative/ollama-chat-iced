@@ -1,7 +1,7 @@
 use crate::{
     llm::run_ollama,
     panes::Panes,
-    save::chat::{Chat, ChatBuilder},
+    chats::chat::{Chat, ChatBuilder},
     sound::{get_audio, transcribe},
     style,
     utils::{get_path_assets, get_path_src, play_wav_file, split_text_gtts},
@@ -183,7 +183,7 @@ impl CallMessage {
                 if let Ok(str) = x {
                     if app.call.state.clone() != State::Idle {
                         app.call.chats.push(Chat::new(
-                            &crate::save::chat::Role::AI,
+                            &crate::chats::chat::Role::AI,
                             &str.content,
                             Vec::new(),
                             Vec::new(),
