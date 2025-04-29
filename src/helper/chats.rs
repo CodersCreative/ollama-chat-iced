@@ -6,8 +6,7 @@ use iced::Task;
 
 impl ChatsMessage {
     pub fn new_chat(app: &mut ChatApp, _id: Id) -> Task<Message> {
-        let chat = SavedChat::new();
-        app.chats.0.insert(Id::new(), chat.clone());
+        app.chats.0.insert(Id::new(), SavedChat::default());
         app.regenerate_side_chats();
         Task::none()
     }

@@ -55,6 +55,26 @@ pub async fn run_ollama(
     return Err("Failed to run ollama.".to_string());
 }
 
+pub async fn run_ollama_multi(
+    chats: Vec<ChatMessage>,
+    options: ModelOptions,
+    ollama: Arc<Mutex<Ollama>>,
+    saved_id : Id,
+) -> Result<(ChatMessage, Id, String), String> {
+    let o = ollama.lock().await;
+    let model = options.model().to_string();
+
+    let request = ChatMessageRequest::new(options.model().to_string(), chats.to_vec())
+        .options(options.into());
+    let result = o.send_chat_messages(request).await;
+
+    if let Ok(result) = result {
+        return Ok((result.message, saved_id, model));
+    }
+
+    return Err("Failed to run ollama.".to_string());
+}
+
 async fn get_coordinator(
     tooled: Arc<TooledOptions>,
     options: ModelOptions,
@@ -179,7 +199,7 @@ impl ChatStream {
                 )),
                 chats: Arc::new(chat.get_chat_messages()),
                 options: app.options.model_options()[option].clone(),
-                tools: Arc::new(chat.1.clone()),
+                tools: Arc::new(chat.tools.clone()),
             }
         } else {
             Self {

@@ -217,7 +217,6 @@ impl CallMessage {
         for txt in split_text {
             let res = tts.save(txt, path.clone());
             if let Err(e) = res {
-                println!("{:?}", e);
                 tts.default_model = Some(natural_tts::Model::TTS);
                 let _ = tts.say(text.clone()).unwrap();
                 break;

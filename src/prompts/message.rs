@@ -114,7 +114,7 @@ impl PromptsMessage {
                         .prompts
                         .prompts
                         .iter_mut()
-                        .find(|(i, x)| x.command == prompt.edit.og_command)
+                        .find(|(_, x)| x.command == prompt.edit.og_command)
                     {
                         *p.1 = Prompt::from(&prompt.edit);
                     }

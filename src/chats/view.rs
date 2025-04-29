@@ -6,6 +6,7 @@ use crate::utils::{change_alpha, get_path_assets, lighten_colour};
 use crate::{ChatApp, Message};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::alignment::{Horizontal, Vertical};
+use iced::widget::mouse_area;
 use iced::widget::text_editor::Motion;
 use iced::widget::{
     button, column, combo_box, container, horizontal_space, image, keyed_column, markdown, row,
@@ -37,8 +38,8 @@ pub struct Chats {
     saved_chat: Id,
     #[getset(get = "pub", set = "pub")]
     selected_prompt: Option<usize>,
-    #[getset(get = "pub", set = "pub")]
-    model: String,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    models: Vec<String>,
     #[getset(get = "pub", set = "pub")]
     desc: Option<String>,
     #[getset(get = "pub", set = "pub")]
@@ -55,7 +56,7 @@ pub enum State {
 impl Clone for Chats {
     fn clone(&self) -> Self {
         Self::new(
-            self.model.clone(),
+            self.models.clone(),
             self.saved_chat().clone(),
             self.markdown.clone(),
         )
@@ -107,9 +108,9 @@ impl Chats {
 }
 
 impl Chats {
-    pub fn new(model: String, saved_chat: Id, markdown: Vec<Vec<markdown::Item>>) -> Self {
+    pub fn new(models: Vec<String>, saved_chat: Id, markdown: Vec<Vec<markdown::Item>>) -> Self {
         Self {
-            model,
+            models,
             saved_chat,
             markdown,
             edit: text_editor::Content::new(),
@@ -135,12 +136,19 @@ impl Chats {
 
     pub fn view<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         if let Some(chat) = app.chats.0.get(self.saved_chat()) {
-            keyed_column(chat.0.iter().enumerate().map(|(i, chat)| {
+            keyed_column(chat.chats.into_iter().enumerate().map(|(i, chat)| {
                 (
                     0,
                     match Self::check_is_edit(app, &i, id) {
-                        false => chat.view(id, &self.markdown[i], &app.theme()),
-                        true => chat.view_editing(id.clone(), &self.edit),
+                        false => {
+                            if let Some(mk) = self.markdown.get(i){
+                                chat.view(id, &i, mk, &app.theme())
+                            }else{
+                                text("Failed!").into()
+                            }
+
+                        },
+                        true => chat.view_editing(id.clone(), &self.edit, &i),
                     },
                 )
             }))
@@ -223,6 +231,16 @@ impl Chats {
             .style(style::button::chosen_chat)
             .width(Length::Fixed(48.0))
         };
+        
+        let btn_small = |file: &str| -> button::Button<'a, Message, Theme, Renderer> {
+            button(
+                svg(svg::Handle::from_path(get_path_assets(file.to_string())))
+                    .style(style::svg::primary)
+                    .width(Length::Fixed(12.0)),
+            )
+            .style(style::button::chosen_chat)
+            .width(Length::Fixed(36.0))
+        };
 
         let upload = btn("upload.svg").on_press(Message::Chats(ChatsMessage::PickImage, id));
 
@@ -232,7 +250,7 @@ impl Chats {
                 .into(),
             false => {
                 let call = btn("call.svg").on_press(Message::Call(
-                    crate::call::CallMessage::StartCall(self.model.clone()),
+                    crate::call::CallMessage::StartCall(self.models[0].clone()),
                 ));
                 let record = btn("record.svg").on_press(Message::Chats(ChatsMessage::Listen, id));
                 let send = btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, id));
@@ -267,11 +285,18 @@ impl Chats {
             images,
             self.view_commands(app, &id),
             container(
-                combo_box(&app.logic.combo_models, self.model(), None, move |x| {
-                    Message::Chats(ChatsMessage::ChangeModel(x), id)
-                })
-                .input_style(style::text_input::ai_all)
-                .size(12.0)
+                row![
+                    scrollable::Scrollable::new(row(self.models().iter().enumerate().map(|(i, model)| {
+                        mouse_area(combo_box(&app.logic.combo_models, model, None, move |x| {
+                            Message::Chats(ChatsMessage::ChangeModel(i, x), id)
+                        })
+                        .input_style(style::text_input::ai_all)
+                        .size(12.0)).on_right_press(Message::Chats(ChatsMessage::RemoveModel(i), id))
+                        .into()
+                    })))
+                    .width(Length::Fill),
+                    btn_small("add.svg").on_press(Message::Chats(ChatsMessage::AddModel, id)),
+                ]
             )
             .width(Length::Fill)
             .align_y(Vertical::Center)

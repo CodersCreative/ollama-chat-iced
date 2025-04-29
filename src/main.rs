@@ -20,7 +20,7 @@ pub mod view;
 
 use crate::{save::Save, sidebar::chats::SideChats};
 use call::{Call, CallMessage};
-use chats::{chat::Chat, message::ChatsMessage, view::Chats, SavedChat, SavedChats};
+use chats::{chat::{Chat, ChatBuilder}, message::ChatsMessage, tree::Reason, view::Chats, SavedChat, SavedChats, CHATS_FILE};
 use common::Id;
 use download::{Download, DownloadProgress};
 use iced::{
@@ -94,7 +94,7 @@ pub enum Message {
     SideBar,
     Pulling((Id, Result<DownloadProgress, String>)),
     Generating((Id, Result<ChatProgress, String>)),
-    Generated(Id, Result<ChatMessage, String>),
+    Generated(Id, Result<ChatMessage, String>, Option<String>),
     StopGenerating(Id),
     Pull(String),
     StopPull(Id),
@@ -165,22 +165,14 @@ impl ChatApp {
 
         if !models.is_empty() {
             if app.chats.0.is_empty() {
-                app.chats.0.insert(Id::new(), SavedChat::new());
-            } else {
-                app.chats.0.iter_mut().for_each(|(i, x)| {
-                    if let Some(y) = x.0.last() {
-                        if y.role() != &chats::chat::Role::AI {
-                            x.0.remove(x.0.len() - 1);
-                        }
-                    }
-                });
+                app.chats.0.insert(Id::new(), SavedChat::default());
             }
             app.regenerate_side_chats();
             let saved = app.chats.0.iter().last().unwrap();
             let first = (
                 Id::new(),
                 Chats::new(
-                    models.first().unwrap().clone(),
+                    vec![models.first().unwrap().clone()],
                     saved.0.clone(),
                     saved.1.to_mk(),
                 ),
@@ -247,43 +239,28 @@ impl ChatApp {
             }
             Message::RemoveChat(x) => return self.remove_chat(x),
             Message::ChangeTheme(x) => self.change_theme(x.clone()),
-            Message::Generated(id, x) => {
+            Message::Generated(id, x, model) => {
                 if let Ok(x) = x {
-                    let mut mk = Chat::generate_mk(x.content.as_str());
-                    let mut first = true;
+                    let mut mk = Vec::new();
                     if let Some(chat) = self.chats.0.get_mut(&id) {
-                        let index = chat.0.len() - 1;
-                        if chat.0.last().unwrap().role() == &chats::chat::Role::AI {
-                            chat.0[index].add_to_content(x.content.as_str());
-                            mk = Chat::generate_mk(&chat.0[index].content());
-                            first = false;
-                        } else {
-                            chat.0.push(Chat::new(
-                                &chats::chat::Role::AI,
-                                &x.content,
-                                Vec::new(),
-                                x.tool_calls,
-                            ));
-                            first = true;
+                        if let Some(parent) = chat.chats.get_last_parent_mut(){
+                            if parent.chat.role() == &chats::chat::Role::User && model.is_none(){
+                                let index = parent.selected_child_index.unwrap_or(parent.children.len() - 1);
+                                parent.children[index].chat.add_to_content(x.content.as_str());
+                            }else{
+                                for child in parent.children.iter_mut(){
+                                    if child.reason == None{
+                                        child.reason = Some(Reason::Sibling);
+                                    }
+                                }
+                                parent.add_chat(ChatBuilder::default().role(chats::chat::Role::AI).content(x.content.clone()).build().unwrap(), Some(chats::tree::Reason::Model(model.unwrap().clone())));
+                            }
                         }
+
+                        mk = chat.to_mk();
                     }
 
-                    self.main_view.update_chats(|chats| {
-                        chats
-                            .iter_mut()
-                            .filter(|chat| chat.1.saved_chat() == &id)
-                            .for_each(|(_, chat)| {
-                                if !first {
-                                    chat.update_markdown(|x| {
-                                        x.remove(x.len() - 1);
-                                    });
-                                }
-                                chat.set_state(chats::view::State::Generating);
-                                chat.add_markdown(mk.clone());
-                            });
-                    });
-
-                    self.save.save(SAVE_FILE);
+                    self.chats.save(CHATS_FILE);
                     self.regenerate_side_chats();
 
                     self.main_view.update_chats(|chats| {
@@ -291,6 +268,7 @@ impl ChatApp {
                             .iter_mut()
                             .filter(|chat| chat.1.saved_chat() == &id)
                             .for_each(|(_, chat)| {
+                                chat.set_markdown(mk.clone());
                                 chat.set_content(text_editor::Content::new());
                                 chat.set_images(Vec::new());
                                 chat.set_state(chats::view::State::Idle);
@@ -315,22 +293,14 @@ impl ChatApp {
 
                 if let Ok(ChatProgress::Generating(progress)) = progress {
                     let mut mk = Chat::generate_mk(progress.content.as_str());
-                    let mut first = true;
-
+                    
                     if let Some(chat) = self.chats.0.get_mut(&id) {
-                        let index = chat.0.len() - 1;
-                        if chat.0.last().unwrap().role() == &chats::chat::Role::AI {
-                            chat.0[index].add_to_content(progress.content.as_str());
-                            mk = Chat::generate_mk(&chat.0[index].content());
-                            first = false;
-                        } else {
-                            chat.0.push(Chat::new(
-                                &chats::chat::Role::AI,
-                                &progress.content,
-                                Vec::new(),
-                                progress.tool_calls,
-                            ));
-                            first = true;
+                        if let Some(parent) = chat.chats.get_last_parent_mut(){
+                            if parent.chat.role() == &chats::chat::Role::User{
+                                let index = parent.selected_child_index.unwrap_or(parent.children.len() - 1);
+                                parent.children[index].chat.add_to_content(progress.content.as_str());
+                                mk = Chat::generate_mk(&parent.children[index].chat.content());
+                            }                        
                         }
                     }
 
@@ -339,17 +309,17 @@ impl ChatApp {
                             .iter_mut()
                             .filter(|chat| chat.1.saved_chat() == &id)
                             .for_each(|(_, chat)| {
-                                if !first {
-                                    chat.update_markdown(|x| {
-                                        x.remove(x.len() - 1);
-                                    });
-                                }
+                                chat.update_markdown(|x| {
+                                    x.remove(x.len() - 1);
+                                });
                                 chat.set_state(chats::view::State::Generating);
                                 chat.add_markdown(mk.clone());
                             });
                     });
+
+                    // self.chats.save(CHATS_FILE);
                 } else if let Ok(ChatProgress::Finished) = progress {
-                    self.save.save(SAVE_FILE);
+                    self.chats.save(CHATS_FILE);
                     self.regenerate_side_chats();
 
                     self.main_view.update_chats(|chats| {

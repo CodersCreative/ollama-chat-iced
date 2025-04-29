@@ -1,13 +1,15 @@
 pub mod chat;
 pub mod message;
 pub mod view;
+pub mod tree;
 
 use crate::utils::{get_path_settings, get_preview};
 use crate::{common::Id, llm::Tools};
-use chat::Chat;
+use chat::{Chat, ChatBuilder, Role};
 use iced::widget::markdown;
 use ollama_rs::generation::chat::ChatMessage;
 use serde::{Deserialize, Serialize};
+use tree::ChatTree;
 use std::fs::File;
 use std::io::Read;
 use std::{collections::HashMap, time::SystemTime};
@@ -72,7 +74,12 @@ impl SavedChats {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct SavedChat(pub Vec<Chat>, pub Vec<Tools>, pub SystemTime);
+pub struct SavedChat{
+    pub chats : ChatTree, 
+    pub tools : Vec<Tools>, 
+    pub time : SystemTime,
+    // pub latest_node: Option<NodeId>,
+}
 
 #[derive(Default, Debug)]
 pub struct TooledOptions {
@@ -82,28 +89,38 @@ pub struct TooledOptions {
 
 impl Default for SavedChats {
     fn default() -> Self {
-        Self(HashMap::from([(Id::new(), SavedChat::new())]))
+        Self(HashMap::from([(Id::new(), SavedChat::default())]))
     }
 }
-impl SavedChat {
-    pub fn new() -> Self {
-        Self(Vec::new(), Vec::new(), SystemTime::now())
-    }
 
+impl Default for SavedChat{
+    fn default() -> Self {
+        Self{
+            chats: ChatTree::new(ChatBuilder::default().content(String::from("Chat Started!")).role(Role::System).build().unwrap()),
+            tools : Vec::new(),
+            time : SystemTime::now(),
+        }
+    }
+}
+
+impl SavedChat {
     pub fn to_mk(&self) -> Vec<Vec<markdown::Item>> {
-        return self
-            .0
+        return self.chats.get_full_history() 
             .iter()
             .map(|x| Chat::generate_mk(&x.content()))
             .collect();
     }
 
-    pub fn new_with_chats_tools(chats: Vec<Chat>, tools: Vec<Tools>) -> Self {
-        return Self(chats, tools, SystemTime::now());
+    pub fn new_with_chats_tools(chats: ChatTree, tools: Vec<Tools>) -> Self {
+        let mut saved = Self::new_with_chats(chats);
+        saved.tools = tools;
+        saved
     }
 
-    pub fn new_with_chats(chats: Vec<Chat>) -> Self {
-        return Self(chats, Vec::new(), SystemTime::now());
+    pub fn new_with_chats(chats: ChatTree) -> Self {
+        let mut saved = Self::default();
+        saved.chats = chats;
+        saved
     }
 
     pub fn get_preview(&self) -> (String, SystemTime) {
@@ -111,6 +128,7 @@ impl SavedChat {
     }
 
     pub fn get_chat_messages(&self) -> Vec<ChatMessage> {
-        self.0.iter().map(|x| x.into()).collect()
+        self.chats.get_full_history().iter().map(|x| (*x).into()).collect()
     }
+    
 }

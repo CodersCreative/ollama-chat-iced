@@ -22,7 +22,7 @@ use std::{path::PathBuf, time::SystemTime};
 
 use super::message::ChatsMessage;
 
-#[derive(Builder, Serialize, Deserialize, Debug, Clone, Getters, Setters)]
+#[derive(Builder, Serialize, Deserialize, Debug, Clone, Getters, Setters, )]
 pub struct Chat {
     #[getset(get = "pub", set = "pub")]
     #[builder(default = "Role::User")]
@@ -60,11 +60,12 @@ impl PartialEq for Chat {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Role {
     #[default]
     User,
     AI,
+    System,
 }
 
 impl From<usize> for Role {
@@ -90,6 +91,7 @@ impl std::fmt::Display for Role {
         let output = match self {
             Self::AI => "Ai",
             Self::User => "User",
+            Self::System => "System",
         };
         write!(f, "{}", output)
     }
@@ -99,6 +101,7 @@ impl Into<ChatMessage> for &Chat {
         let mut message = match self.role {
             Role::User => ChatMessage::user(self.content().to_string()),
             Role::AI => ChatMessage::assistant(self.content().to_string()),
+            Role::System => ChatMessage::system(self.content().to_string()),
         };
 
         message.images = match self.images.len() > 0 {
@@ -145,145 +148,5 @@ impl Chat {
         .map(Message::URLClicked)
         .into()
         //markdown::view_with(markdown, theme, &style::markdown::CustomViewer).into()
-    }
-
-    pub fn view_editing<'a>(
-        &'a self,
-        id: Id,
-        content: &'a text_editor::Content,
-    ) -> Element<'a, Message> {
-        let is_ai = self.role == Role::AI;
-
-        let style = match is_ai {
-            true => style::container::chat_ai,
-            false => style::container::chat,
-        };
-
-        let btn = |img: &str| -> Button<Message> {
-            button(
-                svg(svg::Handle::from_path(get_path_assets(img.to_string())))
-                    .style(style::svg::white)
-                    .width(16.0)
-                    .height(16.0),
-            )
-            .style(style::button::transparent_text)
-        };
-
-        let name = container(
-            row![
-                text(match self.role {
-                    Role::User => "User",
-                    Role::AI => "Assistant",
-                })
-                .size(16)
-                .align_x(Horizontal::Left)
-                .align_y(Vertical::Center)
-                .width(Length::Fill),
-                btn("save.svg").on_press(Message::Chats(ChatsMessage::SaveEdit, id.clone())),
-                btn("close.svg").on_press(Message::Chats(ChatsMessage::CancelEdit, id.clone())),
-            ]
-            .spacing(10),
-        )
-        .style(style)
-        .width(Length::Fill)
-        .padding(3);
-
-        let images = container(
-            scrollable::Scrollable::new(
-                row(self.images.iter().map(|x| {
-                    button(image(image::Handle::from_path(x)).height(Length::Fixed(200.0)))
-                        .style(style::button::transparent_text)
-                        .into()
-                }))
-                .align_y(Vertical::Center)
-                .spacing(10),
-            )
-            .direction(Direction::Horizontal(Scrollbar::new())),
-        )
-        .padding(Padding::from([0, 20]))
-        .style(style::container::bottom_input_back);
-
-        let editor = container(
-            text_editor(content)
-                .placeholder("Type your message here...")
-                .on_action(move |action| Message::Chats(ChatsMessage::EditAction(action), id))
-                .padding(Padding::from(20))
-                .size(20)
-                .style(style::text_editor::input),
-        )
-        .padding(20);
-
-        container(column![name, images, editor,].width(Length::Fill))
-            .style(style::container::chat_back)
-            .width(Length::FillPortion(5))
-            .into()
-    }
-
-    pub fn view<'a>(
-        &'a self,
-        id: &Id,
-        markdown: &'a Vec<markdown::Item>,
-        theme: &Theme,
-    ) -> Element<'a, Message> {
-        let is_ai = self.role == Role::AI;
-
-        let style = match is_ai {
-            true => style::container::chat_ai,
-            false => style::container::chat,
-        };
-
-        let btn = |img: &str| -> Button<Message> {
-            button(
-                svg(svg::Handle::from_path(get_path_assets(img.to_string())))
-                    .style(style::svg::white)
-                    .width(16.0)
-                    .height(16.0),
-            )
-            .style(style::button::transparent_text)
-        };
-
-        let name = container(
-            row![
-                text(match self.role {
-                    Role::User => "User",
-                    Role::AI => "Assistant",
-                })
-                .size(16)
-                .align_x(Horizontal::Left)
-                .align_y(Vertical::Center)
-                .width(Length::Fill),
-                btn("edit.svg").on_press(Message::Chats(
-                    ChatsMessage::Edit(self.content().clone()),
-                    id.clone()
-                )),
-                btn("restart.svg").on_press(Message::Chats(ChatsMessage::Regenerate, id.clone())),
-                btn("copy.svg").on_press(Message::SaveToClipboard(self.content().to_string())),
-            ]
-            .spacing(10),
-        )
-        .style(style)
-        .width(Length::Fill)
-        .padding(3);
-
-        let images = container(
-            scrollable::Scrollable::new(
-                row(self.images.iter().map(|x| {
-                    button(image(image::Handle::from_path(x)).height(Length::Fixed(200.0)))
-                        .style(style::button::transparent_text)
-                        .into()
-                }))
-                .align_y(Vertical::Center)
-                .spacing(10),
-            )
-            .direction(Direction::Horizontal(Scrollbar::new())),
-        )
-        .padding(Padding::from([0, 20]))
-        .style(style::container::bottom_input_back);
-        let mark = container(self.view_mk(markdown, theme)).padding(20);
-
-        container(column![name, images, mark,].width(Length::Fill))
-            .style(style::container::chat_back)
-            .width(Length::FillPortion(5))
-            .into()
     }
 }

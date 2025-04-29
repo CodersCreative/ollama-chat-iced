@@ -7,16 +7,14 @@ use rodio::buffer::SamplesBuffer;
 
 use crate::{
     common::Id,
-    llm::Tools,
+    llm::{run_ollama, run_ollama_multi, Tools},
     prompts::view::get_command_input,
     sound::{get_audio, transcribe},
     ChatApp, Message,
 };
 
 use super::{
-    chat::{Chat, ChatBuilder},
-    view::State,
-    TooledOptions, CHATS_FILE,
+    chat::{Chat, ChatBuilder}, tree::Reason, view::State, TooledOptions, CHATS_FILE
 };
 
 #[derive(Debug, Clone)]
@@ -25,12 +23,14 @@ pub enum ChatsMessage {
     SetPrompt(Option<String>, String),
     ChangePrompt(text_editor::Motion),
     SubmitPrompt,
-    Regenerate,
+    Regenerate(usize),
     SaveEdit,
     CancelEdit,
     Edit(String),
     Submit,
-    ChangeModel(String),
+    ChangeModel(usize, String),
+    RemoveModel(usize),
+    AddModel,
     Action(text_editor::Action),
     EditAction(text_editor::Action),
     ChangeStart(String),
@@ -40,6 +40,7 @@ pub enum ChatsMessage {
     Convert(Option<SamplesBuffer<f32>>),
     Listened(Result<String, String>),
     PickedImage(Result<Vec<PathBuf>, String>),
+    ChangePath(usize, bool),
     PickImage,
     RemoveImage(PathBuf),
 }
@@ -68,24 +69,42 @@ impl ChatsMessage {
 
     pub fn handle(&self, id: Id, app: &mut ChatApp) -> Task<Message> {
         match self {
-            Self::Regenerate => {
+            Self::Regenerate(index) => {
                 let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
 
-                for x in app.chats.0.iter_mut().filter(|x| x.0 == &saved_id) {
-                    x.1 .0.remove(x.1 .0.len() - 1);
-                    break;
+                if let Some(chat) = app.chats.0.get_mut(&saved_id) {
+                    let parent = if let Some(node) = chat.chats.get_node_mut_from_index(index - 1){
+                        if node.chat.role() == &super::chat::Role::AI{
+                            chat.chats.get_node_mut_from_index(*index)
+                        }else{
+                            Some(node)
+                        }
+                    }else{
+                        None
+                    };
+                    
+                    if let Some(node) = parent{
+                        node.selected_child_index = Some(node.children.len());
+                        for child in node.children.iter_mut(){
+                            if child.reason.is_none(){
+                                child.reason = Some(Reason::Sibling);
+                            }
+                        }
+                        node.add_chat(ChatBuilder::default().content(String::new()).role(super::chat::Role::AI).build().unwrap(), Some(Reason::Regeneration));
+                    }
                 }
 
                 app.main_view.update_chat_by_saved(&saved_id, |chat| {
                     chat.update_markdown(|x| {
                         x.remove(x.len() - 1);
+                        x.push(Chat::generate_mk(""));
                     });
                 });
 
                 if let Some(chat) = app.main_view.chats().get(&id) {
                     let option = app
                         .options
-                        .get_create_model_options_index(chat.model().to_string());
+                        .get_create_model_options_index(chat.models()[0].to_string());
 
                     app.main_view.add_chat_stream(
                         saved_id,
@@ -155,6 +174,36 @@ impl ChatsMessage {
                     }
                 });
                 Task::none()
+            },
+
+            Self::ChangePath(index, next) => {
+                let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
+                let mut mk = Vec::new();
+
+                if let Some(chat) = app.chats.0.get_mut(&saved_id) {
+                    if let Some(parent) = chat.chats.get_node_mut_from_index(index - 1){
+                        let len = parent.children.len();
+                        if let Some(selected) = parent.selected_child_index{
+                            if selected >= (len - 1) && *next{
+                                parent.selected_child_index = Some(0);
+                            }else if selected <= 0 && !next{
+                                parent.selected_child_index = Some(len - 1);
+                            }else if *next{
+                                parent.selected_child_index = Some(selected + 1);
+                            }else if !next{
+                                parent.selected_child_index = Some(selected - 1);
+                            }
+                        }
+                    }
+
+                    mk = chat.to_mk();
+                }
+                
+                app.main_view.update_chat_by_saved(&saved_id, |x| {
+                    x.set_markdown(mk.clone());
+                    // x.add_markdown(Chat::generate_mk(chat.content()));
+                });
+                Task::none()
             }
             Self::SubmitPrompt => {
                 if let Some(chat) = app.main_view.chats().get(&id) {
@@ -179,16 +228,16 @@ impl ChatsMessage {
                     .0
                     .get(&saved_id)
                     .unwrap()
-                    .0
-                    .iter()
-                    .position(|x| x.content() == m)
+                    .chats
+                    .into_iter()
+                    .position(|x| x.chat.content() == m)
                 {
                     app.main_view.update_edits(|edits| {
                         edits.insert(id, index);
                     });
                     app.main_view.update_chat(&id, |chat| {
                         chat.unwrap().set_edit(text_editor::Content::with_text(
-                            app.chats.0.get(&saved_id).unwrap().0[index].content(),
+                            app.chats.0.get(&saved_id).unwrap().chats.get_node_from_index(index).unwrap().chat.content(),
                         ));
                     });
                 }
@@ -201,7 +250,8 @@ impl ChatsMessage {
 
                 if let Some(edit) = app.main_view.edits().get(&id) {
                     if let Some(chat) = app.chats.0.get_mut(&saved_id) {
-                        chat.0[edit.clone()]
+                        chat.chats.get_node_mut_from_index(edit.clone()).unwrap().chat
+                        // chat.0[edit.clone()]
                             .set_content(app.main_view.chats().get(&id).unwrap().edit().text());
                         mk = chat.to_mk();
                         app.chats.save(CHATS_FILE);
@@ -283,18 +333,44 @@ impl ChatsMessage {
                 }
                 Task::none()
             }
-            Self::ChangeModel(x) => {
+            Self::ChangeModel(i, x) => {
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {
                         if chat.state() == &State::Idle {
-                            chat.set_model(x.clone());
-                            app.chats.save(CHATS_FILE);
+                            if let Some(model) = chat.models_mut().get_mut(*i){
+                                *model = x.clone()
+                            }
+
                             let _ = app.options.get_create_model_options_index(x.clone());
                         }
                     }
                 });
 
                 Task::none()
+            }
+            Self::RemoveModel(i) => {
+                app.main_view.update_chat(&id, |chat| {
+                    if let Some(chat) = chat {
+                        if chat.state() == &State::Idle && chat.models().len() > 1{
+                            chat.models_mut().remove(*i);
+                        }
+                    }
+                });
+
+                Task::none()
+            }
+            Self::AddModel => {
+                app.main_view.update_chat(&id, |chat| {
+                    if let Some(chat) = chat {
+                        if chat.state() == &State::Idle{
+                            let model = chat.models().first().unwrap_or(app.logic.models.first().unwrap()).to_string();
+                            chat.models_mut().push(model);
+                        }
+                    }
+                });
+
+                Task::none()
+
             }
             Self::ChangeStart(x) => {
                 app.main_view.update_chat(&id, |chat| {
@@ -354,11 +430,12 @@ impl ChatsMessage {
                         ChatBuilder::default()
                             .content(chat.get_content_text())
                             .images(chat.images().clone())
+                            .role(super::chat::Role::User)
                             .build()
                             .unwrap(),
                         chat.saved_chat().clone(),
                         app.options
-                            .get_create_model_options_index(chat.model().to_string()),
+                            .get_create_model_options_index(chat.models()[0].to_string()),
                     )
                 } else {
                     return Task::none();
@@ -366,12 +443,15 @@ impl ChatsMessage {
 
                 let mut tools = &Vec::new();
                 if let Some(x) = app.chats.0.get_mut(&saved_id) {
-                    x.0.push(chat.clone());
-                    tools = &x.1;
+                    x.chats.get_last_parent_mut().unwrap().selected_child_index = Some(0);
+                    x.chats.add_chat(chat.clone(), None);
+                    x.chats.add_chat(ChatBuilder::default().content(String::new()).role(super::chat::Role::AI).build().unwrap(), None);
+                    tools = &x.tools;
                 }
 
                 app.main_view.update_chat_by_saved(&saved_id, |x| {
                     x.add_markdown(Chat::generate_mk(chat.content()));
+                    x.add_markdown(Chat::generate_mk(""));
                 });
 
                 if tools.is_empty() {
@@ -384,7 +464,7 @@ impl ChatsMessage {
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {
                         if let Some(saved_chat) = app.chats.0.get(&saved_id) {
-                            if saved_chat.1.is_empty() {
+                            if saved_chat.tools.is_empty() {
                                 chat.set_state(State::Generating);
                             } else {
                                 let tooled = TooledOptions {
@@ -402,6 +482,24 @@ impl ChatsMessage {
                         }
                     }
                 });
+
+                if let Some(chat) = app.main_view.chats().get(&id){
+                    if let Some(saved) = app.chats.0.get(&saved_id){
+                        let messages = saved.get_chat_messages();
+                        return Task::batch(chat.models().iter().skip(1).map(|model| {
+                            let options = app.options
+                                    .get_create_model_options_index(model.to_string());
+
+                            Task::perform(run_ollama_multi(messages.clone(), app.options.model_options()[options].clone(), app.logic.ollama.clone(), saved_id.clone()), |x| {
+                                if let Ok(x) = x{
+                                    Message::Generated(x.1, Ok(x.0), Some(x.2))
+                                }else{
+                                    Message::None
+                                }
+                            })
+                        }))
+                    }
+                }
 
                 Task::none()
             }
