@@ -136,27 +136,25 @@ impl Chats {
 
     pub fn view<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         if let Some(chat) = app.chats.0.get(self.saved_chat()) {
-            keyed_column(chat.chats.into_iter().enumerate().map(|(i, chat)| {
+            return keyed_column(chat.chats.into_iter().enumerate().map(|(i, chat)| {
                 (
                     0,
                     match Self::check_is_edit(app, &i, id) {
                         false => {
-                            if let Some(mk) = self.markdown.get(i){
+                            if let Some(mk) = self.markdown.get(i) {
                                 chat.view(id, &i, mk, &app.theme())
-                            }else{
+                            } else {
                                 text("Failed!").into()
                             }
-
-                        },
+                        }
                         true => chat.view_editing(id.clone(), &self.edit, &i),
                     },
                 )
             }))
             .spacing(10)
-            .into()
-        } else {
-            text("Failed to get Chat.").into()
+            .into();
         }
+        text("Failed to get Chat.").into()
     }
 
     pub fn chat_view<'a>(&'a self, app: &'a ChatApp, id: Id) -> Element<'a, Message> {
@@ -231,7 +229,7 @@ impl Chats {
             .style(style::button::chosen_chat)
             .width(Length::Fixed(48.0))
         };
-        
+
         let btn_small = |file: &str| -> button::Button<'a, Message, Theme, Renderer> {
             button(
                 svg(svg::Handle::from_path(get_path_assets(file.to_string())))
@@ -284,20 +282,23 @@ impl Chats {
         let input = container(column![
             images,
             self.view_commands(app, &id),
-            container(
-                row![
-                    scrollable::Scrollable::new(row(self.models().iter().enumerate().map(|(i, model)| {
-                        mouse_area(combo_box(&app.logic.combo_models, model, None, move |x| {
-                            Message::Chats(ChatsMessage::ChangeModel(i, x), id)
-                        })
-                        .input_style(style::text_input::ai_all)
-                        .size(12.0)).on_right_press(Message::Chats(ChatsMessage::RemoveModel(i), id))
+            container(row![
+                scrollable::Scrollable::new(row(self.models().iter().enumerate().map(
+                    |(i, model)| {
+                        mouse_area(
+                            combo_box(&app.logic.combo_models, model, None, move |x| {
+                                Message::Chats(ChatsMessage::ChangeModel(i, x), id)
+                            })
+                            .input_style(style::text_input::ai_all)
+                            .size(12.0),
+                        )
+                        .on_right_press(Message::Chats(ChatsMessage::RemoveModel(i), id))
                         .into()
-                    })))
-                    .width(Length::Fill),
-                    btn_small("add.svg").on_press(Message::Chats(ChatsMessage::AddModel, id)),
-                ]
-            )
+                    }
+                )))
+                .width(Length::Fill),
+                btn_small("add.svg").on_press(Message::Chats(ChatsMessage::AddModel, id)),
+            ])
             .width(Length::Fill)
             .align_y(Vertical::Center)
             .style(style::container::bottom_input_back),

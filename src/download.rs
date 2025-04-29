@@ -73,6 +73,11 @@ impl Download {
             _ => (100.0, String::new()),
         };
 
+        let name = Self::txt(
+            app.main_view.downloads().get(&id).unwrap().download.clone(),
+            app.theme().palette().primary,
+        );
+
         let bar = progress_bar(0.0..=100.0, per);
         let info = Self::txt(
             format!("Downloading... {per:.2}%"),
@@ -81,7 +86,7 @@ impl Download {
         let message = Self::txt(message, app.theme().palette().text);
 
         container(
-            button(column![bar, info, message])
+            button(column![name, bar, info, message])
                 .style(style::button::transparent_text)
                 .on_press(Message::StopPull(id)),
         )

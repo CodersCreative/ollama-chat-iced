@@ -1,7 +1,7 @@
 pub mod chat;
 pub mod message;
-pub mod view;
 pub mod tree;
+pub mod view;
 
 use crate::utils::{get_path_settings, get_preview};
 use crate::{common::Id, llm::Tools};
@@ -9,10 +9,10 @@ use chat::{Chat, ChatBuilder, Role};
 use iced::widget::markdown;
 use ollama_rs::generation::chat::ChatMessage;
 use serde::{Deserialize, Serialize};
-use tree::ChatTree;
 use std::fs::File;
 use std::io::Read;
 use std::{collections::HashMap, time::SystemTime};
+use tree::ChatTree;
 
 pub const CHATS_FILE: &str = "chat.json";
 
@@ -74,10 +74,10 @@ impl SavedChats {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct SavedChat{
-    pub chats : ChatTree, 
-    pub tools : Vec<Tools>, 
-    pub time : SystemTime,
+pub struct SavedChat {
+    pub chats: ChatTree,
+    pub tools: Vec<Tools>,
+    pub time: SystemTime,
     // pub latest_node: Option<NodeId>,
 }
 
@@ -93,19 +93,27 @@ impl Default for SavedChats {
     }
 }
 
-impl Default for SavedChat{
+impl Default for SavedChat {
     fn default() -> Self {
-        Self{
-            chats: ChatTree::new(ChatBuilder::default().content(String::from("Chat Started!")).role(Role::System).build().unwrap()),
-            tools : Vec::new(),
-            time : SystemTime::now(),
+        Self {
+            chats: ChatTree::new(
+                ChatBuilder::default()
+                    .content(String::from("Chat Started!"))
+                    .role(Role::System)
+                    .build()
+                    .unwrap(),
+            ),
+            tools: Vec::new(),
+            time: SystemTime::now(),
         }
     }
 }
 
 impl SavedChat {
     pub fn to_mk(&self) -> Vec<Vec<markdown::Item>> {
-        return self.chats.get_full_history() 
+        return self
+            .chats
+            .get_full_history()
             .iter()
             .map(|x| Chat::generate_mk(&x.content()))
             .collect();
@@ -128,7 +136,10 @@ impl SavedChat {
     }
 
     pub fn get_chat_messages(&self) -> Vec<ChatMessage> {
-        self.chats.get_full_history().iter().map(|x| (*x).into()).collect()
+        self.chats
+            .get_full_history()
+            .iter()
+            .map(|x| (*x).into())
+            .collect()
     }
-    
 }

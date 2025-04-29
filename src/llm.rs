@@ -59,7 +59,7 @@ pub async fn run_ollama_multi(
     chats: Vec<ChatMessage>,
     options: ModelOptions,
     ollama: Arc<Mutex<Ollama>>,
-    saved_id : Id,
+    saved_id: Id,
 ) -> Result<(ChatMessage, Id, String), String> {
     let o = ollama.lock().await;
     let model = options.model().to_string();

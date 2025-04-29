@@ -22,7 +22,7 @@ use std::{path::PathBuf, time::SystemTime};
 
 use super::message::ChatsMessage;
 
-#[derive(Builder, Serialize, Deserialize, Debug, Clone, Getters, Setters, )]
+#[derive(Builder, Serialize, Deserialize, Debug, Clone, Getters, Setters)]
 pub struct Chat {
     #[getset(get = "pub", set = "pub")]
     #[builder(default = "Role::User")]

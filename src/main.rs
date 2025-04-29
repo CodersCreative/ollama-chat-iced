@@ -20,7 +20,13 @@ pub mod view;
 
 use crate::{save::Save, sidebar::chats::SideChats};
 use call::{Call, CallMessage};
-use chats::{chat::{Chat, ChatBuilder}, message::ChatsMessage, tree::Reason, view::Chats, SavedChat, SavedChats, CHATS_FILE};
+use chats::{
+    chat::{Chat, ChatBuilder},
+    message::ChatsMessage,
+    tree::Reason,
+    view::Chats,
+    SavedChat, SavedChats, CHATS_FILE,
+};
 use common::Id;
 use download::{Download, DownloadProgress};
 use iced::{
@@ -242,18 +248,32 @@ impl ChatApp {
             Message::Generated(id, x, model) => {
                 if let Ok(x) = x {
                     let mut mk = Vec::new();
+                    let mut is_multi = false;
                     if let Some(chat) = self.chats.0.get_mut(&id) {
-                        if let Some(parent) = chat.chats.get_last_parent_mut(){
-                            if parent.chat.role() == &chats::chat::Role::User && model.is_none(){
-                                let index = parent.selected_child_index.unwrap_or(parent.children.len() - 1);
-                                parent.children[index].chat.add_to_content(x.content.as_str());
-                            }else{
-                                for child in parent.children.iter_mut(){
-                                    if child.reason == None{
+                        if let Some(parent) = chat.chats.get_last_parent_mut() {
+                            is_multi = !(parent.chat.role() == &chats::chat::Role::User
+                                && model.is_none());
+                            if !is_multi {
+                                let index = parent
+                                    .selected_child_index
+                                    .unwrap_or(parent.children.len() - 1);
+                                parent.children[index]
+                                    .chat
+                                    .add_to_content(x.content.as_str());
+                            } else {
+                                for child in parent.children.iter_mut() {
+                                    if child.reason == None {
                                         child.reason = Some(Reason::Sibling);
                                     }
                                 }
-                                parent.add_chat(ChatBuilder::default().role(chats::chat::Role::AI).content(x.content.clone()).build().unwrap(), Some(chats::tree::Reason::Model(model.unwrap().clone())));
+                                parent.add_chat(
+                                    ChatBuilder::default()
+                                        .role(chats::chat::Role::AI)
+                                        .content(x.content.clone())
+                                        .build()
+                                        .unwrap(),
+                                    Some(chats::tree::Reason::Model(model.unwrap().clone())),
+                                );
                             }
                         }
 
@@ -271,7 +291,9 @@ impl ChatApp {
                                 chat.set_markdown(mk.clone());
                                 chat.set_content(text_editor::Content::new());
                                 chat.set_images(Vec::new());
-                                chat.set_state(chats::view::State::Idle);
+                                if !is_multi {
+                                    chat.set_state(chats::view::State::Idle);
+                                }
                             });
                     });
                 }
@@ -293,14 +315,18 @@ impl ChatApp {
 
                 if let Ok(ChatProgress::Generating(progress)) = progress {
                     let mut mk = Chat::generate_mk(progress.content.as_str());
-                    
+
                     if let Some(chat) = self.chats.0.get_mut(&id) {
-                        if let Some(parent) = chat.chats.get_last_parent_mut(){
-                            if parent.chat.role() == &chats::chat::Role::User{
-                                let index = parent.selected_child_index.unwrap_or(parent.children.len() - 1);
-                                parent.children[index].chat.add_to_content(progress.content.as_str());
+                        if let Some(parent) = chat.chats.get_last_parent_mut() {
+                            if parent.chat.role() == &chats::chat::Role::User {
+                                let index = parent
+                                    .selected_child_index
+                                    .unwrap_or(parent.children.len() - 1);
+                                parent.children[index]
+                                    .chat
+                                    .add_to_content(progress.content.as_str());
                                 mk = Chat::generate_mk(&parent.children[index].chat.content());
-                            }                        
+                            }
                         }
                     }
 
@@ -337,6 +363,15 @@ impl ChatApp {
                 Task::none()
             }
             Message::Pulling((id, progress)) => {
+                if let Ok(progress) = progress.clone() {
+                    if let DownloadProgress::Finished = progress {
+                        self.main_view.remove_download_by_id(&id);
+                        let models = self.logic.get_models();
+                        self.logic.combo_models = combo_box::State::new(models.clone());
+                        return Task::none();
+                    }
+                }
+
                 self.main_view.update_downloads(move |x| {
                     if let Some(download) = x.get_mut(&id) {
                         download.progress(progress.clone());
