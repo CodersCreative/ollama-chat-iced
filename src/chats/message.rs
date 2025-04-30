@@ -68,9 +68,20 @@ impl ChatsMessage {
     }
 
     pub fn handle(&self, id: Id, app: &mut ChatApp) -> Task<Message> {
+        let get_saved_id = || -> Option<Id>{
+            if let Some(chat) = app.main_view.chats().get(&id){
+                Some(chat.saved_chat().clone())
+            }else{
+                None
+            }
+        };
+
         match self {
             Self::Regenerate(index) => {
-                let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
+                let saved_id = match get_saved_id(){
+                    Some(x) => x,
+                    None => return Task::none()
+                };
 
                 if let Some(chat) = app.chats.0.get_mut(&saved_id) {
                     let parent = if let Some(node) = chat.chats.get_node_mut_from_index(index - 1) {
@@ -85,11 +96,13 @@ impl ChatsMessage {
 
                     if let Some(node) = parent {
                         node.selected_child_index = Some(node.children.len());
+                        
                         for child in node.children.iter_mut() {
                             if child.reason.is_none() {
                                 child.reason = Some(Reason::Sibling);
                             }
                         }
+
                         node.add_chat(
                             ChatBuilder::default()
                                 .content(String::new())
@@ -184,7 +197,10 @@ impl ChatsMessage {
             }
 
             Self::ChangePath(index, next) => {
-                let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
+                let saved_id = match get_saved_id(){
+                    Some(x) => x,
+                    None => return Task::none()
+                };
                 let mut mk = Vec::new();
 
                 if let Some(chat) = app.chats.0.get_mut(&saved_id) {
@@ -229,7 +245,10 @@ impl ChatsMessage {
                 Task::none()
             }
             Self::Edit(m) => {
-                let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
+                let saved_id = match get_saved_id(){
+                    Some(x) => x,
+                    None => return Task::none()
+                };
                 if let Some(index) = app
                     .chats
                     .0
@@ -240,41 +259,43 @@ impl ChatsMessage {
                     .position(|x| x.chat.content() == m)
                 {
                     app.main_view.update_edits(|edits| {
-                        if let Some(v) = edits.get(&id) {
+                        if let Some(_) = edits.get(&id) {
                             let _ = edits.remove(&id);
                         } else {
                             edits.insert(id, index);
                         }
                     });
                     app.main_view.update_chat(&id, |chat| {
-                        chat.unwrap().set_edit(text_editor::Content::with_text(
-                            app.chats
-                                .0
-                                .get(&saved_id)
-                                .unwrap()
-                                .chats
-                                .get_node_from_index(index)
-                                .unwrap()
-                                .chat
-                                .content(),
-                        ));
+                        if let Some(chat) = chat{
+                            chat.set_edit(text_editor::Content::with_text(
+                                app.chats
+                                    .0
+                                    .get(&saved_id)
+                                    .unwrap()
+                                    .chats
+                                    .get_node_from_index(index)
+                                    .unwrap()
+                                    .chat
+                                    .content(),
+                            ));
+                        }
                     });
                 }
 
                 Task::none()
             }
             Self::SaveEdit => {
-                let saved_id = app.main_view.chats().get(&id).unwrap().saved_chat().clone();
+                let saved_id = match get_saved_id(){
+                    Some(x) => x,
+                    None => return Task::none()
+                };
                 let mut mk = Vec::new();
 
                 if let Some(edit) = app.main_view.edits().get(&id) {
                     if let Some(chat) = app.chats.0.get_mut(&saved_id) {
-                        chat.chats
-                            .get_node_mut_from_index(edit.clone())
-                            .unwrap()
-                            .chat
-                            // chat.0[edit.clone()]
-                            .set_content(app.main_view.chats().get(&id).unwrap().edit().text());
+                        if let Some(node) = chat.chats.get_node_mut_from_index(edit.clone()){
+                            node.chat.set_content(app.main_view.chats().get(&id).unwrap().edit().text());
+                        }
                         mk = chat.to_mk();
                         app.chats.save(CHATS_FILE);
                     }
@@ -282,7 +303,6 @@ impl ChatsMessage {
 
                 app.main_view.update_chat_by_saved(&saved_id, |x| {
                     x.set_markdown(mk.clone());
-                    // x.add_markdown(Chat::generate_mk(chat.content()));
                 });
                 app.main_view.update_edits(|edits| {
                     edits.remove(&id);
@@ -474,7 +494,9 @@ impl ChatsMessage {
 
                 let mut tools = &Vec::new();
                 if let Some(x) = app.chats.0.get_mut(&saved_id) {
-                    x.chats.get_last_parent_mut().unwrap().selected_child_index = Some(0);
+                    if let Some(parent) = x.chats.get_last_parent_mut(){
+                        parent.selected_child_index = Some(0);
+                    }
                     x.chats.add_chat(chat.clone(), None);
                     x.chats.add_chat(
                         ChatBuilder::default()
