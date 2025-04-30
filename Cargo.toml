@@ -17,14 +17,12 @@ ollama-rs = { version = "0.3.0", features = ["headers", "stream", "tool-implemen
 rand = "0.8.5"
 serde = { version = "1.0.201", features = ["derive"] }
 serde_json = "1.0.117"
-bitflags = "2.9.0"
 text-splitter = "0.10.0"
 tokio = { version = "1.37.0", features = ["full"] }
 iced = { version = "0.13.1", features = ["tokio", "image", "markdown", "svg", "advanced", ]}
 color-art = "0.3.8"
 cli-clipboard = "0.4.0"
 open = "5.3.2"
-time = "0.3.41"
 image = "0.25.6"
 base64-stream = "4.0.0"
 rfd = "0.15.3"
@@ -33,12 +31,10 @@ reqwest = "0.12.15"
 regex = "1.11.1"
 tantivy = "0.22.0"
 thiserror = "2.0"
-natural-tts = { version = "0.2.0", features = ["gtts", "tts-rs"] }
-flate2 = "1.1.0"
+natural-tts = { version = "0.2.1", features = ["gtts", "tts-rs"] }
 kalosm-sound = {version ="0.4.0"}
 rodio = "0.20.1"
 derive_builder = { version = "0.20.2"}
-sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio-rustls"] }
 uuid = { version = "1.16.0", features = ["v4", "v7"] }
 getset = "0.1.5"
 clipboard-rs = "0.2.4"

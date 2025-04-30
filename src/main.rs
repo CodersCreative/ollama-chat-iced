@@ -16,9 +16,8 @@ pub mod style;
 pub mod update;
 pub mod utils;
 pub mod view;
-// pub mod database;
 
-use crate::{save::Save, sidebar::chats::SideChats};
+use crate::save::Save;
 use call::{Call, CallMessage};
 use chats::{
     chat::{Chat, ChatBuilder},

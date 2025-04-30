@@ -1,26 +1,11 @@
-use crate::{
-    common::Id,
-    style::{self},
-    utils::{convert_image, get_path_assets},
-    Message,
-};
+use crate::{utils::convert_image, Message};
 use derive_builder::Builder;
 use getset::{Getters, Setters};
-use iced::{
-    alignment::{Horizontal, Vertical},
-    widget::{
-        button, column, container, image, markdown, row,
-        scrollable::{self, Direction, Scrollbar},
-        svg, text, text_editor, Button,
-    },
-    Padding, Theme,
-};
-use iced::{Element, Length};
+use iced::Element;
+use iced::{widget::markdown, Theme};
 use ollama_rs::generation::{chat::ChatMessage, tools::ToolCall};
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::SystemTime};
-
-use super::message::ChatsMessage;
 
 #[derive(Builder, Serialize, Deserialize, Debug, Clone, Getters, Setters)]
 pub struct Chat {

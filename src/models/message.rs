@@ -1,6 +1,5 @@
-use iced::Task;
-
 use crate::{common::Id, ChatApp, Message};
+use iced::Task;
 
 #[derive(Debug, Clone)]
 pub enum ModelsMessage {

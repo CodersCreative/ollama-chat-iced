@@ -1,24 +1,21 @@
-use std::{path::PathBuf, sync::Arc};
-
-use cli_clipboard::{ClipboardContext, ClipboardProvider};
-use iced::{widget::text_editor, Task};
-use kalosm_sound::MicInput;
-use rodio::buffer::SamplesBuffer;
-
-use crate::{
-    common::Id,
-    llm::{run_ollama, run_ollama_multi, Tools},
-    prompts::view::get_command_input,
-    sound::{get_audio, transcribe},
-    ChatApp, Message,
-};
-
 use super::{
     chat::{Chat, ChatBuilder},
     tree::Reason,
     view::State,
     TooledOptions, CHATS_FILE,
 };
+use crate::{
+    common::Id,
+    llm::{run_ollama_multi, Tools},
+    prompts::view::get_command_input,
+    sound::{get_audio, transcribe},
+    ChatApp, Message,
+};
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
+use iced::{widget::text_editor, Task};
+use kalosm_sound::MicInput;
+use rodio::buffer::SamplesBuffer;
+use std::{path::PathBuf, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub enum ChatsMessage {

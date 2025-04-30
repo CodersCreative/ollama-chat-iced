@@ -1,16 +1,13 @@
-use std::str::FromStr;
-
+use super::message::ModelsMessage;
+use crate::{common::Id, style, ChatApp, Message};
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{button, column, container, row, text},
     Element, Length,
 };
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use url::Url;
-
-use crate::{common::Id, style, ChatApp, Message};
-
-use super::message::ModelsMessage;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TempInfo {
@@ -109,13 +106,6 @@ impl ModelInfo {
             .padding(5)
             .style(style::container::side_bar)
             .into()
-    }
-
-    fn search_format(&self) -> String {
-        format!(
-            "{}, {:?}, {}, {:?}",
-            self.name, self.tags, self.author, self.categories
-        )
     }
 }
 

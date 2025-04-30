@@ -1,8 +1,6 @@
-use iced::Task;
-
-use crate::{common::Id, llm::delete_model, ChatApp, Message};
-
 use super::{values::OptionKey, SETTINGS_FILE};
+use crate::{common::Id, llm::delete_model, ChatApp, Message};
+use iced::Task;
 
 #[derive(Debug, Clone)]
 pub enum OptionMessage {

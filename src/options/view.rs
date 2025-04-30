@@ -1,12 +1,10 @@
+use super::{message::OptionMessage, values::OptionKey};
+use crate::{common::Id, style, utils::get_path_assets, ChatApp, Message};
 use iced::{
     widget::{button, column, combo_box, container, row, svg, text},
     Element, Padding,
 };
 use serde::{Deserialize, Serialize};
-
-use crate::{common::Id, style, utils::get_path_assets, ChatApp, Message};
-
-use super::{message::OptionMessage, values::OptionKey};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Options(pub String, pub Option<OptionKey>);

@@ -1,9 +1,11 @@
+use crate::{chats::SavedChat, PREVIEW_LEN};
 use base64_stream::ToBase64Reader;
 use color_art::Color as Colour;
 use iced::Color;
 use image::ImageFormat;
 use ollama_rs::generation::images::Image;
 use rand::Rng;
+use rodio::{Decoder, OutputStream, Sink};
 use std::{
     env,
     io::{self, Write},
@@ -16,10 +18,6 @@ use std::{
     path::Path,
 };
 use text_splitter::TextSplitter;
-
-use rodio::{Decoder, OutputStream, Sink};
-
-use crate::{chats::SavedChat, PREVIEW_LEN};
 
 pub fn play_wav_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let (_stream, stream_handle) = OutputStream::try_default()?;

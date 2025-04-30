@@ -1,5 +1,7 @@
-use std::str::FromStr;
-
+use super::{message::PromptsMessage, Prompt, SavedPrompts};
+use crate::{
+    chats::message::ChatsMessage, common::Id, style, utils::get_path_assets, ChatApp, Message,
+};
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
@@ -8,13 +10,8 @@ use iced::{
     },
     Element, Length, Renderer, Theme,
 };
+use std::str::FromStr;
 use url::Url;
-
-use crate::{
-    chats::message::ChatsMessage, common::Id, style, utils::get_path_assets, ChatApp, Message,
-};
-
-use super::{message::PromptsMessage, Prompt, SavedPrompts};
 
 impl SavedPrompts {
     pub fn input_view(&self, input: &str, id: &Id, selected: Option<usize>) -> Element<Message> {

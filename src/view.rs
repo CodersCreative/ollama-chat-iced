@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::chats::view::Chats;
 use crate::common::Id;
 use crate::download::Download;
@@ -11,6 +9,7 @@ use crate::sidebar::chats::SideChats;
 use crate::sidebar::SideBarState;
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::Theme;
+use std::collections::HashMap;
 
 #[derive(Getters, Setters, MutGetters, CopyGetters)]
 pub struct View {

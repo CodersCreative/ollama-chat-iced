@@ -1,3 +1,5 @@
+use super::message::ChatsMessage;
+use super::TooledOptions;
 use crate::common::Id;
 use crate::prompts::view::get_command_input;
 use crate::start::{self, Section};
@@ -16,9 +18,6 @@ use iced::widget::{
 };
 use iced::{Element, Length, Padding, Theme};
 use std::{path::PathBuf, sync::Arc};
-
-use super::message::ChatsMessage;
-use super::TooledOptions;
 
 #[derive(Debug, Getters, Setters, MutGetters, CopyGetters)]
 pub struct Chats {

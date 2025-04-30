@@ -1,11 +1,9 @@
+use super::{message::ModelsMessage, model::ModelInfo};
+use crate::{common::Id, style, ChatApp, Message};
 use iced::{
     widget::{column, container, keyed_column, scrollable, text_input},
     Element, Length, Renderer, Theme,
 };
-
-use crate::{common::Id, style, ChatApp, Message};
-
-use super::{message::ModelsMessage, model::ModelInfo};
 
 #[derive(Debug, Clone)]
 pub struct Models(pub Option<String>, pub String, pub Vec<ModelInfo>);

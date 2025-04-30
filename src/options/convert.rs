@@ -1,6 +1,5 @@
-use ollama_rs::models::ModelOptions as GenerationOptions;
-
 use super::*;
+use ollama_rs::models::ModelOptions as GenerationOptions;
 
 impl ModelOptions {
     pub fn get_key_index(&self, key: OptionKey) -> usize {

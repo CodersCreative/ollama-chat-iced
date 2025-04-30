@@ -2,7 +2,6 @@ pub mod view;
 
 use super::chat::Chat;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChatNode {

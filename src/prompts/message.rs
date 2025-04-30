@@ -1,8 +1,6 @@
-use iced::{widget::text_editor, Task};
-
-use crate::{common::Id, ChatApp, Message};
-
 use super::{view::Edit, Prompt, PromptBuilder, SavedPrompts, PROMPTS_PATH};
+use crate::{common::Id, ChatApp, Message};
+use iced::{widget::text_editor, Task};
 
 #[derive(Debug, Clone)]
 pub enum PromptsMessage {

@@ -1,3 +1,11 @@
+use super::{ChatNode, Reason};
+use crate::{
+    chats::{chat::Role, message::ChatsMessage},
+    common::Id,
+    style,
+    utils::get_path_assets,
+    Message,
+};
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
@@ -7,17 +15,6 @@ use iced::{
     },
     Element, Length, Padding, Theme,
 };
-use ollama_rs::history::ChatHistory;
-
-use crate::{
-    chats::{chat::Role, message::ChatsMessage},
-    common::Id,
-    style,
-    utils::get_path_assets,
-    Message,
-};
-
-use super::{ChatNode, Reason};
 
 impl ChatNode {
     pub fn view_editing<'a>(

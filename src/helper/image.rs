@@ -1,7 +1,6 @@
+use crate::{chats::message::ChatsMessage, common::Id, ChatApp, Message};
 use iced::Task;
 use std::path::PathBuf;
-
-use crate::{chats::message::ChatsMessage, common::Id, ChatApp, Message};
 
 const IMAGE_FORMATS: &[&str] = &[
     "bmp", "dds", "ff", "gif", "hdr", "ico", "jpeg", "jpg", "exr", "png", "pnm", "qoi", "tga",
