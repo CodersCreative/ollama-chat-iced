@@ -68,19 +68,19 @@ impl ChatsMessage {
     }
 
     pub fn handle(&self, id: Id, app: &mut ChatApp) -> Task<Message> {
-        let get_saved_id = || -> Option<Id>{
-            if let Some(chat) = app.main_view.chats().get(&id){
+        let get_saved_id = || -> Option<Id> {
+            if let Some(chat) = app.main_view.chats().get(&id) {
                 Some(chat.saved_chat().clone())
-            }else{
+            } else {
                 None
             }
         };
 
         match self {
             Self::Regenerate(index) => {
-                let saved_id = match get_saved_id(){
+                let saved_id = match get_saved_id() {
                     Some(x) => x,
-                    None => return Task::none()
+                    None => return Task::none(),
                 };
 
                 if let Some(chat) = app.chats.0.get_mut(&saved_id) {
@@ -96,7 +96,7 @@ impl ChatsMessage {
 
                     if let Some(node) = parent {
                         node.selected_child_index = Some(node.children.len());
-                        
+
                         for child in node.children.iter_mut() {
                             if child.reason.is_none() {
                                 child.reason = Some(Reason::Sibling);
@@ -197,9 +197,9 @@ impl ChatsMessage {
             }
 
             Self::ChangePath(index, next) => {
-                let saved_id = match get_saved_id(){
+                let saved_id = match get_saved_id() {
                     Some(x) => x,
-                    None => return Task::none()
+                    None => return Task::none(),
                 };
                 let mut mk = Vec::new();
 
@@ -245,9 +245,9 @@ impl ChatsMessage {
                 Task::none()
             }
             Self::Edit(m) => {
-                let saved_id = match get_saved_id(){
+                let saved_id = match get_saved_id() {
                     Some(x) => x,
-                    None => return Task::none()
+                    None => return Task::none(),
                 };
                 if let Some(index) = app
                     .chats
@@ -266,7 +266,7 @@ impl ChatsMessage {
                         }
                     });
                     app.main_view.update_chat(&id, |chat| {
-                        if let Some(chat) = chat{
+                        if let Some(chat) = chat {
                             chat.set_edit(text_editor::Content::with_text(
                                 app.chats
                                     .0
@@ -285,16 +285,17 @@ impl ChatsMessage {
                 Task::none()
             }
             Self::SaveEdit => {
-                let saved_id = match get_saved_id(){
+                let saved_id = match get_saved_id() {
                     Some(x) => x,
-                    None => return Task::none()
+                    None => return Task::none(),
                 };
                 let mut mk = Vec::new();
 
                 if let Some(edit) = app.main_view.edits().get(&id) {
                     if let Some(chat) = app.chats.0.get_mut(&saved_id) {
-                        if let Some(node) = chat.chats.get_node_mut_from_index(edit.clone()){
-                            node.chat.set_content(app.main_view.chats().get(&id).unwrap().edit().text());
+                        if let Some(node) = chat.chats.get_node_mut_from_index(edit.clone()) {
+                            node.chat
+                                .set_content(app.main_view.chats().get(&id).unwrap().edit().text());
                         }
                         mk = chat.to_mk();
                         app.chats.save(CHATS_FILE);
@@ -494,7 +495,7 @@ impl ChatsMessage {
 
                 let mut tools = &Vec::new();
                 if let Some(x) = app.chats.0.get_mut(&saved_id) {
-                    if let Some(parent) = x.chats.get_last_parent_mut(){
+                    if let Some(parent) = x.chats.get_last_parent_mut() {
                         parent.selected_child_index = Some(0);
                     }
                     x.chats.add_chat(chat.clone(), None);

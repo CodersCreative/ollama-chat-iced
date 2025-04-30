@@ -15,7 +15,10 @@ pub enum OptionMessage {
 
 impl OptionMessage {
     pub fn handle<'a>(&'a self, key: Id, app: &'a mut ChatApp) -> Task<Message> {
-        let model = app.main_view.options().get(&key).unwrap().0.clone();
+        let model = match app.main_view.options().get(&key) {
+            Some(x) => x.0.clone(),
+            None => return Task::none(),
+        };
 
         let mut get_indexes = |x: &OptionKey| -> (usize, usize) {
             let m_index = app.options.get_create_model_options_index(model.clone());
@@ -41,13 +44,10 @@ impl OptionMessage {
                 Task::none()
             }
             Self::DeleteModel => {
-                let model = app
-                    .main_view
-                    .options()
-                    .get(&key)
-                    .unwrap()
-                    .model()
-                    .to_string();
+                let model = match app.main_view.options().get(&key) {
+                    Some(x) => x.model().to_string(),
+                    None => return Task::none(),
+                };
 
                 if let Ok(i) = app.logic.models.binary_search(&model) {
                     app.logic.models.remove(i);
@@ -77,11 +77,14 @@ impl OptionMessage {
 
                 app.options.update_gen_option(m_index, index, |option| {
                     if let Ok(num) = option.temp.parse::<f32>() {
-                        let mut value = option.num_value.unwrap();
-                        value.0 = num;
-                        option.num_value = Some(value);
+                        if let Some(mut value) = option.num_value {
+                            value.0 = num;
+                            option.num_value = Some(value);
+                        }
                     } else {
-                        option.temp = option.num_value.unwrap().0.to_string()
+                        if let Some(value) = option.num_value {
+                            option.temp = value.0.to_string();
+                        }
                     }
                 });
 
@@ -93,11 +96,12 @@ impl OptionMessage {
                 let (m_index, index) = get_indexes(&x);
 
                 app.options.update_gen_option(m_index, index, |option| {
-                    let mut value = option.num_value.unwrap();
-                    value.0 = value.1;
-                    option.num_value = Some(value);
-                    option.temp = value.1.to_string();
-                    option.bool_value = false;
+                    if let Some(mut value) = option.num_value {
+                        value.0 = value.1;
+                        option.num_value = Some(value);
+                        option.temp = value.1.to_string();
+                        option.bool_value = false;
+                    }
                 });
 
                 app.options.save(SETTINGS_FILE);
@@ -106,14 +110,20 @@ impl OptionMessage {
             Self::ClickedOption(x) => {
                 if let Some(y) = &app.main_view.options().get(&key).unwrap().1 {
                     if x == y {
-                        app.main_view
-                            .update_option(&key, |x| x.unwrap().set_key(None));
+                        app.main_view.update_option(&key, |x| {
+                            if let Some(x) = x {
+                                x.set_key(None)
+                            }
+                        });
                         return Task::none();
                     }
                 }
 
-                app.main_view
-                    .update_option(&key, |y| y.unwrap().set_key(Some(x.clone())));
+                app.main_view.update_option(&key, |y| {
+                    if let Some(y) = y {
+                        y.set_key(Some(x.clone()))
+                    }
+                });
                 Task::none()
             }
         }

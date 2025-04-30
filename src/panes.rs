@@ -262,12 +262,21 @@ impl PaneMessage {
 impl Panes {
     pub fn new_window(app: &mut ChatApp, grid_pane: pane_grid::Pane, pane: Pane) {
         let value = match pane {
-            Pane::Settings(_) => Pane::new_settings(app, app.logic.models.first().unwrap().clone()),
+            Pane::Settings(_) => {
+                if let Some(model) = app.logic.models.first() {
+                    Pane::new_settings(app, model.to_string())
+                } else {
+                    return;
+                }
+            }
             Pane::Chat(x) => {
-                let id = Id::new();
-                app.main_view
-                    .add_to_chats(id.clone(), app.main_view.chats().get(&x).unwrap().clone());
-                Pane::Chat(id)
+                if let Some(chat) = app.main_view.chats().get(&x) {
+                    let id = Id::new();
+                    app.main_view.add_to_chats(id.clone(), chat.clone());
+                    Pane::Chat(id)
+                } else {
+                    return;
+                }
             }
             Pane::Models(_) => Pane::new_models(app),
             Pane::Prompts(_) => Pane::new_prompts(app),

@@ -21,7 +21,9 @@ impl PromptsMessage {
 
         app.main_view.update_prompts(|prompts| {
             for prompt in prompts {
-                prompt.1.prompts = app.prompts.search(&prompt.1.input).unwrap();
+                if let Ok(search) = app.prompts.search(&prompt.1.input) {
+                    prompt.1.prompts = search;
+                }
             }
         });
     }
@@ -33,8 +35,9 @@ impl PromptsMessage {
                     if let Some(prompt) = prompt {
                         if prompt.expand != Some(x.clone()) {
                             prompt.expand = Some(x.clone());
-                            let p = prompt.prompts.iter().find(|y| &y.command == x).unwrap();
-                            prompt.edit = Edit::from(p.clone());
+                            if let Some(p) = prompt.prompts.iter().find(|y| &y.command == x) {
+                                prompt.edit = Edit::from(p.clone());
+                            }
                         } else {
                             prompt.expand = None;
                         }
@@ -77,7 +80,9 @@ impl PromptsMessage {
                 app.main_view.update_prompt(&key, |prompt| {
                     if let Some(prompt) = prompt {
                         prompt.input = x.clone();
-                        prompt.prompts = app.prompts.search(&prompt.input).unwrap();
+                        if let Ok(search) = app.prompts.search(&prompt.input) {
+                            prompt.prompts = search;
+                        }
                     }
                 });
                 Task::none()

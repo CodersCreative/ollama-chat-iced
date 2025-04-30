@@ -204,7 +204,7 @@ impl View {
                     (&app.main_view.side_chats().chats)
                         .iter()
                         .filter(|(_, x)| x
-                            .get_time()
+                            .time()
                             .duration_since(SystemTime::now())
                             .unwrap_or(Duration::new(0, 0))
                             .as_secs()
@@ -216,7 +216,7 @@ impl View {
                     (&app.main_view.side_chats().chats)
                         .iter()
                         .filter(|(_, x)| x
-                            .get_time()
+                            .time()
                             .duration_since(SystemTime::now())
                             .unwrap_or(Duration::new(0, 0))
                             .as_secs()

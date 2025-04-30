@@ -117,11 +117,10 @@ impl CallMessage {
                 if let Some(_) = app.panes.focus {
                     app.call.model = x.clone();
                     let _ = app.options.get_create_model_options_index(x.clone());
-                    Panes::new_window(
-                        app,
-                        app.panes.focus.unwrap().clone(),
-                        crate::panes::Pane::Call,
-                    );
+
+                    if let Some(focus) = app.panes.focus {
+                        Panes::new_window(app, focus, crate::panes::Pane::Call);
+                    }
 
                     app.call.state = State::Listening;
                     return listen();

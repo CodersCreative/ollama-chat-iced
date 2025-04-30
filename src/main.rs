@@ -173,19 +173,21 @@ impl ChatApp {
                 app.chats.0.insert(Id::new(), SavedChat::default());
             }
             app.regenerate_side_chats();
-            let saved = app.chats.0.iter().last().unwrap();
-            let first = (
-                Id::new(),
-                Chats::new(
-                    vec![models.first().unwrap().clone()],
-                    saved.0.clone(),
-                    saved.1.to_mk(),
-                ),
-            );
+            if let Some(saved) = app.chats.0.iter().last() {
+                let first = (
+                    Id::new(),
+                    Chats::new(
+                        vec![models.first().unwrap().clone()],
+                        saved.0.clone(),
+                        saved.1.to_mk(),
+                    ),
+                );
 
-            app.panes = Panes::new(panes::Pane::Chat(first.0.clone()));
-            app.panes.last_chat = first.0.clone();
-            app.main_view.add_to_chats(first.0, first.1);
+                app.panes = Panes::new(panes::Pane::Chat(first.0.clone()));
+                app.panes.last_chat = first.0.clone();
+                app.main_view.add_to_chats(first.0, first.1);
+            }
+
             app.options
                 .get_create_model_options_index(models.first().unwrap().clone());
         }
@@ -341,8 +343,6 @@ impl ChatApp {
                                 chat.add_markdown(mk.clone());
                             });
                     });
-
-                    // self.chats.save(CHATS_FILE);
                 } else if let Ok(ChatProgress::Finished) = progress {
                     self.chats.save(CHATS_FILE);
                     self.regenerate_side_chats();

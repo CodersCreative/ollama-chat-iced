@@ -303,12 +303,9 @@ impl SavedPrompts {
                 _ => continue,
             };
 
-            let prompt = self
-                .prompts
-                .iter()
-                .find(|(_, x)| x.command == command)
-                .unwrap();
-            prompts.push(prompt.1.clone());
+            if let Some(prompt) = self.prompts.iter().find(|(_, x)| x.command == command) {
+                prompts.push(prompt.1.clone());
+            }
         }
 
         Ok(prompts)

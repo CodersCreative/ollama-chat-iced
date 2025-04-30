@@ -27,7 +27,9 @@ impl ModelsMessage {
                 app.main_view.update_model(&key, |model| {
                     if let Some(model) = model {
                         model.1 = x.clone();
-                        model.2 = app.model_info.search(&model.1).unwrap();
+                        if let Ok(search) = app.model_info.search(&model.1) {
+                            model.2 = search;
+                        }
                     }
                 });
                 Task::none()
@@ -35,7 +37,9 @@ impl ModelsMessage {
             Self::Search => {
                 app.main_view.update_model(&key, |model| {
                     if let Some(model) = model {
-                        model.2 = app.model_info.search(&model.1).unwrap();
+                        if let Ok(search) = app.model_info.search(&model.1) {
+                            model.2 = search;
+                        }
                     }
                 });
                 Task::none()

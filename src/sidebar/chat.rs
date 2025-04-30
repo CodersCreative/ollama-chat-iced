@@ -1,14 +1,17 @@
 use crate::chats::message::ChatsMessage;
 use crate::common::Id;
 use crate::{style, ChatApp, Message};
+use getset::{Getters, Setters};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{button, row, text};
 use iced::{Element, Length, Padding};
 use std::time::SystemTime;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Getters, Setters)]
 pub struct SideChat {
+    #[getset(get = "pub")]
     title: String,
+    #[getset(get = "pub")]
     time: SystemTime,
 }
 
@@ -17,18 +20,10 @@ impl SideChat {
         return Self { title, time };
     }
 
-    pub fn get_title(&self) -> &str {
-        &self.title
-    }
-
-    pub fn get_time(&self) -> &SystemTime {
-        &self.time
-    }
-
     pub fn view(&self, app: &ChatApp, id: &Id) -> Element<Message> {
         let style = style::button::side_bar_chat;
         let title = button(
-            text(self.get_title())
+            text(self.title())
                 .align_x(Horizontal::Center)
                 .align_y(Vertical::Center)
                 .width(Length::Fill)
