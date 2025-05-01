@@ -22,6 +22,7 @@ pub enum Pane {
     Chat(Id),
     Models(Id),
     Prompts(Id),
+    #[cfg(feature = "voice")]
     Call,
     NoModel,
 }
@@ -51,6 +52,7 @@ pub struct Panes {
     pub focus: Option<pane_grid::Pane>,
     pub panes: pane_grid::State<Pane>,
     pub pick: Option<(pane_grid::Pane, Pane)>,
+    #[cfg(feature = "voice")]
     pub call: Option<pane_grid::Pane>,
     pub last_chat: Id,
     pub created: usize,
@@ -69,6 +71,7 @@ impl Panes {
         Self {
             focus: Some(focus.clone()),
             panes,
+            #[cfg(feature = "voice")]
             call: None,
             pick: None,
             created: 1,
@@ -174,6 +177,7 @@ impl PaneMessage {
                 if app.panes.created > 1 {
                     if let Some((_, sibling)) = app.panes.panes.close(*pane) {
                         app.panes.focus = Some(sibling);
+                        #[cfg(feature = "voice")]
                         if let Some(call) = app.panes.call {
                             if call == *pane {
                                 app.panes.call = None;
@@ -207,6 +211,7 @@ impl PaneMessage {
                     }
                     Pane::Models(_) => Pane::new_models(app),
                     Pane::Prompts(_) => Pane::new_prompts(app),
+                    #[cfg(feature = "voice")]
                     Pane::Call => Pane::Call,
                     _ => Pane::NoModel,
                 };
@@ -242,6 +247,7 @@ impl PaneMessage {
 
                 if let Some((p, _)) = result {
                     app.panes.focus = Some(p);
+                    #[cfg(feature = "voice")]
                     if let Pane::Call = pane {
                         app.panes.call = Some(p);
                     }
@@ -280,10 +286,12 @@ impl Panes {
             }
             Pane::Models(_) => Pane::new_models(app),
             Pane::Prompts(_) => Pane::new_prompts(app),
+            #[cfg(feature = "voice")]
             Pane::Call => Pane::Call,
             _ => Pane::NoModel,
         };
 
+        #[cfg(feature = "voice")]
         if let Pane::Call = pane {
             if let Some(_) = app.panes.call {
                 return;
@@ -300,6 +308,7 @@ impl Panes {
 
             if let Some((p, _)) = result {
                 app.panes.focus = Some(p);
+                #[cfg(feature = "voice")]
                 if let Pane::Call = pane {
                     app.panes.call = Some(p);
                 }
@@ -335,6 +344,7 @@ impl Panes {
                     pick,
                     app.main_view.options().get(x).unwrap().view(x.clone(), app),
                 ),
+                #[cfg(feature = "voice")]
                 Pane::Call => {
                     add_to_window(app, pane, state.clone(), "Call", pick, app.call.view(app))
                 }

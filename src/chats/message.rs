@@ -4,16 +4,19 @@ use super::{
     view::State,
     TooledOptions, CHATS_FILE,
 };
+#[cfg(feature = "voice")]
+use crate::sound::{get_audio, transcribe};
 use crate::{
     common::Id,
     llm::{run_ollama_multi, Tools},
     prompts::view::get_command_input,
-    sound::{get_audio, transcribe},
     ChatApp, Message,
 };
 use cli_clipboard::{ClipboardContext, ClipboardProvider};
 use iced::{widget::text_editor, Task};
+#[cfg(feature = "voice")]
 use kalosm_sound::MicInput;
+#[cfg(feature = "voice")]
 use rodio::buffer::SamplesBuffer;
 use std::{path::PathBuf, sync::Arc};
 
@@ -36,7 +39,9 @@ pub enum ChatsMessage {
     ChangeStart(String),
     ChangeChat(Id),
     NewChat,
+    #[cfg(feature = "voice")]
     Listen,
+    #[cfg(feature = "voice")]
     Convert(Option<SamplesBuffer<f32>>),
     Listened(Result<String, String>),
     PickedImage(Result<Vec<PathBuf>, String>),
@@ -316,6 +321,7 @@ impl ChatsMessage {
                 });
                 Task::none()
             }
+            #[cfg(feature = "voice")]
             Self::Listen => {
                 let mic = MicInput::default();
                 let stream = mic.stream();
@@ -330,6 +336,7 @@ impl ChatsMessage {
                     Message::Chats(ChatsMessage::Convert(x), id)
                 })
             }
+            #[cfg(feature = "voice")]
             Self::Convert(x) => {
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {

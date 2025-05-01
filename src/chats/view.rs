@@ -246,13 +246,28 @@ impl Chats {
                 .on_press(Message::StopGenerating(self.saved_chat().clone()))
                 .into(),
             false => {
-                let call = btn("call.svg").on_press(Message::Call(
-                    crate::call::CallMessage::StartCall(self.models[0].clone()),
-                ));
-                let record = btn("record.svg").on_press(Message::Chats(ChatsMessage::Listen, id));
-                let send = btn("send.svg").on_press(Message::Chats(ChatsMessage::Submit, id));
+                let send = btn("send.svg")
+                    .on_press(Message::Chats(ChatsMessage::Submit, id))
+                    .into();
 
-                row![record, call, send].into()
+                let mut widgets: Vec<Element<Message>> = vec![send];
+
+                #[cfg(feature = "voice")]
+                {
+                    let call = btn("call.svg")
+                        .on_press(Message::Call(crate::call::CallMessage::StartCall(
+                            self.models[0].clone(),
+                        )))
+                        .into();
+                    let record = btn("record.svg")
+                        .on_press(Message::Chats(ChatsMessage::Listen, id))
+                        .into();
+                    widgets.push(call);
+                    widgets.push(record);
+                }
+
+                widgets.reverse();
+                row(widgets).into()
             }
         };
 

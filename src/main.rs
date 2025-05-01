@@ -1,3 +1,4 @@
+#[cfg(feature = "voice")]
 pub mod call;
 pub mod chats;
 pub mod common;
@@ -10,6 +11,7 @@ pub mod panes;
 pub mod prompts;
 pub mod save;
 pub mod sidebar;
+#[cfg(feature = "voice")]
 pub mod sound;
 pub mod start;
 pub mod style;
@@ -18,6 +20,7 @@ pub mod utils;
 pub mod view;
 
 use crate::save::Save;
+#[cfg(feature = "voice")]
 use call::{Call, CallMessage};
 use chats::{
     chat::{Chat, ChatBuilder},
@@ -78,6 +81,7 @@ pub struct ChatApp {
     pub logic: Logic,
     pub panes: Panes,
     pub tts: NaturalTts,
+    #[cfg(feature = "voice")]
     pub call: Call,
     pub potrait: bool,
 }
@@ -85,6 +89,7 @@ pub struct ChatApp {
 #[derive(Debug, Clone)]
 pub enum Message {
     Pane(PaneMessage),
+    #[cfg(feature = "voice")]
     Call(CallMessage),
     Models(ModelsMessage, Id),
     Prompts(PromptsMessage, Id),
@@ -135,6 +140,7 @@ impl ChatApp {
                 .tts_model(TtsModel::default())
                 .build()
                 .unwrap(),
+            #[cfg(feature = "voice")]
             call: Call::new("".to_string()),
             potrait: false,
         }
@@ -213,6 +219,7 @@ impl ChatApp {
             Message::SaveToClipboard(x) => clipboard::write::<Message>(x.clone()),
             Message::Chats(x, i) => x.handle(i, self),
             Message::Pane(x) => x.handle(self),
+            #[cfg(feature = "voice")]
             Message::Call(x) => x.handle(self),
             Message::URLClicked(x) => {
                 open::that_in_background(x.to_string());

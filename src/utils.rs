@@ -5,6 +5,7 @@ use iced::Color;
 use image::ImageFormat;
 use ollama_rs::generation::images::Image;
 use rand::Rng;
+#[cfg(feature = "voice")]
 use rodio::{Decoder, OutputStream, Sink};
 use std::{
     env,
@@ -19,6 +20,7 @@ use std::{
 };
 use text_splitter::TextSplitter;
 
+#[cfg(feature = "voice")]
 pub fn play_wav_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let (_stream, stream_handle) = OutputStream::try_default()?;
     let sink = Sink::try_new(&stream_handle)?;
