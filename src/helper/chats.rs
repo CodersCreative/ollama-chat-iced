@@ -1,14 +1,28 @@
 use crate::chats::message::ChatsMessage;
+use crate::chats::view::State;
 use crate::chats::SavedChat;
 use crate::{common::Id, sidebar::chats::SideChats};
 use crate::{ChatApp, Message};
 use iced::Task;
 
 impl ChatsMessage {
-    pub fn new_chat(app: &mut ChatApp, _id: Id) -> Task<Message> {
-        app.chats.0.insert(Id::new(), SavedChat::default());
+    pub fn new_chat(app: &mut ChatApp, id: Id) -> Task<Message> {
+        let saved = Id::new();
+        app.chats.0.insert(saved.clone(), SavedChat::default());
         app.regenerate_side_chats();
+        Self::changed_saved(app, id, saved);
         Task::none()
+    }
+
+    pub fn changed_saved(app: &mut ChatApp, id: Id, saved: Id) {
+        app.main_view.update_chat(&id, |chat| {
+            if let Some(chat) = chat {
+                if chat.state() == &State::Idle {
+                    chat.set_markdown(app.chats.0.get(&saved).unwrap().to_mk());
+                    chat.set_saved_chat(saved);
+                }
+            }
+        });
     }
 }
 

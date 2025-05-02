@@ -160,17 +160,17 @@ impl ChatTree {
         let mut path = Vec::new();
 
         while let Some(child_index) = current_node.selected_child_index {
-            if !path.is_empty() {
-                if (path.len() - 1) >= index {
-                    break;
-                }
-            }
-
             if let Some(next_node) = current_node.children.get(child_index) {
                 current_node = next_node;
                 path.push(child_index);
             } else {
                 break;
+            }
+
+            if !path.is_empty() {
+                if (path.len() - 1) >= index {
+                    break;
+                }
             }
         }
         path
@@ -191,6 +191,22 @@ impl ChatTree {
         path
     }
 
+    pub fn get_full_history_nodes(&self) -> Vec<&ChatNode> {
+        let mut history = Vec::new();
+        let mut current_node = &self.root;
+        history.push(current_node);
+
+        while let Some(child_index) = current_node.selected_child_index {
+            if let Some(next_node) = current_node.children.get(child_index) {
+                history.push(&next_node);
+                current_node = next_node;
+            } else {
+                break;
+            }
+        }
+
+        history
+    }
     pub fn get_full_history(&self) -> Vec<&Chat> {
         let mut history = Vec::new();
         let mut current_node = &self.root;
@@ -205,6 +221,25 @@ impl ChatTree {
             }
         }
         history
+    }
+}
+
+impl Into<ChatTree> for Vec<&Chat> {
+    fn into(self) -> ChatTree {
+        let mut tree = ChatTree::new(self[0].clone());
+        let mut current_node = &mut tree.root;
+        for node in self.iter().skip(1) {
+            current_node.children.push(ChatNode {
+                chat: (*node).clone(),
+                reason: None,
+                children: Vec::new(),
+                selected_child_index: None,
+            });
+            current_node.selected_child_index = Some(0);
+            current_node = &mut current_node.children[0];
+        }
+
+        tree
     }
 }
 pub struct ChatTreeIterator<'a> {

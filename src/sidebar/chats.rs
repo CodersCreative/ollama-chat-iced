@@ -8,30 +8,27 @@ use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct SideChats {
-    pub chats: HashMap<Id, SideChat>,
+    pub chats: Vec<SideChat>,
 }
 
 impl SideChats {
     pub fn new(titles: Vec<(Id, String, SystemTime)>) -> Self {
-        let mut chats = HashMap::new();
+        let mut chats: Vec<SideChat> = titles
+            .iter()
+            .map(|(id, title, time)| SideChat::new(id.clone(), title.clone(), time.clone()))
+            .collect();
 
-        titles.iter().for_each(|(id, title, time)| {
-            chats.insert(id.clone(), SideChat::new(title.clone(), time.clone()));
-        });
+        chats.sort_by(|a, b| b.time().cmp(a.time()));
+
         return Self { chats };
     }
 
-    pub fn new_with_chats(chats: HashMap<Id, SideChat>) -> Self {
+    pub fn new_with_chats(chats: Vec<SideChat>) -> Self {
         Self { chats }
     }
 
     pub fn view(&self, app: &ChatApp) -> Element<Message> {
-        let chats: Vec<Element<Message>> = self
-            .chats
-            .iter()
-            .map(|(i, x)| x.view(app, i))
-            .clone()
-            .collect();
+        let chats: Vec<Element<Message>> = self.chats.iter().map(|x| x.view(app)).clone().collect();
         return scrollable(column(chats).spacing(2)).into();
     }
 }

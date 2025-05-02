@@ -15,7 +15,7 @@ use ollama_rs::{
     Ollama,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{sync::Arc, usize};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -60,7 +60,8 @@ pub async fn run_ollama_multi(
     options: ModelOptions,
     ollama: Arc<Mutex<Ollama>>,
     saved_id: Id,
-) -> Result<(ChatMessage, Id, String), String> {
+    index: usize,
+) -> Result<(ChatMessage, Id, String, usize), String> {
     let o = ollama.lock().await;
     let model = options.model().to_string();
 
@@ -69,7 +70,7 @@ pub async fn run_ollama_multi(
     let result = o.send_chat_messages(request).await;
 
     if let Ok(result) = result {
-        return Ok((result.message, saved_id, model));
+        return Ok((result.message, saved_id, model, index));
     }
 
     return Err("Failed to run ollama.".to_string());
@@ -162,6 +163,15 @@ pub fn run_ollama_stream(
     })
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ChatStreamId(pub Id, pub usize, pub usize);
+
+impl ChatStreamId {
+    pub fn new(saved: Id, parent: usize, index: usize) -> Self {
+        return Self(saved, parent, index);
+    }
+}
+
 #[derive(Debug)]
 pub struct ChatStream {
     pub state: State,
@@ -178,11 +188,11 @@ pub enum State {
 }
 
 pub fn chat(
-    id: Id,
+    id: ChatStreamId,
     chats: Arc<Vec<ChatMessage>>,
     options: ModelOptions,
     ollama: Arc<Mutex<Ollama>>,
-) -> iced::Subscription<(Id, Result<ChatProgress, String>)> {
+) -> iced::Subscription<(ChatStreamId, Result<ChatProgress, String>)> {
     Subscription::run_with_id(
         id,
         run_ollama_stream(chats, options, ollama).map(move |progress| (id, progress)),
@@ -190,8 +200,8 @@ pub fn chat(
 }
 
 impl ChatStream {
-    pub fn new(app: &ChatApp, id: Id, option: usize) -> Self {
-        if let Some(chat) = app.chats.0.get(&id) {
+    pub fn new(app: &ChatApp, id: ChatStreamId, option: usize) -> Self {
+        if let Some(chat) = app.chats.0.get(&id.0) {
             Self {
                 state: State::Generating(ChatMessage::new(
                     ollama_rs::generation::chat::MessageRole::Assistant,
@@ -230,7 +240,7 @@ impl ChatStream {
         }
     }
 
-    pub fn subscription(&self, app: &ChatApp, id: Id) -> Subscription<Message> {
+    pub fn subscription(&self, app: &ChatApp, id: ChatStreamId) -> Subscription<Message> {
         match self.state {
             State::Generating(_) => chat(
                 id,

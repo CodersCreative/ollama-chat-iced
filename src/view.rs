@@ -1,4 +1,3 @@
-use crate::chats::view::Chats;
 use crate::common::Id;
 use crate::download::Download;
 use crate::llm::ChatStream;
@@ -7,6 +6,7 @@ use crate::options::view::Options;
 use crate::prompts::view::Prompts;
 use crate::sidebar::chats::SideChats;
 use crate::sidebar::SideBarState;
+use crate::{chats::view::Chats, llm::ChatStreamId};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::Theme;
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ pub struct View {
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     downloads: HashMap<Id, Download>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
-    chat_streams: HashMap<Id, ChatStream>,
+    chat_streams: HashMap<ChatStreamId, ChatStream>,
 }
 
 impl View {
@@ -145,13 +145,13 @@ impl View {
         f(&mut self.downloads);
     }
 
-    pub fn add_chat_stream(&mut self, id: Id, stream: ChatStream) {
+    pub fn add_chat_stream(&mut self, id: ChatStreamId, stream: ChatStream) {
         self.chat_streams.insert(id, stream);
     }
 
     pub fn update_chat_streams<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut HashMap<Id, ChatStream>),
+        F: FnMut(&mut HashMap<ChatStreamId, ChatStream>),
     {
         f(&mut self.chat_streams);
     }
@@ -179,7 +179,7 @@ impl View {
         });
     }
 
-    pub fn remove_chat_stream_by_id(&mut self, id: &Id) {
+    pub fn remove_chat_stream_by_id(&mut self, id: &ChatStreamId) {
         self.update_chat_streams(|streams| {
             let _ = streams.remove(id);
         });

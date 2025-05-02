@@ -121,6 +121,15 @@ impl ChatNode {
         );
 
         widgets.push(
+            btn("branch.svg")
+                .on_press(Message::Chats(
+                    ChatsMessage::Branch(index.clone()),
+                    id.clone(),
+                ))
+                .into(),
+        );
+
+        widgets.push(
             btn("copy.svg")
                 .on_press(Message::SaveToClipboard(self.chat.content().to_string()))
                 .into(),

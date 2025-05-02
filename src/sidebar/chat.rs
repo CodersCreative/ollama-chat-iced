@@ -10,17 +10,19 @@ use std::time::SystemTime;
 #[derive(Debug, Clone, Getters, Setters)]
 pub struct SideChat {
     #[getset(get = "pub")]
+    id: Id,
+    #[getset(get = "pub")]
     title: String,
     #[getset(get = "pub")]
     time: SystemTime,
 }
 
 impl SideChat {
-    pub fn new(title: String, time: SystemTime) -> Self {
-        return Self { title, time };
+    pub fn new(id: Id, title: String, time: SystemTime) -> Self {
+        return Self { id, title, time };
     }
 
-    pub fn view(&self, app: &ChatApp, id: &Id) -> Element<Message> {
+    pub fn view(&self, app: &ChatApp) -> Element<Message> {
         let style = style::button::side_bar_chat;
         let title = button(
             text(self.title())
@@ -31,7 +33,7 @@ impl SideChat {
         )
         .style(style)
         .on_press(Message::Chats(
-            ChatsMessage::ChangeChat(id.clone()),
+            ChatsMessage::ChangeChat(self.id.clone()),
             app.panes.last_chat,
         ))
         .width(Length::FillPortion(7))
@@ -45,7 +47,7 @@ impl SideChat {
                 .size(20),
         )
         .style(style)
-        .on_press(Message::RemoveChat(id.clone()))
+        .on_press(Message::RemoveChat(self.id.clone()))
         .width(Length::FillPortion(1))
         .padding(Padding::from(10));
         row![title, remove,].padding(5).into()
