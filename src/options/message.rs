@@ -35,6 +35,7 @@ impl OptionMessage {
                 Task::none()
             }
             Self::ChangeModel(x) => {
+                app.options.get_create_model_options_index(x.clone());
                 app.main_view.update_option(&key, |option| {
                     if let Some(option) = option {
                         option.set_model(x.clone());
