@@ -2,6 +2,7 @@
 pub mod call;
 pub mod chats;
 pub mod common;
+pub mod database;
 pub mod download;
 pub mod helper;
 pub mod llm;
@@ -30,6 +31,7 @@ use chats::{
     SavedChat, SavedChats, CHATS_FILE,
 };
 use common::Id;
+use database::new_conn;
 use download::{Download, DownloadProgress};
 use iced::{
     clipboard, event,
@@ -57,6 +59,7 @@ const PREVIEW_LEN: usize = 25;
 const MIN_WIDTH: f32 = 300.0;
 
 fn main() -> iced::Result {
+    let _ = new_conn().unwrap();
     let font = Font {
         family: iced::font::Family::Name("Roboto"),
         style: iced::font::Style::Normal,

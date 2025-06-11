@@ -40,3 +40,4 @@ derive_builder = { version = "0.20.2"}
 uuid = { version = "1.16.0", features = ["v4", "v7"] }
 getset = "0.1.5"
 clipboard-rs = "0.2.4"
+rusqlite = { version = "0.35.0", features = ["bundled"] }

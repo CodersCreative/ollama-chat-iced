@@ -1,10 +1,13 @@
 pub mod view;
 
+use crate::common::Id;
+
 use super::chat::Chat;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChatNode {
+    pub id: Id,
     pub chat: Chat,
     pub reason: Option<Reason>,
     pub children: Vec<ChatNode>,
@@ -18,6 +21,17 @@ pub enum Reason {
     Sibling,
 }
 
+impl Reason {
+    pub fn from_index(i: usize) -> Option<Self> {
+        match i {
+            0 => Some(Self::Regeneration),
+            1 => Some(Self::Regeneration),
+            2 => Some(Self::Sibling),
+            _ => None,
+        }
+    }
+}
+
 impl ChatNode {
     pub fn add_chat(&mut self, chat: Chat, reason: Option<Reason>) {
         if let None = self.selected_child_index {
@@ -25,6 +39,7 @@ impl ChatNode {
         }
 
         let new_node = ChatNode {
+            id: Id::new(),
             chat,
             reason,
             children: Vec::new(),
@@ -44,6 +59,7 @@ impl ChatTree {
     pub fn new(root_chat: Chat) -> Self {
         ChatTree {
             root: ChatNode {
+                id: Id::new(),
                 chat: root_chat,
                 reason: None,
                 children: Vec::new(),
@@ -230,6 +246,7 @@ impl Into<ChatTree> for Vec<&Chat> {
         let mut current_node = &mut tree.root;
         for node in self.iter().skip(1) {
             current_node.children.push(ChatNode {
+                id: Id::new(),
                 chat: (*node).clone(),
                 reason: None,
                 children: Vec::new(),
