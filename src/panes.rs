@@ -348,18 +348,20 @@ impl Panes {
                 Pane::Call => {
                     add_to_window(app, pane, state.clone(), "Call", pick, app.call.view(app))
                 }
-                Pane::Chat(x) => add_to_window(
-                    app,
-                    pane,
-                    state.clone(),
-                    "Chat",
-                    pick,
-                    app.main_view
-                        .chats()
-                        .get(x)
-                        .unwrap()
-                        .chat_view(app, x.clone()),
-                ),
+                Pane::Chat(x) => {
+                    if let Some(y) = app.main_view.chats().get(x) {
+                        add_to_window(
+                            app,
+                            pane,
+                            state.clone(),
+                            "Chat",
+                            pick,
+                            y.chat_view(app, x.clone()),
+                        )
+                    } else {
+                        text("Please install Ollama to use this app.").into()
+                    }
+                }
                 Pane::Models(x) => add_to_window(
                     app,
                     pane,

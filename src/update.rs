@@ -28,7 +28,7 @@ impl Logic {
         return o
             .list_local_models()
             .await
-            .unwrap()
+            .unwrap_or(Vec::new())
             .iter()
             .map(|x| x.name.clone())
             .collect::<Vec<String>>();

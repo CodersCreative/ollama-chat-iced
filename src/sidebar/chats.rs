@@ -3,7 +3,6 @@ use crate::common::Id;
 use crate::{ChatApp, Message};
 use iced::widget::{column, scrollable};
 use iced::Element;
-use std::collections::HashMap;
 use std::time::SystemTime;
 
 #[derive(Clone)]

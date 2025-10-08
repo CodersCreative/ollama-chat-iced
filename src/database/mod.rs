@@ -1,7 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
-use rusqlite::{params, Connection, Result as Rusult};
-use uuid::Uuid;
+use rusqlite::{Connection, Result as Rusult};
 
 use crate::{
     chats::{

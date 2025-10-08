@@ -1,5 +1,4 @@
 use crate::chats::message::ChatsMessage;
-use crate::common::Id;
 use crate::utils::get_path_assets;
 use crate::view::View;
 use crate::{style, ChatApp, Message};
@@ -11,7 +10,6 @@ use iced::{
     },
     Element, Length, Padding, Renderer, Theme,
 };
-use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
 pub mod chat;

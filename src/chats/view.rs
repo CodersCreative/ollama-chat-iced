@@ -384,7 +384,7 @@ impl Chats {
                 .iter()
                 .map(|x| {
                     button(
-                        text(x.clone())
+                        text(*x)
                             .color(colour())
                             .align_x(Horizontal::Left)
                             .width(Length::Fill)

@@ -24,11 +24,8 @@ use crate::save::Save;
 #[cfg(feature = "voice")]
 use call::{Call, CallMessage};
 use chats::{
-    chat::{Chat, ChatBuilder},
-    message::ChatsMessage,
-    tree::Reason,
-    view::Chats,
-    SavedChat, SavedChats, CHATS_FILE,
+    chat::ChatBuilder, message::ChatsMessage, tree::Reason, view::Chats, SavedChat, SavedChats,
+    CHATS_FILE,
 };
 use common::Id;
 use database::new_conn;
@@ -40,6 +37,7 @@ use iced::{
 };
 use llm::{ChatProgress, ChatStreamId};
 use models::{message::ModelsMessage, SavedModels};
+#[cfg(feature = "sound")]
 use natural_tts::{
     models::{gtts::GttsModel, tts_rs::TtsModel},
     NaturalTts, NaturalTtsBuilder,
@@ -83,6 +81,7 @@ pub struct ChatApp {
     pub chats: SavedChats,
     pub logic: Logic,
     pub panes: Panes,
+    #[cfg(feature = "sound")]
     pub tts: NaturalTts,
     #[cfg(feature = "voice")]
     pub call: Call,
@@ -137,6 +136,7 @@ impl ChatApp {
             options: SavedOptions::default(),
             prompts: SavedPrompts::default(),
             chats: SavedChats::default(),
+            #[cfg(feature = "sound")]
             tts: NaturalTtsBuilder::default()
                 .default_model(natural_tts::Model::Gtts)
                 .gtts_model(GttsModel::default())
@@ -186,7 +186,11 @@ impl ChatApp {
                 let first = (
                     Id::new(),
                     Chats::new(
-                        vec![models.first().unwrap().clone()],
+                        if let Some(model) = models.first() {
+                            vec![model.clone()]
+                        } else {
+                            Vec::new()
+                        },
                         saved.0.clone(),
                         saved.1.to_mk(),
                     ),
@@ -196,9 +200,12 @@ impl ChatApp {
                 app.panes.last_chat = first.0.clone();
                 app.main_view.add_to_chats(first.0, first.1);
             }
-
-            app.options
-                .get_create_model_options_index(models.first().unwrap().clone());
+            if let Some(model) = models.first() {
+                app.options.get_create_model_options_index(model.clone());
+            }
+        } else {
+            let model = panes::Pane::new_models(&mut app);
+            app.panes = Panes::new(model);
         }
 
         (app, Task::none())

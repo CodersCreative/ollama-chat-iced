@@ -7,6 +7,7 @@ use model::{ModelInfo, TempInfo};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
 use std::{error::Error, fs::File, io::Read};
 use tantivy::collector::TopDocs;
 use tantivy::index::Index;
@@ -112,10 +113,19 @@ impl SaveableModels {
         let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
 
         let resp = tokio_runtime.block_on(reqwest::get(
-            "https://raw.githubusercontent.com/Jeffser/Alpaca/main/src/available_models.json",
+            "https://raw.githubusercontent.com/Jeffser/Alpaca/main/src/ollama_models.py",
         ))?;
+
         let content = tokio_runtime.block_on(resp.text())?;
-        let data: HashMap<String, TempInfo> = serde_json::from_str(&content)?;
+        let content = extract_models(&content).unwrap();
+
+        let data: HashMap<String, TempInfo> = serde_json::from_str(&content).unwrap();
+
+        let mut descriptions = HashMap::new();
+
+        for d in data.iter() {
+            descriptions.insert(d.0.to_string(), d.1.description.clone());
+        }
 
         let models: Vec<ModelInfo> = data
             .into_iter()
@@ -125,10 +135,6 @@ impl SaveableModels {
                 info
             })
             .collect();
-
-        let resp = tokio_runtime.block_on(reqwest::get("https://raw.githubusercontent.com/Jeffser/Alpaca/main/src/available_models_descriptions.py"))?;
-        let content = tokio_runtime.block_on(resp.text())?;
-        let descriptions = extract_model_description(&content)?;
 
         let models = Self {
             models,
@@ -187,43 +193,20 @@ impl SavedModels {
     }
 }
 
-fn extract_model_description(python_code: &str) -> Result<HashMap<String, String>, String> {
-    let mut result = HashMap::new();
+fn extract_models(python_code: &str) -> Result<String, String> {
+    let code_without_prefix = format!(
+        "{{{}",
+        python_code
+            .trim()
+            .split("OLLAMA_MODELS = {")
+            .last()
+            .unwrap()
+            .replace(" ", "")
+            .replace("\n", "")
+            .replace("_(\"", "\"")
+            .replace("\")", "\"")
+            .replace(",}", "}")
+    );
 
-    let code_without_prefix = python_code
-        .trim()
-        .trim_start_matches("descriptions = {")
-        .trim_end_matches("}");
-
-    let pairs: Vec<&str> = code_without_prefix.split(",\n").map(|s| s.trim()).collect();
-
-    let key_regex = Regex::new(r"'([^']+)'").map_err(|e| e.to_string())?;
-    let value_regex = Regex::new(r#"_\("([^"]+)"\)"#).map_err(|e| e.to_string())?;
-
-    for pair in pairs {
-        if pair.is_empty() {
-            continue;
-        }
-
-        let key_capture = key_regex.captures(pair);
-        let value_capture = value_regex.captures(pair);
-
-        if let (Some(key_caps), Some(value_caps)) = (key_capture, value_capture) {
-            let key = key_caps
-                .get(1)
-                .map_or("", |m| m.as_str())
-                .trim()
-                .to_string();
-            let value = value_caps
-                .get(1)
-                .map_or("", |m| m.as_str())
-                .trim()
-                .to_string();
-            result.insert(key, value);
-        } else {
-            return Err(format!("Failed to parse pair: {}", pair));
-        }
-    }
-
-    Ok(result)
+    Ok(code_without_prefix)
 }

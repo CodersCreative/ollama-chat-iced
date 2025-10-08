@@ -9,13 +9,14 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use url::Url;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TempInfo {
     url: String,
     tags: Vec<Vec<String>>,
     author: String,
     categories: Vec<String>,
     languages: Vec<String>,
+    pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]

@@ -1,24 +1,19 @@
 use super::{
     chat::{Chat, ChatBuilder, Role},
-    tree::{ChatNode, Reason},
+    tree::Reason,
     view::State,
-    SavedChat, TooledOptions, CHATS_FILE,
+    SavedChat, CHATS_FILE,
 };
 #[cfg(feature = "voice")]
 use crate::sound::{get_audio, transcribe};
-use crate::{
-    common::Id,
-    llm::{run_ollama_multi, ChatStreamId, Tools},
-    prompts::view::get_command_input,
-    ChatApp, Message,
-};
+use crate::{common::Id, llm::ChatStreamId, prompts::view::get_command_input, ChatApp, Message};
 use cli_clipboard::{ClipboardContext, ClipboardProvider};
 use iced::{widget::text_editor, Task};
 #[cfg(feature = "voice")]
 use kalosm_sound::MicInput;
 #[cfg(feature = "voice")]
 use rodio::buffer::SamplesBuffer;
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub enum ChatsMessage {
@@ -450,12 +445,14 @@ impl ChatsMessage {
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {
                         if chat.state() == &State::Idle {
-                            let model = chat
-                                .models()
-                                .first()
-                                .unwrap_or(app.logic.models.first().unwrap())
-                                .to_string();
-                            chat.models_mut().push(model);
+                            if !chat.models().is_empty() || !app.logic.models.is_empty() {
+                                let model = chat
+                                    .models()
+                                    .first()
+                                    .unwrap_or(app.logic.models.first().unwrap())
+                                    .to_string();
+                                chat.models_mut().push(model);
+                            }
                         }
                     }
                 });

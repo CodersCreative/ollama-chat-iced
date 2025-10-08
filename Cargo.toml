@@ -1,6 +1,6 @@
 [package]
 name = "ochat"
-version = "0.3.5"
+version = "0.3.6"
 edition = "2021"
 authors = ["Creative Coders <officialccoders@gmail.com>"]
 description = "A chatbot application that uses Ollama AIs."
@@ -12,7 +12,8 @@ categories = ["gui", "accessibility"]
 license = "MIT"
 
 [features]
-voice = ["dep:kalosm-sound", "dep:rodio"]
+voice = ["dep:kalosm-sound", "dep:rodio", "sound"]
+sound = ["dep:natural-tts"]
 
 [dependencies]
 ollama-rs = { version = "0.3.0", features = ["headers", "stream", "tool-implementations"] }
@@ -33,7 +34,7 @@ reqwest = "0.12.15"
 regex = "1.11.1"
 tantivy = "0.22.0"
 thiserror = "2.0"
-natural-tts = { version = "0.2.1", features = ["gtts", "tts-rs"] }
+natural-tts = { version = "0.2.1", features = ["gtts", "tts-rs"], optional = true}
 kalosm-sound = {version ="0.4.0", optional = true}
 rodio = {version = "0.20.1", optional = true}
 derive_builder = { version = "0.20.2"}
