@@ -40,3 +40,4 @@ getset = "0.1.6"
 clipboard-rs = "0.3.0"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 schemars = "1.1.0"
+pyo3 = { version = "0.27.1", features = ["auto-initialize"] }
