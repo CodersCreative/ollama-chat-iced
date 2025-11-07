@@ -39,3 +39,4 @@ uuid = { version = "1.18.1", features = ["v4", "v7"] }
 getset = "0.1.6"
 clipboard-rs = "0.3.0"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+schemars = "1.1.0"

@@ -1,15 +1,23 @@
-use crate::{common::Id, options::ModelOptions, tools::SavedTool, ChatApp, Message};
+use crate::{
+    common::Id,
+    options::ModelOptions,
+    tools::{get_builtins, SavedTool, SavedToolFunc, ToolType},
+    ChatApp, Message,
+};
 use iced::{
     futures::{SinkExt, Stream, StreamExt},
     stream::try_channel,
     Subscription,
 };
 use ollama_rs::{
-    generation::chat::{request::ChatMessageRequest, ChatMessage},
+    generation::{
+        chat::{request::ChatMessageRequest, ChatMessage},
+        tools::ToolInfo,
+    },
     Ollama,
 };
 use serde::{Deserialize, Serialize};
-use std::{sync::Arc, usize};
+use std::{collections::HashMap, sync::Arc, usize};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -56,9 +64,17 @@ pub fn run_ollama_stream(
 ) -> impl Stream<Item = Result<ChatProgress, String>> {
     try_channel(1, |mut output| async move {
         let ollama = ollama.lock().await;
+        let tools = tools.to_vec();
+
         let request = ChatMessageRequest::new(options.model().to_string(), chats.to_vec())
             .options(options.into())
-            .tools(tools.to_vec().into_iter().map(|x| x.into()).collect());
+            .tools(
+                tools
+                    .iter()
+                    .map(|x| Into::<Vec<ToolInfo>>::into(x))
+                    .flatten()
+                    .collect(),
+            );
 
         let mut y = ollama
             .send_chat_messages_stream(request)
@@ -76,7 +92,48 @@ pub fn run_ollama_stream(
             .await;
 
         while let Some(Ok(response)) = y.next().await {
-            // let _ = response.message.tool_calls;
+            if !response.message.tool_calls.is_empty() {
+                for call in response.message.tool_calls.iter() {
+                    let call_name = &call.function.name;
+                    let tool: Vec<(usize, SavedToolFunc)> = tools
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, x)| {
+                            x.functions
+                                .iter()
+                                .find(|x| x.name.trim() == call_name.trim())
+                                .map(|x| (i, x.clone()))
+                        })
+                        .collect();
+
+                    if tool.is_empty() {
+                        continue;
+                    }
+
+                    let tool = tool.first().unwrap();
+
+                    match tool.1.tool_type {
+                        ToolType::Builtin => {
+                            if let Some(func) = get_builtins().get(tool.1.name.trim()) {
+                                let mut args = HashMap::new();
+                                for param in func.params() {
+                                    if let Some(arg) = call.function.arguments.get(param.0.trim()) {
+                                        args.insert(param.0.trim().to_string(), arg.clone());
+                                    }
+                                }
+                                let _ = func.run(args);
+                            }
+                        }
+                        ToolType::Python => {
+                            todo!()
+                        }
+                        ToolType::Lua => {
+                            todo!()
+                        }
+                    }
+                }
+            }
+
             let _ = output
                 .send(ChatProgress::Generating(response.message))
                 .await;

@@ -265,7 +265,7 @@ impl SavedPrompts {
             index_writer.add_document(doc!(
                 command => prompt.command.as_str(),
                 content => prompt.content.as_str(),
-                title => prompt.title.replace("-", " "),
+                title => prompt.title.replace("-", " ").replace("_", " "),
             ))?;
         }
 
