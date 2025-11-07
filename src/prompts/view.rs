@@ -5,16 +5,20 @@ use crate::{
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, container, keyed_column, row, scrollable, svg, text, text_editor,
+        button, column, container, keyed_column, markdown, row, scrollable, svg, text, text_editor,
         text_input, vertical_space, Space,
     },
     Element, Length, Renderer, Theme,
 };
 use std::str::FromStr;
-use url::Url;
 
 impl SavedPrompts {
-    pub fn input_view(&self, input: &str, id: &Id, selected: Option<usize>) -> Element<Message> {
+    pub fn input_view<'a>(
+        &'a self,
+        input: &str,
+        id: &Id,
+        selected: Option<usize>,
+    ) -> Element<'a, Message> {
         if let Some(input) = get_command_input(input) {
             if let Ok(prompts) = self.search(input) {
                 return keyed_column(prompts.iter().enumerate().map(|(i, prompt)| {
@@ -133,7 +137,7 @@ Utilize {{CLIPBOARD}} variable to have them replaced with clipboard content.\nPr
             .size(10)
             .width(Length::Fill)
             .align_y(Vertical::Center)
-            .align_x(Horizontal::Left)).style(style::button::not_chosen_chat).padding(6).on_press(Message::URLClicked(Url::from_str("https://openwebui.com/prompts").unwrap()));
+            .align_x(Horizontal::Left)).style(style::button::not_chosen_chat).padding(6).on_press(Message::URLClicked(markdown::Url::from_str("https://openwebui.com/prompts").unwrap()));
 
         container(column![
             input,

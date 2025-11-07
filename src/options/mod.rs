@@ -195,7 +195,7 @@ impl GenOption {
         }
     }
 
-    fn with_type(&mut self, num_type: NumType) {
+    fn _with_type(&mut self, num_type: NumType) {
         self.num_type = num_type;
     }
 

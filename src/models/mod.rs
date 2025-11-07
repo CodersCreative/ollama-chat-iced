@@ -4,15 +4,13 @@ pub mod view;
 
 use crate::utils::get_path_settings;
 use model::{ModelInfo, TempInfo};
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::{error::Error, fs::File, io::Read};
 use tantivy::collector::TopDocs;
 use tantivy::index::Index;
 use tantivy::query::QueryParser;
-use tantivy::schema::{Field, OwnedValue, Schema, STORED, TEXT};
+use tantivy::schema::{Field, Schema, Value, STORED, TEXT};
 use tantivy::{doc, DocAddress, IndexWriter, Score, TantivyDocument};
 
 const MODELS_PATH: &str = "models.json";
@@ -179,9 +177,11 @@ impl SavedModels {
 
         for (_score, doc_address) in top_docs {
             let retrieved_doc = searcher.doc::<TantivyDocument>(doc_address)?;
-
-            let model: String = match retrieved_doc.get_first(self.data.1[0].clone()) {
-                Some(OwnedValue::Str(x)) => x.clone(),
+            let model: String = match retrieved_doc
+                .get_first(self.data.1[0].clone())
+                .map(|x| x.as_str())
+            {
+                Some(Some(x)) => x.to_string(),
                 _ => continue,
             };
 

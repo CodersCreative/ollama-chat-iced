@@ -7,7 +7,7 @@ use super::{
 #[cfg(feature = "voice")]
 use crate::sound::{get_audio, transcribe};
 use crate::{common::Id, llm::ChatStreamId, prompts::view::get_command_input, ChatApp, Message};
-use cli_clipboard::{ClipboardContext, ClipboardProvider};
+use clipboard_rs::{Clipboard, ClipboardContext};
 use iced::{widget::text_editor, Task};
 #[cfg(feature = "voice")]
 use kalosm_sound::MicInput;
@@ -49,8 +49,8 @@ pub enum ChatsMessage {
 impl ChatsMessage {
     fn set_picked_prompt(app: &mut ChatApp, x: &str, id: &Id) {
         let clip = {
-            if let Ok(mut clip_ctx) = ClipboardContext::new() {
-                clip_ctx.get_contents().unwrap_or(String::new())
+            if let Ok(clip_ctx) = ClipboardContext::new() {
+                clip_ctx.get_text().unwrap_or(String::new())
             } else {
                 String::new()
             }

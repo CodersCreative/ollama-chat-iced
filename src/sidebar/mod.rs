@@ -23,7 +23,7 @@ pub enum SideBarState {
 }
 
 impl View {
-    pub fn side_bar<'a>(&'a self, app: &'a ChatApp) -> Element<Message> {
+    pub fn side_bar<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
         match app.main_view.side_state() {
             SideBarState::Shown => self.full_side_bar(app),
             SideBarState::Hidden => self.hidden_side_bar(app),
@@ -31,7 +31,7 @@ impl View {
         }
     }
 
-    pub fn hidden_side_bar<'a>(&'a self, app: &'a ChatApp) -> Element<Message> {
+    pub fn hidden_side_bar<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
         let show = Self::hide_button("panel_open.svg").width(Length::Fill);
 
         let settings = Self::settings_button().width(Length::Fill);
@@ -55,7 +55,7 @@ impl View {
         }
     }
 
-    pub fn settings_side_bar<'a>(&'a self, app: &'a ChatApp) -> Element<Message> {
+    pub fn settings_side_bar<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
         container(column![
             self.header("Settings".to_string()),
             container(
@@ -124,7 +124,7 @@ impl View {
         .on_press(Message::Chats(ChatsMessage::NewChat, app.panes.last_chat))
     }
 
-    fn header<'a>(&'a self, title: String) -> Element<Message> {
+    fn header<'a>(&'a self, title: String) -> Element<'a, Message> {
         let palette = self.theme().palette();
 
         let hide = Self::hide_button("panel_close.svg").width(Length::FillPortion(2));
@@ -149,7 +149,7 @@ impl View {
         .into();
     }
 
-    pub fn full_side_bar<'a>(&'a self, app: &'a ChatApp) -> Element<Message> {
+    pub fn full_side_bar<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
         let new_button = button(
             text("New Chat")
                 .align_x(Horizontal::Center)
@@ -188,7 +188,7 @@ impl View {
             .into()
     }
 
-    pub fn view_chats<'a>(&'a self, app: &'a ChatApp) -> Element<Message> {
+    pub fn view_chats<'a>(&'a self, app: &'a ChatApp) -> Element<'a, Message> {
         if app.main_view.side_chats().chats.len() >= 100 {
             let view = |chats: Vec<&'a SideChat>| -> Element<Message> {
                 let chats: Vec<Element<Message>> =

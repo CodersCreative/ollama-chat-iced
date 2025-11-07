@@ -2,12 +2,11 @@ use super::message::ModelsMessage;
 use crate::{common::Id, style, ChatApp, Message};
 use iced::{
     alignment::{Horizontal, Vertical},
-    widget::{button, column, container, row, text},
+    widget::{button, column, container, markdown, row, text},
     Element, Length,
 };
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use url::Url;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TempInfo {
@@ -77,7 +76,9 @@ impl ModelInfo {
             widgets.push(
                 button(text(&self.url).size(16))
                     .style(style::button::chosen_chat)
-                    .on_press(Message::URLClicked(Url::from_str(&self.url).unwrap()))
+                    .on_press(Message::URLClicked(
+                        markdown::Url::from_str(&self.url).unwrap(),
+                    ))
                     .into(),
             );
             for tag in &self.tags {

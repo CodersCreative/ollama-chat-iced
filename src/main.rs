@@ -42,7 +42,7 @@ use natural_tts::{
     models::{gtts::GttsModel, tts_rs::TtsModel},
     NaturalTts, NaturalTtsBuilder,
 };
-use ollama_rs::{generation::chat::ChatMessage, history::ChatHistory};
+use ollama_rs::generation::chat::ChatMessage;
 use options::{message::OptionMessage, SavedOptions};
 use panes::PaneMessage;
 use panes::Panes;
@@ -122,7 +122,7 @@ impl Default for ChatApp {
 }
 
 impl ChatApp {
-    fn new() -> Self {
+    fn _new() -> Self {
         Self::new_with_save(Save::default())
     }
 

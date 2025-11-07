@@ -1,10 +1,8 @@
 use crate::{chats::SavedChat, PREVIEW_LEN};
 use base64_stream::ToBase64Reader;
-use color_art::Color as Colour;
 use iced::Color;
 use image::ImageFormat;
 use ollama_rs::generation::images::Image;
-use rand::Rng;
 #[cfg(feature = "voice")]
 use rodio::{Decoder, OutputStream, Sink};
 use std::{
@@ -90,9 +88,9 @@ pub fn split_text(text: String) -> Vec<String> {
 }
 
 pub fn split_text_with_len(len: usize, text: String) -> Vec<String> {
-    let splitter = TextSplitter::default().with_trim_chunks(true);
+    let splitter = TextSplitter::new(len);
 
-    let chunks = splitter.chunks(&text, len).collect::<Vec<&str>>();
+    let chunks = splitter.chunks(&text).collect::<Vec<&str>>();
 
     return chunks
         .iter()
@@ -101,7 +99,7 @@ pub fn split_text_with_len(len: usize, text: String) -> Vec<String> {
 }
 
 pub fn generate_id() -> i32 {
-    let num = rand::thread_rng().gen_range(0..100000);
+    let num = rand::random_range(0..100000);
     return num;
 }
 
@@ -151,16 +149,7 @@ pub fn get_preview(chat: &SavedChat) -> (String, SystemTime) {
 }
 
 pub fn lighten_colour(color: Color, amt: f32) -> Color {
-    let colour = color.into_rgba8();
-    let colour = Colour::from_rgba(colour[0], colour[1], colour[2], color.a.into())
-        .unwrap()
-        .lighten(amt.into());
-    return Color::from_rgba(
-        colour.red() as f32 / 255.0,
-        colour.green() as f32 / 255.0,
-        colour.blue() as f32 / 255.0,
-        colour.alpha() as f32,
-    );
+    darken_colour(color, -amt)
 }
 
 pub fn change_alpha(color: Color, amt: f32) -> Color {
@@ -174,14 +163,72 @@ pub fn change_alpha(color: Color, amt: f32) -> Color {
 }
 
 pub fn darken_colour(color: Color, amt: f32) -> Color {
-    let colour = color.into_rgba8();
-    let colour = Colour::from_rgba(colour[0], colour[1], colour[2], color.a.into())
-        .unwrap()
-        .darken(amt.into());
+    let colour: Vec<f32> = color.into_rgba8().into_iter().map(|x| x as f32).collect();
+    let mut colour: Vec<f32> = rgb2hsl(&colour);
+    colour[2] = (colour[2] - amt).min(1.0).max(0.0);
+    let colour = hsl2rgb(&colour);
     return Color::from_rgba(
-        colour.red() as f32 / 255.0,
-        colour.green() as f32 / 255.0,
-        colour.blue() as f32 / 255.0,
-        colour.alpha() as f32,
+        colour[0] / 255.0,
+        colour[1] / 255.0,
+        colour[2] / 255.0,
+        color.a.into(),
     );
+}
+
+// HSL and RGB Conversions from https://github.com/JiatLn/color-art/blob/main/src/conversion/hsl.rs
+
+fn hsl2rgb(color: &[f32]) -> Vec<f32> {
+    let h = color[0];
+    let s = color[1];
+    let l = color[2];
+
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let x = c * (1.0 - (((h / 60.0) % 2.0) - 1.0).abs());
+    let m = l - c / 2.0;
+
+    let rgb = match h {
+        h if (0.0..60.0).contains(&h) => vec![c, x, 0.0],
+        h if (60.0..120.0).contains(&h) => vec![x, c, 0.0],
+        h if (120.0..180.0).contains(&h) => vec![0.0, c, x],
+        h if (180.0..240.0).contains(&h) => vec![0.0, x, c],
+        h if (240.0..300.0).contains(&h) => vec![x, 0.0, c],
+        h if (300.0..360.0).contains(&h) => vec![c, 0.0, x],
+        _ => panic!(),
+    };
+
+    rgb.iter().map(|x| (x + m) * 255.0).collect()
+}
+
+fn rgb2hsl(color: &[f32]) -> Vec<f32> {
+    let color: Vec<f32> = color.into_iter().map(|x| x / 255.0).collect();
+    let r = color[0];
+    let g = color[1];
+    let b = color[2];
+
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+
+    let mut h = 0.0;
+    let mut s = 0.0;
+    let l = (max + min) / 2.0;
+
+    let delta = max - min;
+
+    if delta != 0.0 {
+        h = match max {
+            x if x == r => 60.0 * (((g - b) / delta) % 6.0),
+            x if x == g => 60.0 * ((b - r) / delta + 2.0),
+            x if x == b => 60.0 * ((r - g) / delta + 4.0),
+            _ => panic!(),
+        };
+
+        if h < 0.0 {
+            h += 360.0;
+        }
+
+        s = delta / (1.0 - (2.0 * l - 1.0).abs());
+        s = s.max(0.0).min(1.0);
+    }
+
+    vec![h, s, l]
 }

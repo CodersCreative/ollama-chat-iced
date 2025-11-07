@@ -26,7 +26,7 @@ impl SideChats {
         Self { chats }
     }
 
-    pub fn view(&self, app: &ChatApp) -> Element<Message> {
+    pub fn view<'a>(&'a self, app: &ChatApp) -> Element<'a, Message> {
         let chats: Vec<Element<Message>> = self.chats.iter().map(|x| x.view(app)).clone().collect();
         return scrollable(column(chats).spacing(2)).into();
     }

@@ -67,7 +67,7 @@ impl ChatNode {
             .into()
     }
 
-    fn header(&self, id: &Id, index: &usize) -> Element<Message> {
+    fn header<'a>(&'a self, id: &Id, index: &usize) -> Element<'a, Message> {
         let mut widgets = Vec::new();
 
         let style = match self.chat.role() == &Role::AI {

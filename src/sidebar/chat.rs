@@ -22,7 +22,7 @@ impl SideChat {
         return Self { id, title, time };
     }
 
-    pub fn view(&self, app: &ChatApp) -> Element<Message> {
+    pub fn view<'a>(&'a self, app: &ChatApp) -> Element<'a, Message> {
         let style = style::button::side_bar_chat;
         let title = button(
             text(self.title())

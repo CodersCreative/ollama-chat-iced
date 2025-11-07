@@ -67,7 +67,7 @@ impl Download {
             .into()
     }
 
-    pub fn view(&self, app: &ChatApp, id: Id) -> Element<Message> {
+    pub fn view<'a>(&'a self, app: &ChatApp, id: Id) -> Element<'a, Message> {
         let (per, message) = match &self.state {
             State::Downloading(x, y) => (x.clone(), y.to_string()),
             _ => (100.0, String::new()),

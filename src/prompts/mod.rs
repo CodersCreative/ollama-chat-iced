@@ -20,7 +20,7 @@ use tantivy::{
     collector::TopDocs,
     doc,
     query::QueryParser,
-    schema::{Field, OwnedValue, Schema, STORED, TEXT},
+    schema::{Field, Schema, Value, STORED, TEXT},
     DocAddress, Index, IndexWriter, Score, TantivyDocument,
 };
 use view::Edit;
@@ -52,7 +52,7 @@ impl Prompt {
         id: Id,
         expand: bool,
         edit: &'a Edit,
-    ) -> Element<Message> {
+    ) -> Element<'a, Message> {
         let btn = |file: &str| -> button::Button<'a, Message, Theme, Renderer> {
             button(
                 svg(svg::Handle::from_path(get_path_assets(file.to_string())))
@@ -298,8 +298,11 @@ impl SavedPrompts {
         for (_score, doc_address) in top_docs {
             let retrieved_doc = searcher.doc::<TantivyDocument>(doc_address)?;
 
-            let command: String = match retrieved_doc.get_first(self.data.1[0].clone()) {
-                Some(OwnedValue::Str(x)) => x.clone(),
+            let command: String = match retrieved_doc
+                .get_first(self.data.1[0].clone())
+                .map(|x| x.as_str())
+            {
+                Some(Some(x)) => x.to_string(),
                 _ => continue,
             };
 

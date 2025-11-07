@@ -145,6 +145,7 @@ pub fn run_ollama_stream(
             .map_err(|x| x.to_string())?;
         let _ = output
             .send(ChatProgress::Generating(ChatMessage {
+                thinking: None,
                 role: ollama_rs::generation::chat::MessageRole::Assistant,
                 content: String::new(),
                 images: None,
