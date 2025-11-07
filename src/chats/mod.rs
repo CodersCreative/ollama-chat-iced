@@ -3,8 +3,8 @@ pub mod message;
 pub mod tree;
 pub mod view;
 
+use crate::common::Id;
 use crate::utils::{get_path_settings, get_preview};
-use crate::{common::Id, llm::Tools};
 use chat::{Chat, ChatBuilder, Role};
 use iced::widget::markdown;
 use ollama_rs::generation::chat::ChatMessage;
@@ -76,15 +76,8 @@ impl SavedChats {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SavedChat {
     pub chats: ChatTree,
-    pub tools: Vec<Tools>,
+    pub tools: Vec<Id>,
     pub time: SystemTime,
-    // pub latest_node: Option<NodeId>,
-}
-
-#[derive(Default, Debug)]
-pub struct TooledOptions {
-    pub chats: Vec<ChatMessage>,
-    pub tools: Vec<Tools>,
 }
 
 impl Default for SavedChats {
@@ -119,7 +112,7 @@ impl SavedChat {
             .collect();
     }
 
-    pub fn new_with_chats_tools(chats: ChatTree, tools: Vec<Tools>) -> Self {
+    pub fn new_with_chats_tools(chats: ChatTree, tools: Vec<Id>) -> Self {
         let mut saved = Self::new_with_chats(chats);
         saved.tools = tools;
         saved

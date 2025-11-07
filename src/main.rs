@@ -16,11 +16,12 @@ pub mod sidebar;
 pub mod sound;
 pub mod start;
 pub mod style;
+pub mod tools;
 pub mod update;
 pub mod utils;
 pub mod view;
 
-use crate::save::Save;
+use crate::{save::Save, tools::SavedTools};
 #[cfg(feature = "voice")]
 use call::{Call, CallMessage};
 use chats::{
@@ -78,6 +79,7 @@ pub struct ChatApp {
     pub options: SavedOptions,
     pub model_info: SavedModels,
     pub prompts: SavedPrompts,
+    pub tools: SavedTools,
     pub chats: SavedChats,
     pub logic: Logic,
     pub panes: Panes,
@@ -135,6 +137,7 @@ impl ChatApp {
             model_info: SavedModels::init().unwrap(),
             options: SavedOptions::default(),
             prompts: SavedPrompts::default(),
+            tools: SavedTools::default(),
             chats: SavedChats::default(),
             #[cfg(feature = "sound")]
             tts: NaturalTtsBuilder::default()
@@ -163,6 +166,11 @@ impl ChatApp {
         app.prompts = match SavedPrompts::load(prompts::PROMPTS_PATH) {
             Ok(x) => x,
             Err(_) => SavedPrompts::default(),
+        };
+
+        app.tools = match SavedTools::load(tools::TOOLS_PATH) {
+            Ok(x) => x,
+            Err(_) => SavedTools::default(),
         };
 
         app.chats = match SavedChats::load(chats::CHATS_FILE) {

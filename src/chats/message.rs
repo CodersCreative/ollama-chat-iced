@@ -157,11 +157,19 @@ impl ChatsMessage {
                     });
                 });
 
-                let (chats, tools) = if let Some(chat) = app.chats.0.get_mut(&saved_id) {
+                let (chats, old_tools) = if let Some(chat) = app.chats.0.get(&saved_id) {
                     (chat.get_chat_messages(), chat.tools.clone())
                 } else {
                     (Vec::new(), Vec::new())
                 };
+
+                let mut tools = Vec::new();
+
+                for tool in &old_tools {
+                    if let Some(tool) = app.tools.tools.get(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
 
                 let (chats, tools) = (Arc::new(chats), Arc::new(tools));
 
@@ -548,7 +556,7 @@ impl ChatsMessage {
                     x.set_state(State::Generating);
                 });
 
-                let (chats, tools) = if let Some(x) = app.chats.0.get_mut(&saved_id) {
+                let (chats, old_tools) = if let Some(x) = app.chats.0.get_mut(&saved_id) {
                     if let Some(parent) = x.chats.get_last_mut() {
                         parent.add_chat(chat.clone(), None);
                         let index = parent.children.len() - 1;
@@ -582,6 +590,14 @@ impl ChatsMessage {
                 } else {
                     (Vec::new(), Vec::new())
                 };
+
+                let mut tools = Vec::new();
+
+                for tool in &old_tools {
+                    if let Some(tool) = app.tools.tools.get(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
 
                 let (chats, tools) = (Arc::new(chats), Arc::new(tools));
 

@@ -1,17 +1,11 @@
-use crate::{chats::TooledOptions, common::Id, options::ModelOptions, ChatApp, Message};
+use crate::{common::Id, options::ModelOptions, tools::SavedTool, ChatApp, Message};
 use iced::{
     futures::{SinkExt, Stream, StreamExt},
     stream::try_channel,
     Subscription,
 };
 use ollama_rs::{
-    coordinator::Coordinator,
-    generation::{
-        chat::{request::ChatMessageRequest, ChatMessage},
-        tools::implementations::{
-            Calculator, DDGSearcher, Scraper, SerperSearchTool, StockScraper,
-        },
-    },
+    generation::chat::{request::ChatMessageRequest, ChatMessage},
     Ollama,
 };
 use serde::{Deserialize, Serialize};
@@ -26,33 +20,6 @@ pub enum ChatProgress {
 
 pub fn get_model() -> Ollama {
     return Ollama::default();
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Tools {
-    DuckDuckGo,
-    Serper,
-    Scraper,
-    Finance,
-    Calculator,
-}
-
-pub async fn run_ollama(
-    chats: Vec<ChatMessage>,
-    options: ModelOptions,
-    ollama: Arc<Mutex<Ollama>>,
-) -> Result<ChatMessage, String> {
-    let o = ollama.lock().await;
-
-    let request = ChatMessageRequest::new(options.model().to_string(), chats.to_vec())
-        .options(options.into());
-    let result = o.send_chat_messages(request).await;
-
-    if let Ok(result) = result {
-        return Ok(result.message);
-    }
-
-    return Err("Failed to run ollama.".to_string());
 }
 
 pub async fn run_ollama_multi(
@@ -76,55 +43,6 @@ pub async fn run_ollama_multi(
     return Err("Failed to run ollama.".to_string());
 }
 
-async fn get_coordinator(
-    tooled: Arc<TooledOptions>,
-    options: ModelOptions,
-    ollama: Arc<Mutex<Ollama>>,
-) -> (Coordinator<Vec<ChatMessage>>, Vec<ChatMessage>) {
-    let ollama = ollama.lock().await;
-    let mut coordinator = Coordinator::new(ollama.clone(), options.model().to_string(), Vec::new())
-        .options(options.into());
-
-    let tools = tooled.tools.clone();
-    let chats = tooled.chats.to_vec().clone();
-    drop(tooled);
-    drop(ollama);
-
-    if tools.contains(&Tools::DuckDuckGo) {
-        coordinator = coordinator.add_tool(DDGSearcher::new());
-    } else if tools.contains(&Tools::Serper) {
-        coordinator = coordinator.add_tool(SerperSearchTool {});
-    } else if tools.contains(&Tools::Scraper) {
-        coordinator = coordinator.add_tool(Scraper {});
-    } else if tools.contains(&Tools::Finance) {
-        coordinator = coordinator.add_tool(StockScraper::new());
-    } else if tools.contains(&Tools::Calculator) {
-        coordinator = coordinator.add_tool(Calculator {});
-    }
-
-    (coordinator, chats)
-}
-
-async fn get_message(
-    coordinator: &mut Coordinator<Vec<ChatMessage>>,
-    chats: Vec<ChatMessage>,
-) -> Result<ChatMessage, String> {
-    if let Ok(result) = coordinator.chat(chats).await {
-        return Ok(result.message);
-    }
-
-    return Err("Failed to run ollama.".to_string());
-}
-
-pub async fn run_ollama_tools(
-    tooled: Arc<TooledOptions>,
-    options: ModelOptions,
-    ollama: Arc<Mutex<Ollama>>,
-) -> Result<ChatMessage, String> {
-    let (mut coordinator, chats) = get_coordinator(tooled, options, ollama).await;
-    get_message(&mut coordinator, chats).await
-}
-
 pub async fn delete_model(ollama: Arc<Mutex<Ollama>>, model: String) {
     let o = ollama.lock().await;
     let _ = o.delete_model(model).await;
@@ -132,17 +50,21 @@ pub async fn delete_model(ollama: Arc<Mutex<Ollama>>, model: String) {
 
 pub fn run_ollama_stream(
     chats: Arc<Vec<ChatMessage>>,
+    tools: Arc<Vec<SavedTool>>,
     options: ModelOptions,
     ollama: Arc<Mutex<Ollama>>,
 ) -> impl Stream<Item = Result<ChatProgress, String>> {
     try_channel(1, |mut output| async move {
         let ollama = ollama.lock().await;
         let request = ChatMessageRequest::new(options.model().to_string(), chats.to_vec())
-            .options(options.into());
+            .options(options.into())
+            .tools(tools.to_vec().into_iter().map(|x| x.into()).collect());
+
         let mut y = ollama
             .send_chat_messages_stream(request)
             .await
             .map_err(|x| x.to_string())?;
+
         let _ = output
             .send(ChatProgress::Generating(ChatMessage {
                 thinking: None,
@@ -152,7 +74,9 @@ pub fn run_ollama_stream(
                 tool_calls: Vec::new(),
             }))
             .await;
+
         while let Some(Ok(response)) = y.next().await {
+            // let _ = response.message.tool_calls;
             let _ = output
                 .send(ChatProgress::Generating(response.message))
                 .await;
@@ -178,7 +102,7 @@ pub struct ChatStream {
     pub state: State,
     pub chats: Arc<Vec<ChatMessage>>,
     pub options: ModelOptions,
-    pub tools: Arc<Vec<Tools>>,
+    pub tools: Arc<Vec<SavedTool>>,
 }
 
 #[derive(Debug)]
@@ -191,12 +115,13 @@ pub enum State {
 pub fn chat(
     id: ChatStreamId,
     chats: Arc<Vec<ChatMessage>>,
+    tools: Arc<Vec<SavedTool>>,
     options: ModelOptions,
     ollama: Arc<Mutex<Ollama>>,
 ) -> iced::Subscription<(ChatStreamId, Result<ChatProgress, String>)> {
     Subscription::run_with_id(
         id,
-        run_ollama_stream(chats, options, ollama).map(move |progress| (id, progress)),
+        run_ollama_stream(chats, tools, options, ollama).map(move |progress| (id, progress)),
     )
 }
 
@@ -204,7 +129,7 @@ impl ChatStream {
     pub fn new(
         app: &ChatApp,
         chats: Arc<Vec<ChatMessage>>,
-        tools: Arc<Vec<Tools>>,
+        tools: Arc<Vec<SavedTool>>,
         model: usize,
     ) -> Self {
         Self {
@@ -239,6 +164,7 @@ impl ChatStream {
             State::Generating(_) => chat(
                 id,
                 self.chats.clone(),
+                self.tools.clone(),
                 self.options.clone(),
                 app.logic.ollama.clone(),
             )

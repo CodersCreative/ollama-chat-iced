@@ -1,5 +1,5 @@
 use super::message::ChatsMessage;
-use super::TooledOptions;
+// use super::TooledOptions;
 use crate::common::Id;
 use crate::prompts::view::get_command_input;
 use crate::start::{self, Section};
@@ -42,7 +42,7 @@ pub struct Chats {
     #[getset(get = "pub", set = "pub")]
     desc: Option<String>,
     #[getset(get = "pub", set = "pub")]
-    tools: Arc<TooledOptions>,
+    selected_tools: Vec<Id>,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -119,7 +119,7 @@ impl Chats {
             images: Vec::new(),
             desc: None,
             selected_prompt: None,
-            tools: Arc::new(TooledOptions::default()),
+            selected_tools: Vec::new(),
         }
     }
 
