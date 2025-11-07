@@ -13,7 +13,7 @@ use iced::{widget::text_editor, Task};
 use kalosm_sound::MicInput;
 #[cfg(feature = "voice")]
 use rodio::buffer::SamplesBuffer;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub enum ChatsMessage {
@@ -157,6 +157,14 @@ impl ChatsMessage {
                     });
                 });
 
+                let (chats, tools) = if let Some(chat) = app.chats.0.get_mut(&saved_id) {
+                    (chat.get_chat_messages(), chat.tools.clone())
+                } else {
+                    (Vec::new(), Vec::new())
+                };
+
+                let (chats, tools) = (Arc::new(chats), Arc::new(tools));
+
                 if let Some(chat) = app.main_view.chats().get(&id) {
                     let option = app
                         .options
@@ -166,7 +174,7 @@ impl ChatsMessage {
 
                     app.main_view.add_chat_stream(
                         chat_stream_id,
-                        crate::llm::ChatStream::new(app, chat_stream_id, option),
+                        crate::llm::ChatStream::new(app, chats, tools, option),
                     );
                 }
 
@@ -503,8 +511,17 @@ impl ChatsMessage {
                 Task::none()
             }
             Self::Submit => {
-                let (chat, saved_id, option, models) =
+                let (chat, saved_id, options, models) =
                     if let Some(chat) = app.main_view.chats().get(&id) {
+                        let mut options = Vec::new();
+                        let models = chat.models().clone();
+                        for model in &models {
+                            options.push(
+                                app.options
+                                    .get_create_model_options_index(model.to_string()),
+                            );
+                        }
+
                         (
                             ChatBuilder::default()
                                 .content(chat.get_content_text())
@@ -513,9 +530,8 @@ impl ChatsMessage {
                                 .build()
                                 .unwrap(),
                             chat.saved_chat().clone(),
-                            app.options
-                                .get_create_model_options_index(chat.models()[0].to_string()),
-                            chat.models().clone(),
+                            options,
+                            models,
                         )
                     } else {
                         return Task::none();
@@ -532,10 +548,7 @@ impl ChatsMessage {
                     x.set_state(State::Generating);
                 });
 
-                let mut tools = Vec::new();
-
-                if let Some(x) = app.chats.0.get_mut(&saved_id) {
-                    // parent_index = x.chats.get_full_path().len();
+                let (chats, tools) = if let Some(x) = app.chats.0.get_mut(&saved_id) {
                     if let Some(parent) = x.chats.get_last_mut() {
                         parent.add_chat(chat.clone(), None);
                         let index = parent.children.len() - 1;
@@ -565,15 +578,19 @@ impl ChatsMessage {
                         };
                     }
 
-                    tools = x.tools.clone();
-                }
+                    (x.get_chat_messages(), x.tools.clone())
+                } else {
+                    (Vec::new(), Vec::new())
+                };
 
-                for (i, _) in models.iter().enumerate() {
+                let (chats, tools) = (Arc::new(chats), Arc::new(tools));
+
+                for (i, option) in options.into_iter().enumerate() {
                     if tools.is_empty() {
                         let chat_stream_id = ChatStreamId::new(saved_id, parent_index, i);
                         app.main_view.add_chat_stream(
                             chat_stream_id,
-                            crate::llm::ChatStream::new(app, chat_stream_id, option),
+                            crate::llm::ChatStream::new(app, chats.clone(), tools.clone(), option),
                         );
                     }
                 }

@@ -201,27 +201,20 @@ pub fn chat(
 }
 
 impl ChatStream {
-    pub fn new(app: &ChatApp, id: ChatStreamId, option: usize) -> Self {
-        if let Some(chat) = app.chats.0.get(&id.0) {
-            Self {
-                state: State::Generating(ChatMessage::new(
-                    ollama_rs::generation::chat::MessageRole::Assistant,
-                    String::new(),
-                )),
-                chats: Arc::new(chat.get_chat_messages()),
-                options: app.options.model_options()[option].clone(),
-                tools: Arc::new(chat.tools.clone()),
-            }
-        } else {
-            Self {
-                state: State::Generating(ChatMessage::new(
-                    ollama_rs::generation::chat::MessageRole::Assistant,
-                    String::new(),
-                )),
-                chats: Arc::new(Vec::new()),
-                options: app.options.model_options()[option].clone(),
-                tools: Arc::new(Vec::new()),
-            }
+    pub fn new(
+        app: &ChatApp,
+        chats: Arc<Vec<ChatMessage>>,
+        tools: Arc<Vec<Tools>>,
+        model: usize,
+    ) -> Self {
+        Self {
+            state: State::Generating(ChatMessage::new(
+                ollama_rs::generation::chat::MessageRole::Assistant,
+                String::new(),
+            )),
+            chats: chats,
+            options: app.options.model_options()[model].clone(),
+            tools: tools,
         }
     }
 

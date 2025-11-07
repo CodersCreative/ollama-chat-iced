@@ -372,6 +372,8 @@ impl ChatApp {
                         chat.set_images(Vec::new());
                         chat.set_state(chats::view::State::Idle);
                     });
+
+                    let _ = self.main_view.chat_streams_mut().remove(&id);
                 }
 
                 Task::none()
