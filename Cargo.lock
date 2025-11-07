@@ -4369,9 +4369,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.27"
+version = "0.4.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
+checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "loop9"
@@ -5485,6 +5485,7 @@ dependencies = [
  "rusqlite",
  "schemars",
  "serde",
+ "serde-pyobject",
  "serde_json",
  "tantivy",
  "text-splitter 0.28.0",
@@ -7174,6 +7175,17 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde-pyobject"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5614e792b7c36d3feeb45b8287ea2dc615f063896e59258d11ef5015c18bdf6a"
+dependencies = [
+ "log",
+ "pyo3",
+ "serde",
 ]
 
 [[package]]

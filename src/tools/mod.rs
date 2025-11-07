@@ -1,10 +1,11 @@
+pub mod builtin;
 use std::{collections::HashMap, error::Error, fs::File, io::Read};
 
 use derive_builder::Builder;
 use ollama_rs::generation::tools::{ToolFunctionInfo, ToolInfo};
 use schemars::json_schema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use tantivy::{
     collector::TopDocs,
     doc,
@@ -13,13 +14,13 @@ use tantivy::{
     DocAddress, Index, IndexWriter, Score, TantivyDocument,
 };
 
-use crate::{common::Id, utils::get_path_settings};
+use crate::{
+    common::Id,
+    tools::builtin::{get_builtin_funcs, get_builtin_saved_tools},
+    utils::get_path_settings,
+};
 
 pub const TOOLS_PATH: &str = "tools.json";
-
-pub fn get_builtins() -> HashMap<String, Box<dyn ToolExecutable>> {
-    HashMap::new()
-}
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Builder)]
 #[serde(rename_all = "camelCase")]
@@ -50,6 +51,7 @@ pub struct SavedToolFunc {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ToolType {
+    #[cfg(feature = "python")]
     Python,
     Lua,
     #[default]
@@ -83,9 +85,9 @@ impl Into<Vec<SavedToolFunc>> for &SavedTool {
         if !self.functions.is_empty() {
             return self.functions.clone();
         }
-
+        #[allow(unused_mut)]
         let mut funcs = if !self.builtins.is_empty() {
-            let builtins = get_builtins();
+            let builtins = get_builtin_funcs();
 
             self.builtins
                 .iter()
@@ -95,6 +97,7 @@ impl Into<Vec<SavedToolFunc>> for &SavedTool {
             Vec::new()
         };
 
+        #[cfg(feature = "python")]
         let mut py_funcs = if let Some(text) = self.python.clone() {
             let lines: Vec<&str> = text.split('\n').filter(|x| x.trim().is_empty()).collect();
 
@@ -190,7 +193,9 @@ impl Into<Vec<SavedToolFunc>> for &SavedTool {
             Vec::new()
         };
 
+        #[cfg(feature = "python")]
         funcs.append(&mut py_funcs);
+
         funcs
     }
 }
@@ -201,28 +206,6 @@ impl Into<Vec<ToolFunctionInfo>> for &SavedTool {
             .into_iter()
             .map(|x| (&x).into())
             .collect()
-    }
-}
-
-pub trait ToolExecutable {
-    fn run(&self, params: HashMap<String, Value>) -> String;
-    fn description(&self) -> String;
-    fn params(&self) -> Vec<(String, String)>;
-    fn name(&self) -> String;
-}
-
-impl Into<SavedToolFunc> for &dyn ToolExecutable {
-    fn into(self) -> SavedToolFunc {
-        SavedToolFunc {
-            name: self.name(),
-            desc: self.description(),
-            tool_type: ToolType::Builtin,
-            params: self
-                .params()
-                .into_iter()
-                .map(|x| (x.0, x.1, true))
-                .collect(),
-        }
     }
 }
 
@@ -252,7 +235,12 @@ impl PartialEq for SavedTools {
 
 impl Default for SavedTools {
     fn default() -> Self {
-        Self::new(HashMap::new())
+        let builtin = get_builtin_saved_tools();
+        let mut builtin_hash = HashMap::new();
+        for func in builtin {
+            builtin_hash.insert(Id::new(), func);
+        }
+        Self::new(builtin_hash)
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::{
     common::Id,
     options::ModelOptions,
-    tools::{get_builtins, SavedTool, SavedToolFunc, ToolType},
+    tools::{builtin::get_builtin_funcs, SavedTool, SavedToolFunc, ToolType},
     ChatApp, Message,
 };
 use iced::{
@@ -16,13 +16,26 @@ use ollama_rs::{
     },
     Ollama,
 };
+
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "python")]
+use pyo3::{
+    types::{IntoPyDict, PyModule},
+    Bound, PyAny, Python,
+};
+#[cfg(feature = "python")]
+use serde_pyobject::to_pyobject;
+
+#[cfg(feature = "python")]
+use std::ffi::CString;
+
 use std::{collections::HashMap, sync::Arc, usize};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub enum ChatProgress {
-    Generating(ChatMessage),
+    Generating(ChatMessage, Vec<ChatMessage>),
     Finished,
 }
 
@@ -82,17 +95,25 @@ pub fn run_ollama_stream(
             .map_err(|x| x.to_string())?;
 
         let _ = output
-            .send(ChatProgress::Generating(ChatMessage {
-                thinking: None,
-                role: ollama_rs::generation::chat::MessageRole::Assistant,
-                content: String::new(),
-                images: None,
-                tool_calls: Vec::new(),
-            }))
+            .send(ChatProgress::Generating(
+                ChatMessage {
+                    thinking: None,
+                    role: ollama_rs::generation::chat::MessageRole::Assistant,
+                    content: String::new(),
+                    images: None,
+                    tool_calls: Vec::new(),
+                },
+                Vec::new(),
+            ))
             .await;
 
         while let Some(Ok(response)) = y.next().await {
+            let mut tool_responses: Vec<String> = Vec::new();
+
             if !response.message.tool_calls.is_empty() {
+                #[cfg(feature = "python")]
+                let mut pythons = HashMap::new();
+
                 for call in response.message.tool_calls.iter() {
                     let call_name = &call.function.name;
                     let tool: Vec<(usize, SavedToolFunc)> = tools
@@ -112,20 +133,59 @@ pub fn run_ollama_stream(
 
                     let tool = tool.first().unwrap();
 
+                    let mut args = HashMap::new();
+                    for param in tool.1.params.iter() {
+                        if let Some(arg) = call.function.arguments.get(param.0.trim()) {
+                            args.insert(param.0.trim().to_string(), arg.clone());
+                        }
+                    }
+
                     match tool.1.tool_type {
                         ToolType::Builtin => {
-                            if let Some(func) = get_builtins().get(tool.1.name.trim()) {
-                                let mut args = HashMap::new();
-                                for param in func.params() {
-                                    if let Some(arg) = call.function.arguments.get(param.0.trim()) {
-                                        args.insert(param.0.trim().to_string(), arg.clone());
-                                    }
-                                }
-                                let _ = func.run(args);
+                            if let Some(func) = get_builtin_funcs().get(tool.1.name.trim()) {
+                                tool_responses.push(func.run(args));
                             }
                         }
+                        #[cfg(feature = "python")]
                         ToolType::Python => {
-                            todo!()
+                            let module = if let Some(m) = pythons.get(&tool.0) {
+                                m
+                            } else {
+                                let m = Python::attach(|py| {
+                                    let code = CString::new(
+                                        tools
+                                            .get(tool.0)
+                                            .unwrap()
+                                            .python
+                                            .clone()
+                                            .unwrap()
+                                            .to_string(),
+                                    )
+                                    .unwrap();
+                                    let file = CString::new("tool.py".to_string()).unwrap();
+                                    let module = CString::new("Tool".to_string()).unwrap();
+                                    return PyModule::from_code(py, &code, &file, &module)
+                                        .unwrap()
+                                        .unbind();
+                                });
+                                pythons.insert(tool.0, m);
+                                pythons.get(&tool.0).unwrap()
+                            };
+
+                            Python::attach(|py| {
+                                if let Ok(tools_class) = module.getattr(py, "Tools") {
+                                    let args: Vec<(String, Bound<'_, PyAny>)> = args
+                                        .into_iter()
+                                        .map(|x| (x.0, to_pyobject(py, &x.1).unwrap()))
+                                        .collect();
+                                    let result = tools_class
+                                        .call0(py)
+                                        .unwrap()
+                                        .call(py, (), Some(&args.into_py_dict(py).unwrap()))
+                                        .unwrap();
+                                    tool_responses.push(result.extract::<String>(py).unwrap());
+                                }
+                            })
                         }
                         ToolType::Lua => {
                             todo!()
@@ -135,7 +195,19 @@ pub fn run_ollama_stream(
             }
 
             let _ = output
-                .send(ChatProgress::Generating(response.message))
+                .send(ChatProgress::Generating(
+                    response.message,
+                    tool_responses
+                        .into_iter()
+                        .map(|x| ChatMessage {
+                            thinking: None,
+                            images: None,
+                            role: ollama_rs::generation::chat::MessageRole::Tool,
+                            content: x,
+                            tool_calls: Vec::new(),
+                        })
+                        .collect(),
+                ))
                 .await;
         }
 
@@ -203,7 +275,7 @@ impl ChatStream {
     pub fn progress(&mut self, new_progress: Result<ChatProgress, String>) {
         if let State::Generating(message) = &mut self.state {
             match new_progress {
-                Ok(ChatProgress::Generating(mes)) => {
+                Ok(ChatProgress::Generating(mes, _)) => {
                     *message = mes;
                 }
                 Ok(ChatProgress::Finished) => {

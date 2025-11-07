@@ -354,7 +354,7 @@ impl ChatApp {
                     }
                 });
 
-                if let Ok(ChatProgress::Generating(progress)) = progress {
+                if let Ok(ChatProgress::Generating(progress, _tools)) = progress {
                     let mut mk: Vec<Vec<markdown::Item>> = Vec::new();
 
                     if let Some(chat) = self.chats.0.get_mut(&id.0) {
