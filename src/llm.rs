@@ -25,7 +25,7 @@ use pyo3::{
     Bound, PyAny, Python,
 };
 #[cfg(feature = "python")]
-use serde_pyobject::to_pyobject;
+use pythonize::pythonize;
 
 #[cfg(feature = "python")]
 use std::ffi::CString;
@@ -176,7 +176,7 @@ pub fn run_ollama_stream(
                                 if let Ok(tools_class) = module.getattr(py, "Tools") {
                                     let args: Vec<(String, Bound<'_, PyAny>)> = args
                                         .into_iter()
-                                        .map(|x| (x.0, to_pyobject(py, &x.1).unwrap()))
+                                        .map(|x| (x.0, pythonize(py, &x.1).unwrap()))
                                         .collect();
                                     let result = tools_class
                                         .call0(py)

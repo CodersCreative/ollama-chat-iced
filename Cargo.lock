@@ -5464,7 +5464,7 @@ dependencies = [
 
 [[package]]
 name = "ochat"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "base64-stream",
  "clipboard-rs",
@@ -5477,6 +5477,7 @@ dependencies = [
  "ollama-rs",
  "open",
  "pyo3",
+ "pythonize",
  "rand 0.9.2",
  "regex",
  "reqwest 0.12.24",
@@ -5485,8 +5486,8 @@ dependencies = [
  "rusqlite",
  "schemars",
  "serde",
- "serde-pyobject",
  "serde_json",
+ "serde_json_lenient",
  "tantivy",
  "text-splitter 0.28.0",
  "thiserror 2.0.17",
@@ -6229,6 +6230,16 @@ dependencies = [
  "pyo3-build-config",
  "quote",
  "syn 2.0.100",
+]
+
+[[package]]
+name = "pythonize"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3a8f29db331e28c332c63496cfcbb822aca3d7320bc08b655d7fd0c29c50ede"
+dependencies = [
+ "pyo3",
+ "serde",
 ]
 
 [[package]]
@@ -7178,17 +7189,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde-pyobject"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5614e792b7c36d3feeb45b8287ea2dc615f063896e59258d11ef5015c18bdf6a"
-dependencies = [
- "log",
- "pyo3",
- "serde",
-]
-
-[[package]]
 name = "serde_core"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7231,6 +7231,18 @@ dependencies = [
  "ryu",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "serde_json_lenient"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e033097bf0d2b59a62b42c18ebbb797503839b26afdda2c4e1415cb6c813540"
+dependencies = [
+ "itoa",
+ "memchr",
+ "ryu",
+ "serde",
 ]
 
 [[package]]

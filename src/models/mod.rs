@@ -117,7 +117,7 @@ impl SaveableModels {
         let content = tokio_runtime.block_on(resp.text())?;
         let content = extract_models(&content).unwrap();
 
-        let data: HashMap<String, TempInfo> = serde_json::from_str(&content).unwrap();
+        let data: HashMap<String, TempInfo> = serde_json_lenient::from_str(&content).unwrap();
 
         let mut descriptions = HashMap::new();
 
@@ -201,8 +201,6 @@ fn extract_models(python_code: &str) -> Result<String, String> {
             .split("OLLAMA_MODELS = {")
             .last()
             .unwrap()
-            .replace(" ", "")
-            .replace("\n", "")
             .replace("_(\"", "\"")
             .replace("\")", "\"")
             .replace(",}", "}")
