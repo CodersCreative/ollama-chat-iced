@@ -218,11 +218,11 @@ pub fn run_ollama_stream(
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ChatStreamId(pub Id, pub usize, pub usize);
+pub struct ChatStreamId(pub Id, pub usize);
 
 impl ChatStreamId {
-    pub fn new(saved: Id, parent: usize, index: usize) -> Self {
-        return Self(saved, parent, index);
+    pub fn new(saved: Id, index: usize) -> Self {
+        return Self(saved, index);
     }
 }
 

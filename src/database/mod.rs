@@ -5,7 +5,7 @@ use rusqlite::{Connection, Result as Rusult};
 use crate::{
     chats::{
         chat::{ChatBuilder, Role},
-        tree::{ChatNode, ChatTree, Reason},
+        // tree::{ChatNode, ChatTree, Reason},
     },
     common::Id,
     utils::get_path_settings,
@@ -46,7 +46,7 @@ pub fn new_conn() -> Rusult<Connection> {
     Ok(conn)
 }
 
-pub fn get_tree(conn: Connection, chat_id: Id) -> Rusult<ChatTree> {
+/*pub fn get_tree(conn: Connection, chat_id: Id) -> Rusult<ChatTree> {
     let mut stmt = conn.prepare("select root_id from chats where id = (?1) limit 1;")?;
     let root: String = stmt
         .query_map([chat_id.0.to_string()], |row| Ok(row.get(0)?))?
@@ -102,4 +102,4 @@ pub fn get_tree(conn: Connection, chat_id: Id) -> Rusult<ChatTree> {
     }
 
     Ok(tree)
-}
+}*/

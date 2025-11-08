@@ -17,10 +17,11 @@ impl ChatsMessage {
     pub fn changed_saved(app: &mut ChatApp, id: Id, saved: Id) {
         app.main_view.update_chat(&id, |chat| {
             if let Some(chat) = chat {
-                if chat.state() == &State::Idle {
-                    chat.set_markdown(app.chats.0.get(&saved).unwrap().to_mk());
-                    chat.set_saved_chat(saved);
-                }
+                chat.set_markdown(app.chats.0.get(&saved).unwrap().to_mk(&chat.chats()));
+                chat.set_saved_chat(saved);
+                chat.set_state(State::Idle);
+                *chat.chats_mut() = app.chats.0.get(&saved).unwrap().default_chats.clone();
+                chat.set_edit_index(None);
             }
         });
     }

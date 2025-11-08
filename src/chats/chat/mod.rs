@@ -1,3 +1,5 @@
+pub mod view;
+
 use crate::{utils::convert_image, Message};
 use derive_builder::Builder;
 use getset::{Getters, Setters};

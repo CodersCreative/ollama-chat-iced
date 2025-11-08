@@ -25,8 +25,7 @@ use crate::{save::Save, tools::SavedTools};
 #[cfg(feature = "voice")]
 use call::{Call, CallMessage};
 use chats::{
-    chat::ChatBuilder, message::ChatsMessage, tree::Reason, view::Chats, SavedChat, SavedChats,
-    CHATS_FILE,
+    chat::ChatBuilder, message::ChatsMessage, view::Chats, SavedChat, SavedChats, CHATS_FILE,
 };
 use common::Id;
 use database::new_conn;
@@ -108,7 +107,11 @@ pub enum Message {
     SideBar,
     Pulling((Id, Result<DownloadProgress, String>)),
     Generating((ChatStreamId, Result<ChatProgress, String>)),
-    Generated(Id, Result<ChatMessage, String>, Option<(String, usize)>),
+    /*Generated(
+        ChatStreamId,
+        Result<ChatMessage, String>,
+        Option<(String, usize)>,
+    ),*/
     StopGenerating(Id),
     Pull(String),
     StopPull(Id),
@@ -200,7 +203,9 @@ impl ChatApp {
                             Vec::new()
                         },
                         saved.0.clone(),
-                        saved.1.to_mk(),
+                        saved.1.to_mk(&saved.1.default_chats),
+                        saved.1.default_chats.clone(),
+                        saved.1.default_tools.clone(),
                     ),
                 );
 
@@ -285,68 +290,11 @@ impl ChatApp {
             }
             Message::RemoveChat(x) => return self.remove_chat(x),
             Message::ChangeTheme(x) => self.change_theme(x.clone()),
-            Message::Generated(id, x, model) => {
-                if let Ok(x) = x {
-                    let mut mk = Vec::new();
-                    let mut is_multi = false;
-                    if let Some(chat) = self.chats.0.get_mut(&id) {
-                        if let Some((model, parent)) = model {
-                            is_multi = true;
-                            if let Some(parent) = chat.chats.get_node_mut_from_index(parent) {
-                                for child in parent.children.iter_mut() {
-                                    if child.reason == None {
-                                        child.reason = Some(Reason::Sibling);
-                                    }
-                                }
-                                parent.add_chat(
-                                    ChatBuilder::default()
-                                        .role(chats::chat::Role::AI)
-                                        .content(x.content.clone())
-                                        .build()
-                                        .unwrap(),
-                                    Some(chats::tree::Reason::Model(model.clone())),
-                                );
-                            }
-                        } else {
-                            if let Some(parent) = chat.chats.get_last_parent_mut() {
-                                let index = parent
-                                    .selected_child_index
-                                    .unwrap_or(parent.children.len() - 1);
-                                parent.children[index]
-                                    .chat
-                                    .add_to_content(x.content.as_str());
-                            }
-                        }
-
-                        mk = chat.to_mk();
-                    }
-
-                    self.chats.save(CHATS_FILE);
-                    self.regenerate_side_chats();
-
-                    self.main_view.update_chats(|chats| {
-                        chats
-                            .iter_mut()
-                            .filter(|chat| chat.1.saved_chat() == &id)
-                            .for_each(|(_, chat)| {
-                                chat.set_markdown(mk.clone());
-                                chat.set_content(text_editor::Content::new());
-                                chat.set_images(Vec::new());
-                                if !is_multi {
-                                    chat.set_state(chats::view::State::Idle);
-                                }
-                            });
-                    });
-                }
-
-                Task::none()
-            }
             Message::Pull(x) => {
                 self.main_view
                     .add_download(Id::new(), Download::new(x.clone()));
                 Task::none()
             }
-
             Message::Generating((id, progress)) => {
                 self.main_view.update_chat_streams(|streams| {
                     if let Some(chat) = streams.get_mut(&id) {
@@ -356,30 +304,38 @@ impl ChatApp {
 
                 if let Ok(ChatProgress::Generating(progress, _tools)) = progress {
                     let mut mk: Vec<Vec<markdown::Item>> = Vec::new();
+                    let path = self
+                        .main_view
+                        .chats()
+                        .iter()
+                        .find(|x| x.1.saved_chat() == &id.0 && x.1.chats().contains(&id.1))
+                        .map(|x| x.1.chats());
 
                     if let Some(chat) = self.chats.0.get_mut(&id.0) {
-                        if let Some(parent) = chat.chats.get_last_parent_mut() {
-                            parent.children[id.2]
-                                .chat
-                                .add_to_content(progress.content.as_str());
+                        if let Some(message) = chat.chats.chats.get_mut(id.1) {
+                            message.add_to_content(progress.content.as_str());
                         }
 
-                        mk = chat.to_mk();
+                        if let Some(path) = path {
+                            mk = chat.to_mk(&path);
+                        }
                     }
 
-                    self.main_view.update_chat_by_saved(&id.0, |chat| {
-                        chat.set_markdown(mk.clone());
-                        chat.set_state(chats::view::State::Generating);
-                    });
+                    self.main_view
+                        .update_chat_by_saved_and_message(&id.0, &id.1, |chat| {
+                            chat.set_markdown(mk.clone());
+                            chat.set_state(chats::view::State::Generating);
+                        });
                 } else if let Ok(ChatProgress::Finished) = progress {
                     self.chats.save(CHATS_FILE);
                     self.regenerate_side_chats();
 
-                    self.main_view.update_chat_by_saved(&id.0, |chat| {
-                        chat.set_content(text_editor::Content::new());
-                        chat.set_images(Vec::new());
-                        chat.set_state(chats::view::State::Idle);
-                    });
+                    self.main_view
+                        .update_chat_by_saved_and_message(&id.0, &id.1, |chat| {
+                            chat.set_content(text_editor::Content::new());
+                            chat.set_images(Vec::new());
+                            chat.set_state(chats::view::State::Idle);
+                        });
 
                     let _ = self.main_view.chat_streams_mut().remove(&id);
                 }

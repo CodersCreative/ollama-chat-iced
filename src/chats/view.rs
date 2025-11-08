@@ -23,8 +23,11 @@ use std::{path::PathBuf, sync::Arc};
 pub struct Chats {
     #[getset(get = "pub", set = "pub")]
     markdown: Vec<Vec<markdown::Item>>,
+
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     edit: text_editor::Content,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    edit_index: Option<usize>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     images: Vec<PathBuf>,
     #[getset(get = "pub", set = "pub")]
@@ -35,6 +38,10 @@ pub struct Chats {
     content: text_editor::Content,
     #[getset(get = "pub", set = "pub")]
     saved_chat: Id,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    chats: Vec<usize>,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    tools: Vec<Id>,
     #[getset(get = "pub", set = "pub")]
     selected_prompt: Option<usize>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
@@ -58,6 +65,8 @@ impl Clone for Chats {
             self.models.clone(),
             self.saved_chat().clone(),
             self.markdown.clone(),
+            self.chats.clone(),
+            self.tools.clone(),
         )
     }
 
@@ -107,27 +116,34 @@ impl Chats {
 }
 
 impl Chats {
-    pub fn new(models: Vec<String>, saved_chat: Id, markdown: Vec<Vec<markdown::Item>>) -> Self {
+    pub fn new(
+        models: Vec<String>,
+        saved_chat: Id,
+        markdown: Vec<Vec<markdown::Item>>,
+        chats: Vec<usize>,
+        tools: Vec<Id>,
+    ) -> Self {
         Self {
             models,
             saved_chat,
             markdown,
             edit: text_editor::Content::new(),
+            edit_index: None,
             start: "General".to_string(),
             state: State::Idle,
             content: text_editor::Content::new(),
             images: Vec::new(),
             desc: None,
+            tools,
+            chats,
             selected_prompt: None,
             selected_tools: Vec::new(),
         }
     }
 
-    fn check_is_edit(app: &ChatApp, index: &usize, id: &Id) -> bool {
-        let edit = app.main_view.edits().get(id);
-
-        if let Some(edit) = edit {
-            return index == edit;
+    fn check_is_edit(&self, index: &usize) -> bool {
+        if let Some(edit) = self.edit_index {
+            return index == &edit;
         }
 
         false
@@ -135,21 +151,27 @@ impl Chats {
 
     pub fn view<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         if let Some(chat) = app.chats.0.get(self.saved_chat()) {
-            return keyed_column(chat.chats.into_iter().enumerate().map(|(i, chat)| {
-                (
-                    0,
-                    match Self::check_is_edit(app, &i, id) {
-                        false => {
-                            if let Some(mk) = self.markdown.get(i) {
-                                chat.view(id, &i, mk, &app.theme())
-                            } else {
-                                text("Failed!").into()
-                            }
-                        }
-                        true => chat.view_editing(id.clone(), &self.edit, &i),
-                    },
-                )
-            }))
+            return keyed_column(
+                chat.get_chats_with_reason(&self.chats)
+                    .into_iter()
+                    .enumerate()
+                    .filter(|x| x.0 < self.markdown.len())
+                    .map(|(i, chat)| {
+                        (
+                            0,
+                            match Self::check_is_edit(self, &i) {
+                                false => {
+                                    if let Some(mk) = self.markdown.get(i) {
+                                        chat.0.view(id, &i, mk, &chat.1, &app.theme())
+                                    } else {
+                                        text("Failed!").into()
+                                    }
+                                }
+                                true => chat.0.view_editing(id.clone(), &self.edit, i, &chat.1),
+                            },
+                        )
+                    }),
+            )
             .spacing(10)
             .into();
         }

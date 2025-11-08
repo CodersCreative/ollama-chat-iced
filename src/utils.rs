@@ -138,8 +138,8 @@ pub fn convert_image(path: &Path) -> Result<Image, Box<dyn Error>> {
 }
 
 pub fn get_preview(chat: &SavedChat) -> (String, SystemTime) {
-    if let Some(parent) = chat.chats.get_last_parent() {
-        let prev = split_text(parent.chat.content().to_string());
+    if let Some(parent) = chat.chats.chats.last() {
+        let prev = split_text(parent.content().to_string());
         if prev.len() > 0 {
             return (prev[0].clone(), chat.time);
         }

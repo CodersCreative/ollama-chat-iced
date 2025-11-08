@@ -24,8 +24,6 @@ pub struct View {
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     chats: HashMap<Id, Chats>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
-    edits: HashMap<Id, usize>,
-    #[getset(get = "pub", set = "pub", get_mut = "pub")]
     models: HashMap<Id, Models>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     prompts: HashMap<Id, Prompts>,
@@ -54,20 +52,6 @@ impl View {
         f(self.chats.get_mut(key));
     }
 
-    pub fn update_edits<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut HashMap<Id, usize>),
-    {
-        f(&mut self.edits);
-    }
-
-    pub fn update_edit<F>(&mut self, key: &Id, mut f: F)
-    where
-        F: FnMut(Option<&mut usize>),
-    {
-        f(self.edits.get_mut(key));
-    }
-
     pub fn update_chat_by_saved<F>(&mut self, id: &Id, mut f: F)
     where
         F: FnMut(&mut Chats),
@@ -75,6 +59,18 @@ impl View {
         self.chats
             .iter_mut()
             .filter(|x| x.1.saved_chat() == id)
+            .for_each(|x| {
+                f(x.1);
+            });
+    }
+
+    pub fn update_chat_by_saved_and_message<F>(&mut self, id: &Id, index: &usize, mut f: F)
+    where
+        F: FnMut(&mut Chats),
+    {
+        self.chats
+            .iter_mut()
+            .filter(|x| x.1.saved_chat() == id && x.1.chats().contains(index))
             .for_each(|x| {
                 f(x.1);
             });
@@ -167,7 +163,6 @@ impl View {
             chats: HashMap::new(),
             models: HashMap::new(),
             prompts: HashMap::new(),
-            edits: HashMap::new(),
             downloads: HashMap::new(),
             chat_streams: HashMap::new(),
         }

@@ -1,6 +1,6 @@
-use super::{ChatNode, Reason};
+use super::Chat;
 use crate::{
-    chats::{chat::Role, message::ChatsMessage},
+    chats::{chat::Role, message::ChatsMessage, Reason},
     common::Id,
     style,
     utils::get_path_assets,
@@ -16,16 +16,17 @@ use iced::{
     Element, Length, Padding, Theme,
 };
 
-impl ChatNode {
+impl Chat {
     pub fn view_editing<'a>(
         &'a self,
         id: Id,
         content: &'a text_editor::Content,
-        index: &usize,
+        index: usize,
+        reason: &Option<Reason>,
     ) -> Element<'a, Message> {
         let images = container(
             scrollable::Scrollable::new(
-                row(self.chat.images().iter().map(|x| {
+                row(self.images().iter().map(|x| {
                     button(image(image::Handle::from_path(x)).height(Length::Fixed(200.0)))
                         .style(style::button::transparent_text)
                         .into()
@@ -48,7 +49,7 @@ impl ChatNode {
                     match text_editor::Binding::from_key_press(key_press) {
                         Some(text_editor::Binding::Enter) if !modifiers.shift() => {
                             Some(text_editor::Binding::Custom(Message::Chats(
-                                ChatsMessage::SaveEdit,
+                                ChatsMessage::SaveEdit(index.clone()),
                                 id,
                             )))
                         }
@@ -61,16 +62,21 @@ impl ChatNode {
         )
         .padding(20);
 
-        container(column![self.header(&id, index), images, editor,].width(Length::Fill))
+        container(column![self.header(&id, &index, reason), images, editor,].width(Length::Fill))
             .style(style::container::chat_back)
             .width(Length::FillPortion(5))
             .into()
     }
 
-    fn header<'a>(&'a self, id: &Id, index: &usize) -> Element<'a, Message> {
+    fn header<'a>(
+        &'a self,
+        id: &Id,
+        index: &usize,
+        reason: &Option<Reason>,
+    ) -> Element<'a, Message> {
         let mut widgets = Vec::new();
 
-        let style = match self.chat.role() == &Role::AI {
+        let style = match self.role() == &Role::AI {
             true => style::container::chat_ai,
             false => style::container::chat,
         };
@@ -94,9 +100,9 @@ impl ChatNode {
                 .into()
         };
 
-        widgets.push(txt(self.chat.role().to_string()));
+        widgets.push(txt(self.role().to_string()));
 
-        if let Some(Reason::Model(x)) = &self.reason {
+        if let Some(Reason::Model(x)) = &reason {
             widgets.push(txt(x.to_string()));
         }
 
@@ -105,7 +111,7 @@ impl ChatNode {
         widgets.push(
             btn("edit.svg")
                 .on_press(Message::Chats(
-                    ChatsMessage::Edit(self.chat.content().clone()),
+                    ChatsMessage::Edit(index.clone()),
                     id.clone(),
                 ))
                 .into(),
@@ -131,11 +137,11 @@ impl ChatNode {
 
         widgets.push(
             btn("copy.svg")
-                .on_press(Message::SaveToClipboard(self.chat.content().to_string()))
+                .on_press(Message::SaveToClipboard(self.content().to_string()))
                 .into(),
         );
 
-        if self.reason.is_some() {
+        if reason.is_some() {
             widgets.push(
                 btn("back_arrow.svg")
                     .on_press(Message::Chats(
@@ -166,11 +172,12 @@ impl ChatNode {
         id: &Id,
         index: &usize,
         markdown: &'a Vec<markdown::Item>,
+        reason: &Option<Reason>,
         theme: &Theme,
     ) -> Element<'a, Message> {
         let images = container(
             scrollable::Scrollable::new(
-                row(self.chat.images().iter().map(|x| {
+                row(self.images().iter().map(|x| {
                     button(image(image::Handle::from_path(x)).height(Length::Fixed(200.0)))
                         .style(style::button::transparent_text)
                         .into()
@@ -183,14 +190,14 @@ impl ChatNode {
         .padding(Padding::from([0, 20]))
         .style(style::container::bottom_input_back);
 
-        let mark = mouse_area(container(self.chat.view_mk(markdown, theme)).padding(20))
+        let mark = mouse_area(container(self.view_mk(markdown, theme)).padding(20))
             .on_right_press(Message::Chats(
-                ChatsMessage::Edit(self.chat.content().clone()),
+                ChatsMessage::Edit(index.clone()),
                 id.clone(),
             ))
-            .on_press(Message::SaveToClipboard(self.chat.content().to_string()));
+            .on_press(Message::SaveToClipboard(self.content().to_string()));
 
-        container(column![self.header(id, index), images, mark,].width(Length::Fill))
+        container(column![self.header(id, index, reason), images, mark,].width(Length::Fill))
             .style(style::container::chat_back)
             .width(Length::FillPortion(5))
             .into()
