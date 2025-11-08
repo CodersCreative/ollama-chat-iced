@@ -155,19 +155,21 @@ impl Chats {
                 chat.get_chats_with_reason(&self.chats)
                     .into_iter()
                     .enumerate()
-                    .filter(|x| x.0 < self.markdown.len())
+                    .filter(|(i, _)| i < &self.markdown.len())
                     .map(|(i, chat)| {
                         (
                             0,
-                            match Self::check_is_edit(self, &i) {
+                            match Self::check_is_edit(self, &chat.0) {
                                 false => {
                                     if let Some(mk) = self.markdown.get(i) {
-                                        chat.0.view(id, &i, mk, &chat.1, &app.theme())
+                                        chat.1.view(id, &chat.0, mk, &chat.2, &app.theme())
                                     } else {
                                         text("Failed!").into()
                                     }
                                 }
-                                true => chat.0.view_editing(id.clone(), &self.edit, i, &chat.1),
+                                true => {
+                                    chat.1.view_editing(id.clone(), &self.edit, chat.0, &chat.2)
+                                }
                             },
                         )
                     }),

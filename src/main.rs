@@ -24,9 +24,7 @@ pub mod view;
 use crate::{save::Save, tools::SavedTools};
 #[cfg(feature = "voice")]
 use call::{Call, CallMessage};
-use chats::{
-    chat::ChatBuilder, message::ChatsMessage, view::Chats, SavedChat, SavedChats, CHATS_FILE,
-};
+use chats::{message::ChatsMessage, view::Chats, SavedChat, SavedChats, CHATS_FILE};
 use common::Id;
 use database::new_conn;
 use download::{Download, DownloadProgress};
@@ -42,7 +40,6 @@ use natural_tts::{
     models::{gtts::GttsModel, tts_rs::TtsModel},
     NaturalTts, NaturalTtsBuilder,
 };
-use ollama_rs::generation::chat::ChatMessage;
 use options::{message::OptionMessage, SavedOptions};
 use panes::PaneMessage;
 use panes::Panes;
@@ -107,11 +104,6 @@ pub enum Message {
     SideBar,
     Pulling((Id, Result<DownloadProgress, String>)),
     Generating((ChatStreamId, Result<ChatProgress, String>)),
-    /*Generated(
-        ChatStreamId,
-        Result<ChatMessage, String>,
-        Option<(String, usize)>,
-    ),*/
     StopGenerating(Id),
     Pull(String),
     StopPull(Id),

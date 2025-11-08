@@ -157,13 +157,12 @@ impl SavedChat {
         return get_preview(self);
     }
 
-    pub fn get_chats_with_reason(&self, chats: &[usize]) -> Vec<(&Chat, Option<Reason>)> {
+    pub fn get_chats_with_reason(&self, chats: &[usize]) -> Vec<(usize, &Chat, Option<Reason>)> {
         let mut cts = Vec::new();
 
-        for (i, id) in chats.iter().enumerate() {
-            let reason = if 1 <= i {
-                if let Some(relationship) = self.chats.relationships.get(chats.get(i - 1).unwrap())
-                {
+        for id in chats.iter() {
+            let reason = if let Some(parent) = self.get_parent_index(id) {
+                if let Some(relationship) = self.chats.relationships.get(&parent) {
                     relationship
                         .into_iter()
                         .find(|x| &x.index == id)
@@ -177,20 +176,36 @@ impl SavedChat {
             };
 
             if let Some(x) = self.chats.chats.get(*id) {
-                cts.push((x, reason))
+                cts.push((*id, x, reason))
             }
         }
 
         cts
     }
 
+    pub fn get_path_from_index(&self, index: usize) -> Vec<usize> {
+        let mut path = Vec::new();
+        let mut parent = index;
+
+        while let Some(p) = self.chats.relationships.get(&parent) {
+            if let Some(first) = p.first() {
+                parent = first.index;
+                path.push(first.index);
+            } else {
+                return path;
+            }
+        }
+
+        path
+    }
+
     pub fn get_chat_messages_before(&self, chats: &[usize], before: usize) -> Vec<ChatMessage> {
         let mut cts = Vec::new();
 
         for id in chats[0..before].iter() {
-            cts.push(Into::<ChatMessage>::into(
-                self.chats.chats.get(*id).unwrap(),
-            ))
+            if let Some(x) = self.chats.chats.get(*id) {
+                cts.push(Into::<ChatMessage>::into(x))
+            }
         }
         cts
     }

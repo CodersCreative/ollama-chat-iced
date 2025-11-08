@@ -1,15 +1,5 @@
-use std::{path::PathBuf, str::FromStr};
-
+use crate::utils::get_path_settings;
 use rusqlite::{Connection, Result as Rusult};
-
-use crate::{
-    chats::{
-        chat::{ChatBuilder, Role},
-        // tree::{ChatNode, ChatTree, Reason},
-    },
-    common::Id,
-    utils::get_path_settings,
-};
 
 pub fn new_conn() -> Rusult<Connection> {
     let conn = Connection::open(get_path_settings("ochat.db".to_string()))?;

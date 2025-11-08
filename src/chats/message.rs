@@ -13,10 +13,7 @@ use crate::{
     ChatApp, Message,
 };
 use clipboard_rs::{Clipboard, ClipboardContext};
-use iced::{
-    widget::{markdown, text_editor},
-    Task,
-};
+use iced::{widget::text_editor, Task};
 #[cfg(feature = "voice")]
 use kalosm_sound::MicInput;
 #[cfg(feature = "voice")]
@@ -101,7 +98,7 @@ impl ChatsMessage {
                         let chats: Vec<Chat> = x
                             .get_chats_with_reason(&path)
                             .into_iter()
-                            .map(|x| x.0.clone())
+                            .map(|x| x.1.clone())
                             .collect();
                         let chat = x.chats.chats.get(*index).unwrap();
 
@@ -293,7 +290,7 @@ impl ChatsMessage {
                     None => return Task::none(),
                 };
 
-                let child = if let Some(chat) = app.chats.0.get_mut(&saved_id) {
+                let (child, mut new_path) = if let Some(chat) = app.chats.0.get_mut(&saved_id) {
                     let parent = chat.get_parent_index(index).unwrap();
                     if let Some(relationship) = chat.chats.relationships.get(&parent) {
                         let len = relationship.len();
@@ -314,7 +311,10 @@ impl ChatsMessage {
                             selected - 1
                         };
 
-                        relationship.get(index).unwrap().index.clone()
+                        let i = relationship.get(index).unwrap().index;
+                        let path = chat.get_path_from_index(i);
+
+                        (i, path)
                     } else {
                         return Task::none();
                     }
@@ -323,9 +323,20 @@ impl ChatsMessage {
                 };
 
                 if let Some(chat) = app.main_view.chats_mut().get_mut(&id) {
-                    *chat.chats_mut().iter_mut().find(|x| x == &index).unwrap() = child;
-                    let mk = app.chats.0.get(&saved_id).unwrap().to_mk(&chat.chats());
-                    app.chats.0.get_mut(&saved_id).unwrap().default_chats = chat.chats().clone();
+                    let og_index = chat
+                        .chats()
+                        .iter()
+                        .enumerate()
+                        .find(|(_, x)| x == &index)
+                        .map(|(i, _)| i)
+                        .unwrap();
+                    let mut path = chat.chats()[0..og_index].to_vec();
+                    path.push(child);
+                    path.append(&mut new_path);
+
+                    *chat.chats_mut() = path.clone();
+                    let mk = app.chats.0.get(&saved_id).unwrap().to_mk(&path);
+                    app.chats.0.get_mut(&saved_id).unwrap().default_chats = path;
                     chat.set_markdown(mk);
                 }
 
@@ -544,13 +555,7 @@ impl ChatsMessage {
                 });
                 Task::none()
             }
-            Self::NewChat => {
-                if let Some(chat) = app.main_view.chats().get(&id) {
-                    return Self::new_chat(app, id);
-                }
-
-                Task::none()
-            }
+            Self::NewChat => Self::new_chat(app, id),
             Self::Submit => {
                 let (chat, saved_id, options, models, old_tools, mut chats) =
                     if let Some(chat) = app.main_view.chats_mut().get_mut(&id) {
@@ -587,8 +592,6 @@ impl ChatsMessage {
                     } else {
                         return Task::none();
                     };
-
-                println!("2. {:?}", chats);
 
                 let (mut chats, parent_index) = if let Some(x) = app.chats.0.get_mut(&saved_id) {
                     let parent = {
@@ -649,7 +652,6 @@ impl ChatsMessage {
                         parent
                     };
                     if !x.default_chats.contains(chats.last().unwrap()) {
-                        println!("2. {:?}", chats);
                         x.default_chats = chats.clone();
                         *app.main_view.chats_mut().get_mut(&id).unwrap().chats_mut() =
                             chats.clone();
