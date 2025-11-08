@@ -62,9 +62,76 @@ impl Chat {
         )
         .padding(20);
 
-        container(column![self.header(&id, &index, reason), images, editor,].width(Length::Fill))
-            .style(style::container::chat_back)
-            .width(Length::FillPortion(5))
+        container(
+            column![self.header_editing(&id, &index, reason), images, editor,].width(Length::Fill),
+        )
+        .style(style::container::chat_back)
+        .width(Length::FillPortion(5))
+        .into()
+    }
+
+    fn header_editing<'a>(
+        &'a self,
+        id: &Id,
+        index: &usize,
+        reason: &Option<Reason>,
+    ) -> Element<'a, Message> {
+        let mut widgets = Vec::new();
+
+        let style = match self.role() == &Role::AI {
+            true => style::container::chat_ai,
+            false => style::container::chat,
+        };
+
+        let btn = |img: &str| -> Button<Message> {
+            button(
+                svg(svg::Handle::from_path(get_path_assets(img.to_string())))
+                    .style(style::svg::white)
+                    .width(16.0)
+                    .height(16.0),
+            )
+            .style(style::button::transparent_text)
+        };
+
+        let txt = |txt: String| -> Element<Message> {
+            text(txt)
+                .size(16)
+                .align_x(Horizontal::Left)
+                .align_y(Vertical::Center)
+                .width(Length::Fill)
+                .into()
+        };
+
+        widgets.push(txt(self.role().to_string()));
+
+        if let Some(Reason::Model(x)) = &reason {
+            widgets.push(txt(x.to_string()));
+        }
+
+        widgets.push(horizontal_space().into());
+
+        widgets.push(
+            btn("close.svg")
+                .on_press(Message::Chats(
+                    ChatsMessage::Edit(index.clone()),
+                    id.clone(),
+                ))
+                .into(),
+        );
+
+        widgets.push(
+            btn("send.svg")
+                .on_press(Message::Chats(
+                    ChatsMessage::SaveEdit(index.clone()),
+                    id.clone(),
+                ))
+                .into(),
+        );
+
+        container(row(widgets).spacing(10))
+            .style(style)
+            .width(Length::Fill)
+            .padding(3)
             .into()
     }
 

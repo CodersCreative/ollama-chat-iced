@@ -141,9 +141,24 @@ impl SavedChat {
             .map(|x| x.0.clone())
     }
 
-    pub fn new_with_chats(chats: Vec<Chat>) -> Self {
+    pub fn new_with_chats(chats: Vec<Chat>, tools: Vec<Id>) -> Self {
         let mut saved = Self::default();
+
+        for i in 0..chats.len() {
+            if i + 1 < chats.len() {
+                saved.chats.relationships.insert(
+                    i,
+                    vec![Relationship {
+                        index: i + 1,
+                        reason: None,
+                    }],
+                );
+            }
+        }
+
         saved.chats.chats = chats;
+        saved.default_chats = saved.get_path_from_index(0);
+        saved.default_tools = tools;
         saved
     }
 

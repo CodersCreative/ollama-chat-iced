@@ -1,6 +1,6 @@
 use crate::chats::message::ChatsMessage;
 use crate::chats::view::State;
-use crate::chats::SavedChat;
+use crate::chats::{SavedChat, CHATS_FILE};
 use crate::{common::Id, sidebar::chats::SideChats};
 use crate::{ChatApp, Message};
 use iced::Task;
@@ -15,6 +15,7 @@ impl ChatsMessage {
     }
 
     pub fn changed_saved(app: &mut ChatApp, id: Id, saved: Id) {
+        app.chats.save(CHATS_FILE);
         app.main_view.update_chat(&id, |chat| {
             if let Some(chat) = chat {
                 chat.set_markdown(app.chats.0.get(&saved).unwrap().to_mk(&chat.chats()));
@@ -40,6 +41,7 @@ impl ChatApp {
             }
         }
 
+        self.chats.save(CHATS_FILE);
         self.regenerate_side_chats();
         Task::none()
     }

@@ -93,39 +93,41 @@ impl ChatsMessage {
 
                 let new_saved_id = Id::new();
 
-                let (mut new_saved, index) = match app.chats.0.get(&saved_id) {
-                    Some(x) => {
-                        let chats: Vec<Chat> = x
-                            .get_chats_with_reason(&path)
-                            .into_iter()
-                            .map(|x| x.1.clone())
-                            .collect();
-                        let chat = x.chats.chats.get(*index).unwrap();
+                let (mut new_saved, index, tools): (Vec<Chat>, usize, Vec<Id>) =
+                    match app.chats.0.get(&saved_id) {
+                        Some(x) => {
+                            let chats: Vec<(usize, Chat)> = x
+                                .get_chats_with_reason(&path)
+                                .into_iter()
+                                .map(|x| (x.0, x.1.clone()))
+                                .collect();
 
-                        let index = chats
-                            .iter()
-                            .enumerate()
-                            .find(|x| x.1.content() == chat.content())
-                            .map(|x| x.0)
-                            .unwrap();
-                        (chats, index)
-                    }
-                    None => return Task::none(),
-                };
+                            let index = chats
+                                .iter()
+                                .enumerate()
+                                .find(|x| &x.1 .0 == index)
+                                .map(|x| x.0)
+                                .unwrap();
+                            (
+                                chats.into_iter().map(|x| x.1).collect(),
+                                index,
+                                x.default_tools.clone(),
+                            )
+                        }
+                        None => return Task::none(),
+                    };
 
                 if new_saved[index].role() == &Role::AI {
-                    let (_, n) = new_saved.split_at(index);
-                    new_saved = n.to_vec();
+                    new_saved = new_saved[0..=index].to_vec();
                 } else {
-                    let (_, n) = new_saved.split_at(index + 1);
-                    new_saved = n.to_vec();
+                    new_saved = new_saved[0..=(index + 1)].to_vec();
                 }
 
-                let new_saved = SavedChat::new_with_chats(new_saved);
+                let new_saved = SavedChat::new_with_chats(new_saved, tools);
 
                 app.chats.0.insert(new_saved_id.clone(), new_saved);
-                app.regenerate_side_chats();
                 Self::changed_saved(app, id, new_saved_id);
+                app.regenerate_side_chats();
                 Task::none()
             }
             Self::Regenerate(index) => {
@@ -576,11 +578,6 @@ impl ChatsMessage {
                             .build()
                             .unwrap();
 
-                        // TODO Identify chats where addition is happening
-                        chat.add_markdown(Chat::generate_mk(submission.content()));
-                        chat.add_markdown(Chat::generate_mk(""));
-                        chat.set_state(State::Generating);
-
                         (
                             submission,
                             chat.saved_chat().clone(),
@@ -592,6 +589,8 @@ impl ChatsMessage {
                     } else {
                         return Task::none();
                     };
+
+                let last = if chats.len() > 0 { chats.len() - 1 } else { 0 };
 
                 let (mut chats, parent_index) = if let Some(x) = app.chats.0.get_mut(&saved_id) {
                     let parent = {
@@ -653,8 +652,25 @@ impl ChatsMessage {
                     };
                     if !x.default_chats.contains(chats.last().unwrap()) {
                         x.default_chats = chats.clone();
-                        *app.main_view.chats_mut().get_mut(&id).unwrap().chats_mut() =
-                            chats.clone();
+
+                        if chats.len() > 2 {
+                            app.main_view.update_chat_by_saved_and_message(
+                                &saved_id,
+                                &chats[last],
+                                |c| {
+                                    c.add_markdown(Chat::generate_mk(chat.content()));
+                                    c.add_markdown(Chat::generate_mk(""));
+                                    c.set_state(State::Generating);
+                                    *c.chats_mut() = chats.clone();
+                                },
+                            );
+                        }
+                        if let Some(c) = app.main_view.chats_mut().get_mut(&id) {
+                            c.add_markdown(Chat::generate_mk(chat.content()));
+                            c.add_markdown(Chat::generate_mk(""));
+                            c.set_state(State::Generating);
+                            *c.chats_mut() = chats.clone();
+                        };
                     }
 
                     (x.get_chat_messages(&chats), parent)
