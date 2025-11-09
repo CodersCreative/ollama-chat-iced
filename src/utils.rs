@@ -1,14 +1,12 @@
-use crate::{chats::SavedChat, PREVIEW_LEN};
+use crate::PREVIEW_LEN;
 use base64_stream::ToBase64Reader;
 use iced::Color;
 use image::ImageFormat;
-use ollama_rs::generation::images::Image;
 #[cfg(feature = "voice")]
 use rodio::{Decoder, OutputStream, Sink};
 use std::{
     env,
     io::{self, Write},
-    time::SystemTime,
 };
 use std::{
     error::Error,
@@ -117,7 +115,7 @@ pub fn split_text_new_line(text: String) -> String {
     return t;
 }
 
-pub fn convert_image(path: &Path) -> Result<Image, Box<dyn Error>> {
+pub fn convert_image(path: &Path) -> Result<String, Box<dyn Error>> {
     let f = BufReader::new(File::open(path)?);
 
     let format = ImageFormat::from_path(path)?;
@@ -128,24 +126,24 @@ pub fn convert_image(path: &Path) -> Result<Image, Box<dyn Error>> {
         let mut reader = ToBase64Reader::new(buf.as_slice());
         let mut base64 = String::new();
         reader.read_to_string(&mut base64)?;
-        return Ok(Image::from_base64(&base64));
+        return Ok(base64);
     }
 
     let mut reader = ToBase64Reader::new(f);
     let mut base64 = String::new();
     reader.read_to_string(&mut base64)?;
-    Ok(Image::from_base64(&base64))
+
+    Ok(base64)
 }
 
-pub fn get_preview(chat: &SavedChat) -> (String, SystemTime) {
-    if let Some(parent) = chat.chats.chats.last() {
-        let prev = split_text(parent.content().to_string());
-        if prev.len() > 0 {
-            return (prev[0].clone(), chat.time);
-        }
-    }
-
-    (String::from("New"), SystemTime::now())
+pub fn convert_audio(path: &Path) -> Result<String, Box<dyn Error>> {
+    let mut file = File::open(path)?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+    let mut reader = ToBase64Reader::new(buffer.as_slice());
+    let mut base64 = String::new();
+    reader.read_to_string(&mut base64)?;
+    Ok(base64)
 }
 
 pub fn lighten_colour(color: Color, amt: f32) -> Color {

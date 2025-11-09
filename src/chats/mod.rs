@@ -2,11 +2,12 @@ pub mod chat;
 pub mod message;
 pub mod view;
 
+use crate::chats::chat::Role;
 use crate::common::Id;
-use crate::utils::{get_path_settings, get_preview};
+use crate::utils::get_path_settings;
+use async_openai::types::ChatCompletionRequestMessage;
 use chat::Chat;
 use iced::widget::markdown;
-use ollama_rs::generation::chat::ChatMessage;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
@@ -27,17 +28,6 @@ impl SavedChats {
             .entry(key)
             .and_modify(|x| *x = chat.clone())
             .or_insert(chat);
-    }
-
-    pub fn get_chat_previews(&self) -> Vec<(Id, String, SystemTime)> {
-        self.0
-            .clone()
-            .iter()
-            .map(|(id, x)| {
-                let (title, time) = x.get_preview();
-                (id.clone(), title, time)
-            })
-            .collect::<Vec<(Id, String, SystemTime)>>()
     }
 
     pub fn save(&self, path: &str) {
@@ -168,10 +158,6 @@ impl SavedChat {
         saved
     }
 
-    pub fn get_preview(&self) -> (String, SystemTime) {
-        return get_preview(self);
-    }
-
     pub fn get_chats_with_reason(&self, chats: &[usize]) -> Vec<(usize, &Chat, Option<Reason>)> {
         let mut cts = Vec::new();
 
@@ -214,23 +200,38 @@ impl SavedChat {
         path
     }
 
-    pub fn get_chat_messages_before(&self, chats: &[usize], before: usize) -> Vec<ChatMessage> {
+    pub fn get_chat_messages_before(
+        &self,
+        chats: &[usize],
+        before: usize,
+    ) -> Vec<ChatCompletionRequestMessage> {
         let mut cts = Vec::new();
 
         for id in chats[0..before].iter() {
             if let Some(x) = self.chats.chats.get(*id) {
-                cts.push(Into::<ChatMessage>::into(x))
+                cts.push(Into::<ChatCompletionRequestMessage>::into(x))
             }
         }
         cts
     }
 
-    pub fn get_chat_messages(&self, chats: &[usize]) -> Vec<ChatMessage> {
+    pub fn get_chat_message_texts(&self, chats: &[usize]) -> Vec<(String, Role)> {
         let mut cts = Vec::new();
 
         for id in chats.iter() {
             if let Some(x) = self.chats.chats.get(*id) {
-                cts.push(Into::<ChatMessage>::into(x))
+                cts.push((x.content().clone(), x.role().clone()))
+            }
+        }
+        cts
+    }
+
+    pub fn get_chat_messages(&self, chats: &[usize]) -> Vec<ChatCompletionRequestMessage> {
+        let mut cts = Vec::new();
+
+        for id in chats.iter() {
+            if let Some(x) = self.chats.chats.get(*id) {
+                cts.push(Into::<ChatCompletionRequestMessage>::into(x))
             }
         }
         cts

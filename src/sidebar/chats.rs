@@ -1,9 +1,10 @@
+use std::time::SystemTime;
+
 use super::chat::SideChat;
 use crate::common::Id;
 use crate::{ChatApp, Message};
 use iced::widget::{column, scrollable};
 use iced::Element;
-use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct SideChats {
@@ -12,14 +13,12 @@ pub struct SideChats {
 
 impl SideChats {
     pub fn new(titles: Vec<(Id, String, SystemTime)>) -> Self {
-        let mut chats: Vec<SideChat> = titles
-            .iter()
-            .map(|(id, title, time)| SideChat::new(id.clone(), title.clone(), time.clone()))
-            .collect();
-
-        chats.sort_by(|a, b| b.time().cmp(a.time()));
-
-        return Self { chats };
+        return Self {
+            chats: titles
+                .into_iter()
+                .map(|(id, title, time)| SideChat::new(id, title, time))
+                .collect(),
+        };
     }
 
     pub fn new_with_chats(chats: Vec<SideChat>) -> Self {

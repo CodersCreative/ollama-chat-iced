@@ -1,41 +1,56 @@
-use crate::llm::get_model;
+use crate::{
+    common::Id,
+    providers::{Provider, SavedProviders},
+};
 use iced::widget::combo_box;
-use ollama_rs::Ollama;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex as TMutex;
 
 pub struct Logic {
     pub combo_models: combo_box::State<String>,
     pub models: Vec<String>,
-    pub ollama: Arc<TMutex<Ollama>>,
+    pub providers: HashMap<Id, Arc<TMutex<Provider>>>,
 }
 
 impl Logic {
-    pub fn new() -> Self {
-        let mut val = Self {
-            combo_models: combo_box::State::new(Vec::new()),
-            models: Vec::new(),
-            ollama: Arc::new(TMutex::new(get_model())),
-        };
+    pub fn new(providers: &SavedProviders) -> Self {
+        let mut map = HashMap::new();
+        let mut models = Vec::new();
 
-        val.models = val.get_models();
+        for (key, provider) in providers.0.iter() {
+            let new_provider: Provider = provider.into();
+            models.append(&mut new_provider.get_models());
+            map.insert(key.clone(), Arc::new(TMutex::new(new_provider)));
+        }
 
+        Self {
+            combo_models: combo_box::State::new(models.clone()),
+            models,
+            providers: map,
+        }
+    }
+
+    pub fn update_all_models(&mut self) {
+        let mut models = Vec::new();
+        for (_, provider) in self.providers.iter() {
+            let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
+            models.append(&mut tokio_runtime.block_on(async {
+                let provider = provider.lock().await;
+                provider.get_models_async().await
+            }));
+        }
+
+        self.models = models.clone();
+        self.combo_models = combo_box::State::new(models);
+    }
+
+    pub fn get_random_provider(&self) -> Option<Arc<TMutex<Provider>>> {
+        // TODO remove everywhere this function is used!!!
+        let mut val = None;
+        for provider in self.providers.iter() {
+            val = Some(provider.1.clone());
+            break;
+        }
         val
-    }
-
-    pub async fn get_models_async(&self) -> Vec<String> {
-        let o = self.ollama.lock().await;
-        return o
-            .list_local_models()
-            .await
-            .unwrap_or(Vec::new())
-            .iter()
-            .map(|x| x.name.clone())
-            .collect::<Vec<String>>();
-    }
-
-    pub fn get_models(&self) -> Vec<String> {
-        let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
-        tokio_runtime.block_on(self.get_models_async())
     }
 }

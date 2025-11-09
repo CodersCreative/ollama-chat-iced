@@ -1,4 +1,4 @@
-use crate::{common::Id, style, ChatApp, Message};
+use crate::{common::Id, providers::Provider, style, ChatApp, Message};
 use iced::{
     alignment::{Horizontal, Vertical},
     futures::{SinkExt, Stream, StreamExt},
@@ -6,13 +6,13 @@ use iced::{
     widget::{button, column, container, progress_bar, text},
     Element, Length, Subscription,
 };
-use ollama_rs::Ollama;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct Download {
     download: String,
+    provider: Arc<Mutex<Provider>>,
     pub state: State,
 }
 
@@ -24,9 +24,10 @@ pub enum State {
 }
 
 impl Download {
-    pub fn new(download: String) -> Self {
+    pub fn new(download: String, provider: Arc<Mutex<Provider>>) -> Self {
         Download {
             download,
+            provider,
             state: State::Downloading(0.0, String::new()),
         }
     }
@@ -48,10 +49,10 @@ impl Download {
         }
     }
 
-    pub fn subscription(&self, app: &ChatApp, id: Id) -> Subscription<Message> {
+    pub fn subscription(&self, _app: &ChatApp, id: Id) -> Subscription<Message> {
         match self.state {
             State::Downloading(_, _) => {
-                pull(id, self.download.clone(), app.logic.ollama.clone()).map(Message::Pulling)
+                pull(id, self.download.clone(), self.provider.clone()).map(Message::Pulling)
             }
             _ => Subscription::none(),
         }
@@ -104,22 +105,22 @@ pub enum DownloadProgress {
 pub fn pull(
     id: Id,
     model: String,
-    ollama: Arc<Mutex<Ollama>>,
+    provider: Arc<Mutex<Provider>>,
 ) -> iced::Subscription<(Id, Result<DownloadProgress, String>)> {
     Subscription::run_with_id(
         id,
-        download_stream(model, ollama).map(move |progress| (id, progress)),
+        download_stream(model, provider).map(move |progress| (id, progress)),
     )
 }
 
 pub fn download_stream(
     model: String,
-    ollama: Arc<Mutex<Ollama>>,
+    provider: Arc<Mutex<Provider>>,
 ) -> impl Stream<Item = Result<DownloadProgress, String>> {
     try_channel(1, move |mut output| async move {
-        let ollama = ollama.lock().await;
-        let mut y = ollama
-            .pull_model_stream(model, false)
+        let provider = provider.lock().await;
+        let mut y = provider
+            .pull_ollama_model_stream(model, false)
             .await
             .map_err(|x| x.to_string())?;
         let mut total = 1;

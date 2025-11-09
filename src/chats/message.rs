@@ -6,7 +6,7 @@ use super::{
 #[cfg(feature = "voice")]
 use crate::sound::{get_audio, transcribe};
 use crate::{
-    chats::{Reason, Relationship},
+    chats::{chat::FileType, Reason, Relationship},
     common::Id,
     llm::ChatStreamId,
     prompts::view::get_command_input,
@@ -127,8 +127,7 @@ impl ChatsMessage {
 
                 app.chats.0.insert(new_saved_id.clone(), new_saved);
                 Self::changed_saved(app, id, new_saved_id);
-                app.regenerate_side_chats();
-                Task::none()
+                app.regenerate_side_chats(vec![id, new_saved_id])
             }
             Self::Regenerate(index) => {
                 let saved_id = match get_saved_id() {
@@ -218,7 +217,13 @@ impl ChatsMessage {
 
                     app.main_view.add_chat_stream(
                         chat_stream_id,
-                        crate::llm::ChatStream::new(app, chats, tools, option),
+                        crate::llm::ChatStream::new(
+                            app,
+                            chats,
+                            tools,
+                            option,
+                            app.logic.get_random_provider().unwrap(),
+                        ),
                     );
                 }
 
@@ -573,7 +578,12 @@ impl ChatsMessage {
 
                         let submission = ChatBuilder::default()
                             .content(chat.get_content_text())
-                            .images(chat.images().clone())
+                            .images(
+                                chat.images()
+                                    .iter()
+                                    .map(|x| FileType::Path(x.clone()))
+                                    .collect(),
+                            )
                             .role(super::chat::Role::User)
                             .build()
                             .unwrap();
@@ -695,7 +705,13 @@ impl ChatsMessage {
                         let chat_stream_id = ChatStreamId::new(saved_id, parent_index + i + 1);
                         app.main_view.add_chat_stream(
                             chat_stream_id,
-                            crate::llm::ChatStream::new(app, chats.clone(), tools.clone(), option),
+                            crate::llm::ChatStream::new(
+                                app,
+                                chats.clone(),
+                                tools.clone(),
+                                option,
+                                app.logic.get_random_provider().unwrap(),
+                            ),
                         );
                     }
                 }

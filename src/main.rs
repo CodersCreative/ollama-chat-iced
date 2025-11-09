@@ -9,7 +9,9 @@ pub mod llm;
 pub mod models;
 pub mod options;
 pub mod panes;
+pub mod previews;
 pub mod prompts;
+pub mod providers;
 pub mod save;
 pub mod sidebar;
 #[cfg(feature = "voice")]
@@ -21,7 +23,12 @@ pub mod update;
 pub mod utils;
 pub mod view;
 
-use crate::{save::Save, tools::SavedTools};
+use crate::{
+    previews::{PreviewResponse, SavedPreviews},
+    providers::SavedProviders,
+    save::Save,
+    tools::SavedTools,
+};
 #[cfg(feature = "voice")]
 use call::{Call, CallMessage};
 use chats::{message::ChatsMessage, view::Chats, SavedChat, SavedChats, CHATS_FILE};
@@ -30,7 +37,7 @@ use database::new_conn;
 use download::{Download, DownloadProgress};
 use iced::{
     clipboard, event,
-    widget::{combo_box, container, markdown, row, text_editor},
+    widget::{container, markdown, row, text_editor},
     window, Element, Event, Font, Subscription, Task, Theme,
 };
 use llm::{ChatProgress, ChatStreamId};
@@ -74,7 +81,9 @@ pub struct ChatApp {
     pub main_view: View,
     pub options: SavedOptions,
     pub model_info: SavedModels,
+    pub providers: SavedProviders,
     pub prompts: SavedPrompts,
+    pub previews: SavedPreviews,
     pub tools: SavedTools,
     pub chats: SavedChats,
     pub logic: Logic,
@@ -104,6 +113,7 @@ pub enum Message {
     SideBar,
     Pulling((Id, Result<DownloadProgress, String>)),
     Generating((ChatStreamId, Result<ChatProgress, String>)),
+    SetPreviews(Result<PreviewResponse, String>),
     StopGenerating(Id),
     Pull(String),
     StopPull(Id),
@@ -124,16 +134,19 @@ impl ChatApp {
     }
 
     fn new_with_save(save: Save) -> Self {
+        let providers = SavedProviders::default();
         Self {
             save,
             panes: Panes::new(panes::Pane::Chat(Id::new())),
             main_view: View::new(),
-            logic: Logic::new(),
+            logic: Logic::new(&providers),
             model_info: SavedModels::init().unwrap(),
+            providers,
             options: SavedOptions::default(),
             prompts: SavedPrompts::default(),
             tools: SavedTools::default(),
             chats: SavedChats::default(),
+            previews: SavedPreviews::default(),
             #[cfg(feature = "sound")]
             tts: NaturalTtsBuilder::default()
                 .default_model(natural_tts::Model::Gtts)
@@ -150,46 +163,64 @@ impl ChatApp {
     fn init() -> (ChatApp, Task<Message>) {
         let mut app = Self::new_with_save(match Save::load(SAVE_FILE) {
             Ok(x) => x,
-            Err(_) => Save::default(),
+            Err(_) => {
+                let save = Save::default();
+                save.save(SAVE_FILE);
+                save
+            }
         });
 
-        app.options = match SavedOptions::load(options::SETTINGS_FILE) {
-            Ok(x) => x,
-            Err(_) => SavedOptions::default(),
-        };
+        if let Ok(x) = SavedOptions::load(options::SETTINGS_FILE) {
+            app.options = x;
+        } else {
+            app.options.save(options::SETTINGS_FILE);
+        }
 
-        app.prompts = match SavedPrompts::load(prompts::PROMPTS_PATH) {
-            Ok(x) => x,
-            Err(_) => SavedPrompts::default(),
-        };
+        if let Ok(x) = SavedPrompts::load(prompts::PROMPTS_PATH) {
+            app.prompts = x;
+        } else {
+            app.prompts.save(prompts::PROMPTS_PATH);
+        }
 
-        app.tools = match SavedTools::load(tools::TOOLS_PATH) {
-            Ok(x) => x,
-            Err(_) => SavedTools::default(),
-        };
+        if let Ok(x) = SavedProviders::load(providers::PROVIDERS_FILE) {
+            app.logic = Logic::new(&x);
+            app.providers = x;
+        } else {
+            app.providers.save(providers::PROVIDERS_FILE);
+        }
 
-        app.chats = match SavedChats::load(chats::CHATS_FILE) {
-            Ok(x) => x,
-            Err(_) => SavedChats::default(),
-        };
+        if let Ok(x) = SavedTools::load(tools::TOOLS_PATH) {
+            app.tools = x;
+        } else {
+            app.tools.save(tools::TOOLS_PATH);
+        }
 
-        let models = app.logic.get_models();
-        app.logic.combo_models = combo_box::State::new(models.clone());
+        if let Ok(x) = SavedChats::load(chats::CHATS_FILE) {
+            app.chats = x;
+        } else {
+            app.chats.save(chats::CHATS_FILE);
+        }
+
+        if let Ok(x) = SavedPreviews::load(previews::PREVIEWS_FILE) {
+            app.previews = x;
+        } else {
+            app.previews.save(previews::PREVIEWS_FILE);
+        }
 
         if let Some(i) = app.save.theme {
             app.main_view.set_theme(Theme::ALL[i].clone());
         }
 
-        if !models.is_empty() {
+        if !app.logic.models.is_empty() {
             if app.chats.0.is_empty() {
                 app.chats.0.insert(Id::new(), SavedChat::default());
             }
-            app.regenerate_side_chats();
+
             if let Some(saved) = app.chats.0.iter().last() {
                 let first = (
                     Id::new(),
                     Chats::new(
-                        if let Some(model) = models.first() {
+                        if let Some(model) = app.logic.models.first() {
                             vec![model.clone()]
                         } else {
                             Vec::new()
@@ -205,7 +236,8 @@ impl ChatApp {
                 app.panes.last_chat = first.0.clone();
                 app.main_view.add_to_chats(first.0, first.1);
             }
-            if let Some(model) = models.first() {
+
+            if let Some(model) = app.logic.models.first() {
                 app.options.get_create_model_options_index(model.clone());
             }
         } else {
@@ -213,11 +245,16 @@ impl ChatApp {
             app.panes = Panes::new(model);
         }
 
-        (app, Task::none())
+        if app.previews.0.len() != app.chats.0.len() {
+            let task = app.regenerate_side_chats(Vec::new());
+            (app, task)
+        } else {
+            (app, Task::none())
+        }
     }
 
     fn title(&self) -> String {
-        String::from("Creative Chat")
+        String::from("OChat")
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
@@ -283,8 +320,23 @@ impl ChatApp {
             Message::RemoveChat(x) => return self.remove_chat(x),
             Message::ChangeTheme(x) => self.change_theme(x.clone()),
             Message::Pull(x) => {
-                self.main_view
-                    .add_download(Id::new(), Download::new(x.clone()));
+                self.main_view.add_download(
+                    Id::new(),
+                    Download::new(x.clone(), self.logic.get_random_provider().unwrap()),
+                );
+                Task::none()
+            }
+            Message::SetPreviews(preview) => {
+                if let Ok(preview) = preview {
+                    if let Some(p) = self.previews.0.get_mut(&preview.chat) {
+                        p.text = preview.text;
+                    }
+
+                    self.main_view
+                        .set_side_chats(self.previews.get_side_chats());
+                    self.previews.save(previews::PREVIEWS_FILE);
+                }
+
                 Task::none()
             }
             Message::Generating((id, progress)) => {
@@ -320,8 +372,6 @@ impl ChatApp {
                         });
                 } else if let Ok(ChatProgress::Finished) = progress {
                     self.chats.save(CHATS_FILE);
-                    self.regenerate_side_chats();
-
                     self.main_view
                         .update_chat_by_saved_and_message(&id.0, &id.1, |chat| {
                             chat.set_content(text_editor::Content::new());
@@ -330,6 +380,8 @@ impl ChatApp {
                         });
 
                     let _ = self.main_view.chat_streams_mut().remove(&id);
+
+                    return self.regenerate_side_chats(vec![id.0]);
                 }
 
                 Task::none()
@@ -338,8 +390,7 @@ impl ChatApp {
                 if let Ok(progress) = progress.clone() {
                     if let DownloadProgress::Finished = progress {
                         self.main_view.remove_download_by_id(&id);
-                        let models = self.logic.get_models();
-                        self.logic.combo_models = combo_box::State::new(models.clone());
+                        self.logic.update_all_models();
                         return Task::none();
                     }
                 }

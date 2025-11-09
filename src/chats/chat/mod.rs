@@ -1,11 +1,18 @@
 pub mod view;
 
+use crate::utils::convert_audio;
 use crate::{utils::convert_image, Message};
+use async_openai::types::{
+    ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestFunctionMessageArgs,
+    ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPartImageArgs,
+    ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestSystemMessageArgs,
+    ChatCompletionRequestUserMessageArgs, ChatCompletionRequestUserMessageContentPart,
+    ImageUrlArgs, InputAudio, InputAudioFormat,
+};
 use derive_builder::Builder;
 use getset::{Getters, Setters};
 use iced::Element;
 use iced::{widget::markdown, Theme};
-use ollama_rs::generation::{chat::ChatMessage, tools::ToolCall};
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::SystemTime};
 
@@ -20,15 +27,65 @@ pub struct Chat {
 
     #[getset(get = "pub", set = "pub")]
     #[builder(default = "Vec::new()")]
-    images: Vec<PathBuf>,
+    images: Vec<FileType>,
 
     #[getset(get = "pub", set = "pub")]
     #[builder(default = "Vec::new()")]
-    tools: Vec<ToolCall>,
+    audio: Vec<AudioType>,
 
     #[getset(get = "pub", set = "pub")]
     #[builder(default = "SystemTime::now()")]
     timestamp: SystemTime,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum FileType {
+    Url(String),
+    Base64(String),
+    Path(PathBuf),
+}
+
+impl Into<PathBuf> for &FileType {
+    fn into(self) -> PathBuf {
+        match self {
+            FileType::Path(x) => x.clone(),
+            _ => panic!("Expected File::Path"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AudioType {
+    file_type: FileType,
+    audio_format: InputAudioFormat,
+}
+
+impl Into<ImageUrlArgs> for &FileType {
+    fn into(self) -> ImageUrlArgs {
+        match self {
+            FileType::Url(x) => ImageUrlArgs::default().url(x).clone(),
+            FileType::Base64(x) => ImageUrlArgs::default().url(x).clone(),
+            FileType::Path(x) => ImageUrlArgs::default()
+                .url(convert_image(x).unwrap())
+                .clone(),
+        }
+    }
+}
+
+impl Into<InputAudio> for &AudioType {
+    fn into(self) -> InputAudio {
+        match &self.file_type {
+            FileType::Base64(x) => InputAudio {
+                data: x.clone(),
+                format: self.audio_format.clone(),
+            },
+            FileType::Path(x) => InputAudio {
+                data: convert_audio(x).unwrap(),
+                format: self.audio_format.clone(),
+            },
+            _ => todo!(),
+        }
+    }
 }
 
 impl Chat {
@@ -52,6 +109,7 @@ pub enum Role {
     #[default]
     User,
     AI,
+    Function,
     System,
 }
 
@@ -76,44 +134,71 @@ impl Into<usize> for Role {
 impl std::fmt::Display for Role {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let output = match self {
-            Self::AI => "Ai",
+            Self::AI => "AI",
             Self::User => "User",
             Self::System => "System",
+            Self::Function => "Tool",
         };
         write!(f, "{}", output)
     }
 }
-impl Into<ChatMessage> for &Chat {
-    fn into(self) -> ChatMessage {
-        let mut message = match self.role {
-            Role::User => ChatMessage::user(self.content().to_string()),
-            Role::AI => ChatMessage::assistant(self.content().to_string()),
-            Role::System => ChatMessage::system(self.content().to_string()),
-        };
+impl Into<ChatCompletionRequestMessage> for &Chat {
+    fn into(self) -> ChatCompletionRequestMessage {
+        match self.role {
+            Role::User => {
+                let mut parts: Vec<ChatCompletionRequestUserMessageContentPart> =
+                    vec![ChatCompletionRequestMessageContentPartTextArgs::default()
+                        .text(self.content.to_string())
+                        .build()
+                        .unwrap()
+                        .into()];
 
-        message.images = match self.images.len() > 0 {
-            true => Some(
-                self.images
-                    .iter()
-                    .map(|x| convert_image(x).unwrap())
-                    .collect(),
+                for image in self.images.iter() {
+                    parts.push(
+                        ChatCompletionRequestMessageContentPartImageArgs::default()
+                            .image_url(Into::<ImageUrlArgs>::into(image).build().unwrap())
+                            .build()
+                            .unwrap()
+                            .into(),
+                    );
+                }
+
+                ChatCompletionRequestMessage::User(
+                    ChatCompletionRequestUserMessageArgs::default()
+                        .content(parts)
+                        .build()
+                        .unwrap(),
+                )
+            }
+            Role::AI => ChatCompletionRequestMessage::Assistant(
+                ChatCompletionRequestAssistantMessageArgs::default()
+                    .content(self.content.to_string())
+                    .build()
+                    .unwrap(),
             ),
-            false => None,
-        };
-
-        message.tool_calls = self.tools.clone();
-
-        message
+            Role::System => ChatCompletionRequestMessage::System(
+                ChatCompletionRequestSystemMessageArgs::default()
+                    .content(self.content.to_string())
+                    .build()
+                    .unwrap(),
+            ),
+            Role::Function => ChatCompletionRequestMessage::Function(
+                ChatCompletionRequestFunctionMessageArgs::default()
+                    .content(self.content.to_string())
+                    .build()
+                    .unwrap(),
+            ),
+        }
     }
 }
 
 impl Chat {
-    pub fn new(role: &Role, message: &str, images: Vec<PathBuf>, tools: Vec<ToolCall>) -> Self {
+    pub fn new(role: &Role, message: &str, images: Vec<FileType>, audio: Vec<AudioType>) -> Self {
         return Self {
             role: role.clone(),
             content: message.to_string(),
             images,
-            tools,
+            audio,
             timestamp: SystemTime::now(),
         };
     }

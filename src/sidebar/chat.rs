@@ -9,17 +9,17 @@ use std::time::SystemTime;
 
 #[derive(Debug, Clone, Getters, Setters)]
 pub struct SideChat {
-    #[getset(get = "pub")]
+    #[getset(get = "pub", get_mut = "pub")]
     id: Id,
-    #[getset(get = "pub")]
+    #[getset(get = "pub", get_mut = "pub")]
     title: String,
-    #[getset(get = "pub")]
+    #[getset(get = "pub", get_mut = "pub")]
     time: SystemTime,
 }
 
 impl SideChat {
     pub fn new(id: Id, title: String, time: SystemTime) -> Self {
-        return Self { id, title, time };
+        Self { id, title, time }
     }
 
     pub fn view<'a>(&'a self, app: &ChatApp) -> Element<'a, Message> {

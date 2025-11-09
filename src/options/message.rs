@@ -1,5 +1,5 @@
 use super::{values::OptionKey, SETTINGS_FILE};
-use crate::{common::Id, llm::delete_model, ChatApp, Message};
+use crate::{common::Id, ChatApp, Message};
 use iced::Task;
 
 #[derive(Debug, Clone)]
@@ -58,10 +58,11 @@ impl OptionMessage {
                                 option.set_model(m.clone());
                             }
                         });
-                        return Task::perform(
+                        // TODO delete ollama models
+                        /*return Task::perform(
                             delete_model(app.logic.ollama.clone(), model.clone()),
                             move |_| Message::None,
-                        );
+                        );*/
                     }
                 }
 
