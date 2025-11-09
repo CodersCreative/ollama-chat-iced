@@ -26,6 +26,10 @@ pub struct Chat {
     content: String,
 
     #[getset(get = "pub", set = "pub")]
+    #[builder(default = "None")]
+    thinking: Option<String>,
+
+    #[getset(get = "pub", set = "pub")]
     #[builder(default = "Vec::new()")]
     images: Vec<FileType>,
 
@@ -192,6 +196,12 @@ impl Into<ChatCompletionRequestMessage> for &Chat {
     }
 }
 
+#[derive(Clone, Default, Debug)]
+pub struct MarkdownMessage {
+    pub content: Vec<markdown::Item>,
+    pub thinking: Option<Vec<markdown::Item>>,
+}
+
 impl Chat {
     pub fn new(role: &Role, message: &str, images: Vec<FileType>, audio: Vec<AudioType>) -> Self {
         return Self {
@@ -200,11 +210,25 @@ impl Chat {
             images,
             audio,
             timestamp: SystemTime::now(),
+            thinking: None,
         };
     }
 
-    pub fn generate_mk(text: &str) -> Vec<markdown::Item> {
-        markdown::parse(text).collect::<Vec<markdown::Item>>()
+    pub fn generate_mk(text: &str, thinking: Option<&str>) -> MarkdownMessage {
+        MarkdownMessage {
+            content: markdown::parse(text).collect::<Vec<markdown::Item>>(),
+            thinking: thinking.map(|x| markdown::parse(x).collect::<Vec<markdown::Item>>()),
+        }
+    }
+
+    pub fn generate_mk_self(&self) -> MarkdownMessage {
+        MarkdownMessage {
+            content: markdown::parse(&self.content).collect::<Vec<markdown::Item>>(),
+            thinking: self
+                .thinking
+                .clone()
+                .map(|x| markdown::parse(&x).collect::<Vec<markdown::Item>>()),
+        }
     }
 
     pub fn view_mk<'a>(

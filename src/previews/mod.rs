@@ -150,11 +150,33 @@ Generate a concise, 3 - 5 word title for the previous messages.
         value.push_str(&choice.message.content.clone().unwrap_or_default());
     }
 
+    let mut value = split_text_new_line(value);
+
+    if value.contains("</think>") {
+        value = value
+            .split("</think>")
+            .last()
+            .map(|x| x.to_string())
+            .unwrap_or(String::new())
+    }
+
+    /*if value.contains("\n") {
+        value = value
+            .split("\n")
+            .last()
+            .map(|x| x.to_string())
+            .unwrap_or(String::new())
+    }*/
+
+    value.retain(|x| x.is_alphanumeric() || x.is_whitespace());
+
+    value = value.trim().to_string();
+
     Ok(PreviewResponse {
         text: if value.is_empty() {
             String::from("New")
         } else {
-            split_text_new_line(value)
+            value
         },
         chat,
     })

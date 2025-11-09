@@ -1,4 +1,5 @@
 use super::message::ChatsMessage;
+use crate::chats::chat::MarkdownMessage;
 // use super::TooledOptions;
 use crate::common::Id;
 use crate::prompts::view::get_command_input;
@@ -11,8 +12,7 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::widget::mouse_area;
 use iced::widget::text_editor::Motion;
 use iced::widget::{
-    button, column, combo_box, container, horizontal_space, image, keyed_column, markdown, row,
-    scrollable,
+    button, column, combo_box, container, horizontal_space, image, keyed_column, row, scrollable,
     scrollable::{Direction, Scrollbar},
     svg, text, text_editor, Renderer,
 };
@@ -22,12 +22,14 @@ use std::{path::PathBuf, sync::Arc};
 #[derive(Debug, Getters, Setters, MutGetters, CopyGetters)]
 pub struct Chats {
     #[getset(get = "pub", set = "pub")]
-    markdown: Vec<Vec<markdown::Item>>,
+    markdown: Vec<MarkdownMessage>,
 
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     edit: text_editor::Content,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     edit_index: Option<usize>,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    thinking_index: Option<usize>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     images: Vec<PathBuf>,
     #[getset(get = "pub", set = "pub")]
@@ -80,13 +82,13 @@ impl Chats {
         self.content.perform(action);
     }
 
-    pub fn add_markdown(&mut self, markdown: Vec<markdown::Item>) {
+    pub fn add_markdown(&mut self, markdown: MarkdownMessage) {
         self.markdown.push(markdown);
     }
 
     pub fn update_markdown<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Vec<Vec<markdown::Item>>),
+        F: FnMut(&mut Vec<MarkdownMessage>),
     {
         f(&mut self.markdown);
     }
@@ -119,7 +121,7 @@ impl Chats {
     pub fn new(
         models: Vec<String>,
         saved_chat: Id,
-        markdown: Vec<Vec<markdown::Item>>,
+        markdown: Vec<MarkdownMessage>,
         chats: Vec<usize>,
         tools: Vec<Id>,
     ) -> Self {
@@ -129,6 +131,7 @@ impl Chats {
             markdown,
             edit: text_editor::Content::new(),
             edit_index: None,
+            thinking_index: None,
             start: "General".to_string(),
             state: State::Idle,
             content: text_editor::Content::new(),
@@ -149,6 +152,14 @@ impl Chats {
         false
     }
 
+    fn check_is_thinking(&self, index: &usize) -> bool {
+        if let Some(edit) = self.thinking_index {
+            return index == &edit;
+        }
+
+        false
+    }
+
     pub fn view<'a>(&'a self, app: &'a ChatApp, id: &Id) -> Element<'a, Message> {
         if let Some(chat) = app.chats.0.get(self.saved_chat()) {
             return keyed_column(
@@ -162,7 +173,14 @@ impl Chats {
                             match Self::check_is_edit(self, &chat.0) {
                                 false => {
                                     if let Some(mk) = self.markdown.get(i) {
-                                        chat.1.view(id, &chat.0, mk, &chat.2, &app.theme())
+                                        chat.1.view(
+                                            id,
+                                            &chat.0,
+                                            mk,
+                                            &chat.2,
+                                            Self::check_is_thinking(&self, &chat.0),
+                                            &app.theme(),
+                                        )
                                     } else {
                                         text("Failed!").into()
                                     }

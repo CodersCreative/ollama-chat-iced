@@ -138,6 +138,7 @@ pub fn download_stream(
             if let Some(x) = status.completed {
                 completed = x;
             }
+
             let _ = output
                 .send(DownloadProgress::Downloading(
                     completed as f32 / total as f32 * 100.0,

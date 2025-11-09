@@ -24,6 +24,7 @@ pub mod utils;
 pub mod view;
 
 use crate::{
+    chats::chat::MarkdownMessage,
     previews::{PreviewResponse, SavedPreviews},
     providers::SavedProviders,
     save::Save,
@@ -346,8 +347,9 @@ impl ChatApp {
                     }
                 });
 
+                let mut mk: Vec<MarkdownMessage> = Vec::new();
+
                 if let Ok(ChatProgress::Generating(progress, _tools)) = progress {
-                    let mut mk: Vec<Vec<markdown::Item>> = Vec::new();
                     let path = self
                         .main_view
                         .chats()
@@ -371,6 +373,54 @@ impl ChatApp {
                             chat.set_state(chats::view::State::Generating);
                         });
                 } else if let Ok(ChatProgress::Finished) = progress {
+                    let _ = self.main_view.chat_streams_mut().remove(&id);
+
+                    if let Some(chat) = self.chats.0.get_mut(&id.0) {
+                        if let Some(message) = chat.chats.chats.get_mut(id.1) {
+                            if message.content().contains("<think>") {
+                                let c = message.content().clone();
+                                let split = c.split_once("<think>").unwrap();
+                                let mut content = split.0.to_string();
+                                let think = if split.1.contains("</think>") {
+                                    let split2 = split.1.rsplit_once("</think>").unwrap();
+                                    content.push_str(split2.1);
+                                    split2.0.to_string()
+                                } else {
+                                    split.1.to_string()
+                                };
+
+                                message.set_content(content.trim().to_string());
+                                if !think.trim().is_empty() {
+                                    message.set_thinking(Some(think.trim().to_string()));
+                                }
+                            }
+
+                            let path = self
+                                .main_view
+                                .chats()
+                                .iter()
+                                .find(|x| x.1.saved_chat() == &id.0 && x.1.chats().contains(&id.1))
+                                .map(|x| x.1.chats());
+
+                            if let Some(path) = path {
+                                mk = chat.to_mk(&path);
+
+                                self.chats.save(CHATS_FILE);
+                                self.main_view.update_chat_by_saved_and_message(
+                                    &id.0,
+                                    &id.1,
+                                    |chat| {
+                                        chat.set_content(text_editor::Content::new());
+                                        chat.set_images(Vec::new());
+                                        chat.set_state(chats::view::State::Idle);
+                                        chat.set_markdown(mk.clone());
+                                    },
+                                );
+                                return self.regenerate_side_chats(vec![id.0]);
+                            }
+                        }
+                    }
+
                     self.chats.save(CHATS_FILE);
                     self.main_view
                         .update_chat_by_saved_and_message(&id.0, &id.1, |chat| {
@@ -378,9 +428,6 @@ impl ChatApp {
                             chat.set_images(Vec::new());
                             chat.set_state(chats::view::State::Idle);
                         });
-
-                    let _ = self.main_view.chat_streams_mut().remove(&id);
-
                     return self.regenerate_side_chats(vec![id.0]);
                 }
 

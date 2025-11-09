@@ -1,6 +1,10 @@
 use super::Chat;
 use crate::{
-    chats::{chat::Role, message::ChatsMessage, Reason},
+    chats::{
+        chat::{MarkdownMessage, Role},
+        message::ChatsMessage,
+        Reason,
+    },
     common::Id,
     style,
     utils::get_path_assets,
@@ -9,7 +13,7 @@ use crate::{
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, container, horizontal_space, image, markdown, mouse_area, row,
+        button, column, container, horizontal_space, image, mouse_area, row,
         scrollable::{self, Direction, Scrollbar},
         svg, text, text_editor, Button,
     },
@@ -238,8 +242,9 @@ impl Chat {
         &'a self,
         id: &Id,
         index: &usize,
-        markdown: &'a Vec<markdown::Item>,
+        markdown: &'a MarkdownMessage,
         reason: &Option<Reason>,
+        show_thinking: bool,
         theme: &Theme,
     ) -> Element<'a, Message> {
         let images = container(
@@ -257,14 +262,53 @@ impl Chat {
         .padding(Padding::from([0, 20]))
         .style(style::container::bottom_input_back);
 
-        let mark = mouse_area(container(self.view_mk(markdown, theme)).padding(20))
+        let mark = mouse_area(container(self.view_mk(&markdown.content, theme)).padding(20))
             .on_right_press(Message::Chats(
                 ChatsMessage::Edit(index.clone()),
                 id.clone(),
             ))
             .on_press(Message::SaveToClipboard(self.content().to_string()));
 
-        container(column![self.header(id, index, reason), images, mark,].width(Length::Fill))
+        let mut column = column![self.header(id, index, reason), images,];
+
+        if let Some(x) = &markdown.thinking {
+            if show_thinking {
+                column = column.push(
+                    container(column![
+                        Button::new("Thinking")
+                            .width(Length::Fill)
+                            .on_press(Message::Chats(
+                                ChatsMessage::Thinking(index.clone()),
+                                id.clone(),
+                            ))
+                            .style(style::button::chosen_chat),
+                        mouse_area(
+                            container(self.view_mk(&x, theme))
+                                .style(style::container::code_darkened)
+                                .padding(20),
+                        )
+                        .on_right_press(Message::Chats(
+                            ChatsMessage::Thinking(index.clone()),
+                            id.clone(),
+                        )),
+                    ])
+                    .padding(20),
+                )
+            } else {
+                column = column.push(
+                    Button::new("Thinking")
+                        .width(Length::Fill)
+                        .on_press(Message::Chats(
+                            ChatsMessage::Thinking(index.clone()),
+                            id.clone(),
+                        ))
+                        .style(style::button::not_chosen_chat),
+                );
+            }
+        }
+        column = column.push(mark);
+
+        container(column.width(Length::Fill))
             .style(style::container::chat_back)
             .width(Length::FillPortion(5))
             .into()

@@ -2,12 +2,11 @@ pub mod chat;
 pub mod message;
 pub mod view;
 
-use crate::chats::chat::Role;
+use crate::chats::chat::{MarkdownMessage, Role};
 use crate::common::Id;
 use crate::utils::get_path_settings;
 use async_openai::types::ChatCompletionRequestMessage;
 use chat::Chat;
-use iced::widget::markdown;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
@@ -49,7 +48,7 @@ impl SavedChats {
                 .read_to_string(&mut data)
                 .map_err(|e| e.to_string())?;
 
-            let de_data = serde_json::from_str(&data);
+            let de_data = serde_json_lenient::from_str(&data);
 
             return match de_data {
                 Ok(x) => Ok(x),
@@ -106,12 +105,12 @@ impl Default for SavedChat {
 }
 
 impl SavedChat {
-    pub fn to_mk(&self, chats: &[usize]) -> Vec<Vec<markdown::Item>> {
+    pub fn to_mk(&self, chats: &[usize]) -> Vec<MarkdownMessage> {
         let mut mk = Vec::new();
 
         for id in chats.iter() {
             if let Some(x) = &self.chats.chats.get(*id) {
-                mk.push(Chat::generate_mk(x.content()))
+                mk.push(x.generate_mk_self())
             }
         }
         mk

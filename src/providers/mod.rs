@@ -165,7 +165,10 @@ impl Provider {
         };
 
         let client = reqwest::Client::new();
-        let url = format!("{}api/pull", self.url);
+        let url = format!(
+            "{}/api/pull",
+            self.url.trim_end_matches('/').trim_end_matches("/v1")
+        );
         let builder = client.post(url);
         let res = builder
             .json(&request)

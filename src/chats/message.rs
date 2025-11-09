@@ -31,6 +31,7 @@ pub enum ChatsMessage {
     SaveEdit(usize),
     CancelEdit,
     Edit(usize),
+    Thinking(usize),
     Submit,
     ChangeModel(usize, String),
     RemoveModel(usize),
@@ -186,7 +187,7 @@ impl ChatsMessage {
                 let (chats, before, old_tools) =
                     if let Some(chat) = app.main_view.chats_mut().get_mut(&id) {
                         let index = chat.chats().iter().find(|x| x == &index).unwrap().clone();
-                        chat.update_markdown(|x| x[index] = Chat::generate_mk(""));
+                        chat.update_markdown(|x| x[index] = Chat::generate_mk("", None));
                         (chat.chats().clone(), index, chat.tools().clone())
                     } else {
                         (Vec::new(), 0, Vec::new())
@@ -373,8 +374,23 @@ impl ChatsMessage {
 
                 app.main_view.update_chat(&id, |chat| {
                     if let Some(chat) = chat {
-                        if let Some(_) = chat.edit_index() {
-                            *chat.edit_index_mut() = None;
+                        if let Some(x) = chat.edit_index() {
+                            if x != index {
+                                *chat.edit_index_mut() = None;
+                            } else {
+                                *chat.edit_index_mut() = Some(*index);
+                                chat.set_edit(text_editor::Content::with_text(
+                                    app.chats
+                                        .0
+                                        .get(&saved_id)
+                                        .unwrap()
+                                        .chats
+                                        .chats
+                                        .get(*index)
+                                        .unwrap()
+                                        .content(),
+                                ));
+                            }
                         } else {
                             *chat.edit_index_mut() = Some(*index);
                             chat.set_edit(text_editor::Content::with_text(
@@ -388,6 +404,23 @@ impl ChatsMessage {
                                     .unwrap()
                                     .content(),
                             ));
+                        }
+                    }
+                });
+
+                Task::none()
+            }
+            Self::Thinking(index) => {
+                app.main_view.update_chat(&id, |chat| {
+                    if let Some(chat) = chat {
+                        if let Some(x) = chat.thinking_index() {
+                            if x != index {
+                                *chat.thinking_index_mut() = Some(*index);
+                            } else {
+                                *chat.thinking_index_mut() = None;
+                            }
+                        } else {
+                            *chat.thinking_index_mut() = Some(*index);
                         }
                     }
                 });
@@ -668,17 +701,19 @@ impl ChatsMessage {
                                 &saved_id,
                                 &chats[last],
                                 |c| {
-                                    c.add_markdown(Chat::generate_mk(chat.content()));
-                                    c.add_markdown(Chat::generate_mk(""));
+                                    c.add_markdown(Chat::generate_mk(chat.content(), None));
+                                    c.add_markdown(Chat::generate_mk("", None));
                                     c.set_state(State::Generating);
                                     *c.chats_mut() = chats.clone();
                                 },
                             );
                         }
+
                         if let Some(c) = app.main_view.chats_mut().get_mut(&id) {
-                            c.add_markdown(Chat::generate_mk(chat.content()));
-                            c.add_markdown(Chat::generate_mk(""));
+                            c.add_markdown(Chat::generate_mk(chat.content(), None));
+                            c.add_markdown(Chat::generate_mk("", None));
                             c.set_state(State::Generating);
+                            c.set_content_text("");
                             *c.chats_mut() = chats.clone();
                         };
                     }
