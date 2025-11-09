@@ -12,7 +12,7 @@ use crate::{
     common::Id,
     providers::Provider,
     sidebar::chats::SideChats,
-    utils::{get_path_settings, split_text_new_line},
+    utils::{get_path_settings, split_text_into_thinking, split_text_new_line},
 };
 
 #[derive(Debug, Clone)]
@@ -91,12 +91,18 @@ pub async fn generate_preview(
         String::from(
             "
 ### Task:
-Generate a concise, 3 - 5 word title for the previous messages.
+Generate a **concise, 3 to 5 word title** for the previous messages.
 ### Guidelines:
 - The title should clearly represent the main theme or subject of the conversation.
 - Write the title in the chat's primary language; default to English if multilingual.
 - Prioritize accuracy over excessive creativity; keep it clear and simple.
-- Return the title by itself and nothing more.      
+- Return your final title by itself and nothing more.
+- Do not explain or elaborate your choice.
+- Give a response regardless of what the previous messages were.
+- Give **only 1 title** please, do not **any** extra suggestions!
+- I repeat, make the title only **3 to 5 words**!
+- Give your final title suggestion after a new line using '\n'.
+
         ",
         ),
         Role::System,
@@ -150,26 +156,11 @@ Generate a concise, 3 - 5 word title for the previous messages.
         value.push_str(&choice.message.content.clone().unwrap_or_default());
     }
 
+    println!("{:?}", value);
+
+    let (value, _) = split_text_into_thinking(value);
     let mut value = split_text_new_line(value);
-
-    if value.contains("</think>") {
-        value = value
-            .split("</think>")
-            .last()
-            .map(|x| x.to_string())
-            .unwrap_or(String::new())
-    }
-
-    /*if value.contains("\n") {
-        value = value
-            .split("\n")
-            .last()
-            .map(|x| x.to_string())
-            .unwrap_or(String::new())
-    }*/
-
     value.retain(|x| x.is_alphanumeric() || x.is_whitespace());
-
     value = value.trim().to_string();
 
     Ok(PreviewResponse {

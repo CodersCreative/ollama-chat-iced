@@ -377,22 +377,12 @@ impl ChatApp {
 
                     if let Some(chat) = self.chats.0.get_mut(&id.0) {
                         if let Some(message) = chat.chats.chats.get_mut(id.1) {
-                            if message.content().contains("<think>") {
-                                let c = message.content().clone();
-                                let split = c.split_once("<think>").unwrap();
-                                let mut content = split.0.to_string();
-                                let think = if split.1.contains("</think>") {
-                                    let split2 = split.1.rsplit_once("</think>").unwrap();
-                                    content.push_str(split2.1);
-                                    split2.0.to_string()
-                                } else {
-                                    split.1.to_string()
-                                };
+                            let (content, thinking) =
+                                utils::split_text_into_thinking(message.content().clone());
 
-                                message.set_content(content.trim().to_string());
-                                if !think.trim().is_empty() {
-                                    message.set_thinking(Some(think.trim().to_string()));
-                                }
+                            message.set_content(content.trim().to_string());
+                            if let Some(thinking) = thinking {
+                                message.set_thinking(Some(thinking));
                             }
 
                             let path = self

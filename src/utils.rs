@@ -101,6 +101,32 @@ pub fn generate_id() -> i32 {
     return num;
 }
 
+pub fn split_text_into_thinking(text: String) -> (String, Option<String>) {
+    if text.contains("<think>") {
+        let c = text.clone();
+        let split = c.split_once("<think>").unwrap();
+        let mut content = split.0.to_string();
+        let think = if split.1.contains("</think>") {
+            let split2 = split.1.rsplit_once("</think>").unwrap();
+            content.push_str(split2.1);
+            split2.0.to_string()
+        } else {
+            split.1.to_string()
+        };
+
+        (
+            content.trim().to_string(),
+            if !think.trim().is_empty() {
+                Some(think.trim().to_string())
+            } else {
+                None
+            },
+        )
+    } else {
+        (text, None)
+    }
+}
+
 pub fn split_text_new_line(text: String) -> String {
     let split = split_text(text.clone());
     let mut t = String::new();
