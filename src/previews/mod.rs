@@ -91,7 +91,7 @@ pub async fn generate_preview(
         String::from(
             "
 ### Task:
-Generate a concise, 3 word title for the previous messages.
+Generate a concise, 3 - 5 word title for the previous messages.
 ### Guidelines:
 - The title should clearly represent the main theme or subject of the conversation.
 - Write the title in the chat's primary language; default to English if multilingual.

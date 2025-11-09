@@ -157,7 +157,7 @@ impl View {
                 .width(Length::Fill)
                 .size(24),
         )
-        .style(style::button::rounded_primary)
+        .style(style::button::rounded_primary_blend)
         .on_press(Message::Chats(ChatsMessage::NewChat, app.panes.last_chat))
         .width(Length::Fill)
         .padding(Padding::from(10));

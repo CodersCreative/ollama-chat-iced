@@ -192,6 +192,21 @@ pub mod button {
         }
     }
 
+    pub fn rounded_primary_blend(theme: &Theme, _status: Status) -> Style {
+        Style {
+            background: Some(iced::Background::Color(change_alpha(
+                theme.palette().primary.clone(),
+                0.1,
+            ))),
+            border: iced::Border::default()
+                .rounded(20)
+                .width(1)
+                .color(change_alpha(theme.palette().primary.clone(), 0.3)),
+            text_color: theme.palette().text.clone(),
+            ..Default::default()
+        }
+    }
+
     pub fn start(theme: &Theme, _status: Status) -> Style {
         Style {
             background: Some(iced::Background::Color(lighten_colour(

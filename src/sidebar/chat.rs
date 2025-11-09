@@ -29,7 +29,7 @@ impl SideChat {
                 .align_x(Horizontal::Center)
                 .align_y(Vertical::Center)
                 .width(Length::Fill)
-                .size(20),
+                .size(18),
         )
         .style(style)
         .on_press(Message::Chats(
@@ -44,7 +44,7 @@ impl SideChat {
                 .align_x(Horizontal::Center)
                 .align_y(Vertical::Center)
                 .width(Length::Fill)
-                .size(20),
+                .size(18),
         )
         .style(style)
         .on_press(Message::RemoveChat(self.id.clone()))
