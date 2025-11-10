@@ -6152,7 +6152,7 @@ dependencies = [
 
 [[package]]
 name = "ochat"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "base64-stream",
  "clipboard-rs",
@@ -6178,6 +6178,20 @@ dependencies = [
  "text-splitter",
  "thiserror 2.0.17",
  "tokio",
+]
+
+[[package]]
+name = "ochat-server"
+version = "0.5.0"
+dependencies = [
+ "async-openai",
+ "axum",
+ "serde",
+ "serde_json",
+ "surrealdb",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
@@ -8349,20 +8363,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.104",
-]
-
-[[package]]
-name = "server"
-version = "0.1.0"
-dependencies = [
- "async-openai",
- "axum",
- "serde",
- "serde_json",
- "surrealdb",
- "thiserror 2.0.17",
- "tokio",
- "tokio-stream",
 ]
 
 [[package]]
