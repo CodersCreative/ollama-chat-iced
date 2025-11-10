@@ -13,6 +13,7 @@ pub mod previews;
 pub mod prompts;
 pub mod providers;
 pub mod save;
+pub mod settings;
 pub mod sidebar;
 #[cfg(feature = "voice")]
 pub mod sound;

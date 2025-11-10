@@ -156,8 +156,6 @@ Generate a **concise, 3 to 5 word title** for the previous messages.
         value.push_str(&choice.message.content.clone().unwrap_or_default());
     }
 
-    println!("{:?}", value);
-
     let (value, _) = split_text_into_thinking(value);
     let mut value = split_text_new_line(value);
     value.retain(|x| x.is_alphanumeric() || x.is_whitespace());

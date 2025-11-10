@@ -3,14 +3,17 @@ use crate::{
     models::view::Models,
     options::view::Options,
     prompts::view::Prompts,
+    settings::view::Settings,
     style::{self},
+    tools::view::Tools,
     utils::get_path_assets,
     ChatApp, Message,
 };
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
-        button, center, column, container, horizontal_space, mouse_area, pane_grid, row, svg, text,
+        button, center, column, container, horizontal_space, mouse_area, overlay, pane_grid, row,
+        svg, text,
     },
     Padding, Renderer, Task, Theme,
 };
@@ -18,7 +21,9 @@ use iced::{Element, Length};
 
 #[derive(Debug, Clone)]
 pub enum Pane {
+    Options(Id),
     Settings(Id),
+    Tools(Id),
     Chat(Id),
     Models(Id),
     Prompts(Id),
@@ -28,10 +33,23 @@ pub enum Pane {
 }
 
 impl Pane {
-    pub fn new_settings(app: &mut ChatApp, model: String) -> Self {
+    pub fn new_options(app: &mut ChatApp, model: String) -> Self {
         let option = (Id::new(), Options::new(model.clone()));
         app.main_view.add_to_options(option.0.clone(), option.1);
-        return Self::Settings(option.0);
+        return Self::Options(option.0);
+    }
+
+    pub fn new_settings(app: &mut ChatApp) -> Self {
+        let settings = (Id::new(), Settings::new(app));
+        app.main_view
+            .add_to_settings(settings.0.clone(), settings.1);
+        return Self::Settings(settings.0);
+    }
+
+    pub fn new_tools(app: &mut ChatApp) -> Self {
+        let tools = (Id::new(), Tools::new(app));
+        app.main_view.add_to_tools(tools.0.clone(), tools.1);
+        return Self::Tools(tools.0);
     }
 
     pub fn new_models(app: &mut ChatApp) -> Self {
@@ -137,6 +155,14 @@ pub fn add_to_window<'a>(
                 pane,
                 Pane::Prompts(Id::new())
             ))),
+            window_button("tools.svg", 16).on_press(Message::Pane(PaneMessage::Pick(
+                pane,
+                Pane::Tools(Id::new())
+            ))),
+            window_button("ai.svg", 16).on_press(Message::Pane(PaneMessage::Pick(
+                pane,
+                Pane::Options(Id::new())
+            ))),
             window_button("settings.svg", 16).on_press(Message::Pane(PaneMessage::Pick(
                 pane,
                 Pane::Settings(Id::new())
@@ -198,9 +224,11 @@ impl PaneMessage {
             }
             Self::Replace(grid_pane, pane) => {
                 let value = match pane {
-                    Pane::Settings(_) => {
-                        Pane::new_settings(app, app.logic.models.first().unwrap().clone())
+                    Pane::Options(_) => {
+                        Pane::new_options(app, app.logic.models.first().unwrap().clone())
                     }
+                    Pane::Settings(_) => Pane::new_settings(app),
+                    Pane::Tools(_) => Pane::new_tools(app),
                     Pane::Chat(x) => {
                         let id = Id::new();
                         app.main_view.add_to_chats(
@@ -268,13 +296,15 @@ impl PaneMessage {
 impl Panes {
     pub fn new_window(app: &mut ChatApp, grid_pane: pane_grid::Pane, pane: Pane) {
         let value = match pane {
-            Pane::Settings(_) => {
+            Pane::Options(_) => {
                 if let Some(model) = app.logic.models.first() {
-                    Pane::new_settings(app, model.to_string())
+                    Pane::new_options(app, model.to_string())
                 } else {
                     return;
                 }
             }
+            Pane::Tools(_) => Pane::new_tools(app),
+            Pane::Settings(_) => Pane::new_settings(app),
             Pane::Chat(x) => {
                 if let Some(chat) = app.main_view.chats().get(&x) {
                     let id = Id::new();
@@ -336,13 +366,33 @@ impl Panes {
             };
 
             pane_grid::Content::new(match state {
+                Pane::Options(x) => add_to_window(
+                    app,
+                    pane,
+                    state.clone(),
+                    "Options",
+                    pick,
+                    app.main_view.options().get(x).unwrap().view(x.clone(), app),
+                ),
                 Pane::Settings(x) => add_to_window(
                     app,
                     pane,
                     state.clone(),
                     "Settings",
                     pick,
-                    app.main_view.options().get(x).unwrap().view(x.clone(), app),
+                    app.main_view
+                        .settings()
+                        .get(x)
+                        .unwrap()
+                        .view(x.clone(), app),
+                ),
+                Pane::Tools(x) => add_to_window(
+                    app,
+                    pane,
+                    state.clone(),
+                    "Tools",
+                    pick,
+                    app.main_view.tools().get(x).unwrap().view(x.clone(), app),
                 ),
                 #[cfg(feature = "voice")]
                 Pane::Call => {

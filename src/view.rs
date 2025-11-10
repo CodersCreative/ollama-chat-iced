@@ -4,8 +4,10 @@ use crate::llm::ChatStream;
 use crate::models::view::Models;
 use crate::options::view::Options;
 use crate::prompts::view::Prompts;
+use crate::settings::view::Settings;
 use crate::sidebar::chats::SideChats;
 use crate::sidebar::SideBarState;
+use crate::tools::view::Tools;
 use crate::{chats::view::Chats, llm::ChatStreamId};
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::Theme;
@@ -21,6 +23,10 @@ pub struct View {
     side_chats: SideChats,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     options: HashMap<Id, Options>,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    settings: HashMap<Id, Settings>,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    tools: HashMap<Id, Tools>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     chats: HashMap<Id, Chats>,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
@@ -94,6 +100,42 @@ impl View {
         f(self.options.get_mut(key));
     }
 
+    pub fn add_to_settings(&mut self, key: Id, settings: Settings) {
+        self.settings.insert(key, settings);
+    }
+
+    pub fn update_all_settings<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut HashMap<Id, Settings>),
+    {
+        f(&mut self.settings);
+    }
+
+    pub fn update_settings<F>(&mut self, key: &Id, mut f: F)
+    where
+        F: FnMut(Option<&mut Settings>),
+    {
+        f(self.settings.get_mut(key));
+    }
+
+    pub fn add_to_tools(&mut self, key: Id, tools: Tools) {
+        self.tools.insert(key, tools);
+    }
+
+    pub fn update_all_tools<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut HashMap<Id, Tools>),
+    {
+        f(&mut self.tools);
+    }
+
+    pub fn update_tools<F>(&mut self, key: &Id, mut f: F)
+    where
+        F: FnMut(Option<&mut Tools>),
+    {
+        f(self.tools.get_mut(key));
+    }
+
     pub fn add_model(&mut self, key: Id, models: Models) {
         self.models.insert(key, models);
     }
@@ -162,6 +204,8 @@ impl View {
             options: HashMap::new(),
             chats: HashMap::new(),
             models: HashMap::new(),
+            tools: HashMap::new(),
+            settings: HashMap::new(),
             prompts: HashMap::new(),
             downloads: HashMap::new(),
             chat_streams: HashMap::new(),

@@ -1,4 +1,5 @@
 pub mod builtin;
+pub mod view;
 use std::{collections::HashMap, error::Error, fs::File, io::Read};
 
 use derive_builder::Builder;
