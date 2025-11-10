@@ -1,5 +1,6 @@
 pub mod container {
     use crate::utils::{change_alpha, darken_colour};
+    use iced::border::bottom;
     use iced::{widget::container::Style, Theme};
 
     pub fn side_bar(theme: &Theme) -> Style {
@@ -66,6 +67,18 @@ pub mod container {
                 .rounded(5)
                 .width(1)
                 .color(theme.palette().danger),
+            text_color: Some(theme.palette().text.clone()),
+            ..Default::default()
+        }
+    }
+
+    pub fn transparent_line(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            border: iced::Border::default()
+                .rounded(bottom(1))
+                .width(1)
+                .color(theme.palette().primary),
             text_color: Some(theme.palette().text.clone()),
             ..Default::default()
         }

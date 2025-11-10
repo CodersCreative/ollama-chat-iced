@@ -1,14 +1,16 @@
-use super::{message::PromptsMessage, Prompt, SavedPrompts};
+use super::{message::PromptsMessage, SavedPrompts};
 use crate::{
-    chats::message::ChatsMessage, common::Id, style, utils::get_path_assets, ChatApp, Message,
+    chats::message::ChatsMessage, common::Id, prompts::SavedPrompt, style, utils::get_path_assets,
+    ChatApp, Message,
 };
+use derive_builder::Builder;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
         button, column, container, keyed_column, markdown, row, scrollable, svg, text, text_editor,
         text_input, vertical_space, Space,
     },
-    Element, Length, Renderer, Theme,
+    Element, Length, Padding, Renderer, Theme,
 };
 use std::str::FromStr;
 
@@ -47,6 +49,138 @@ impl SavedPrompts {
     }
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Builder)]
+pub struct Prompt {
+    pub id: Id,
+    pub command: String,
+    pub title: String,
+    pub content: String,
+}
+
+impl From<&Edit> for Prompt {
+    fn from(value: &Edit) -> Self {
+        Self {
+            id: value.id.clone(),
+            content: value.content.text().to_string(),
+            title: value.title.clone(),
+            command: value.command.clone(),
+        }
+    }
+}
+
+impl Prompt {
+    pub fn from_saved(id: Id, prompt: SavedPrompt) -> Self {
+        Self {
+            id,
+            command: prompt.command,
+            content: prompt.content,
+            title: prompt.title,
+        }
+    }
+
+    pub fn view<'a>(
+        &'a self,
+        app: &ChatApp,
+        id: Id,
+        expand: bool,
+        edit: &'a Edit,
+    ) -> Element<'a, Message> {
+        let btn = |file: &str| -> button::Button<'a, Message, Theme, Renderer> {
+            button(
+                svg(svg::Handle::from_path(get_path_assets(file.to_string())))
+                    .style(style::svg::primary)
+                    .width(Length::Fixed(32.0)),
+            )
+            .style(style::button::chosen_chat)
+            .width(Length::Fixed(48.0))
+        };
+
+        container(if !expand {
+            column![
+                row![
+                    button(
+                        text(self.title.clone())
+                            .color(app.theme().palette().primary)
+                            .size(24)
+                            .width(Length::Fill)
+                            .align_y(Vertical::Center)
+                            .align_x(Horizontal::Left)
+                    )
+                    .style(style::button::transparent_back)
+                    .padding(0)
+                    .on_press(Message::Prompts(
+                        PromptsMessage::Expand(self.id.clone()),
+                        id.clone(),
+                    )),
+                    btn("delete.svg").on_press(Message::Prompts(
+                        PromptsMessage::Delete(self.id.clone()),
+                        id.clone(),
+                    )),
+                ],
+                text(&self.command)
+                    .color(app.theme().palette().danger)
+                    .size(20)
+                    .width(Length::Fill)
+                    .align_y(Vertical::Center)
+                    .align_x(Horizontal::Left)
+            ]
+        } else {
+            let title = text_input::<Message, Theme, Renderer>("Enter the title", &edit.title)
+                .on_input(move |x| Message::Prompts(PromptsMessage::EditTitle(x), id.clone()))
+                .on_submit(Message::Prompts(PromptsMessage::EditSave, id.clone()))
+                .size(16)
+                .style(style::text_input::input)
+                .width(Length::Fill);
+
+            let title = container(row![
+                title,
+                btn("save.svg").on_press(Message::Prompts(PromptsMessage::EditSave, id.clone(),)),
+                btn("close.svg").on_press(Message::Prompts(
+                    PromptsMessage::Expand(self.id.clone()),
+                    id.clone(),
+                )),
+                btn("delete.svg").on_press(Message::Prompts(
+                    PromptsMessage::Delete(self.id.clone()),
+                    id.clone(),
+                )),
+            ])
+            .style(style::container::code);
+            let command =
+                text_input::<Message, Theme, Renderer>("Enter the command", &edit.command)
+                    .on_input(move |x| Message::Prompts(PromptsMessage::EditCommand(x), id.clone()))
+                    .on_submit(Message::Prompts(PromptsMessage::EditSave, id.clone()))
+                    .size(16)
+                    .style(style::text_input::input)
+                    .width(Length::Fill);
+            let content = text_editor(&edit.content)
+                .placeholder("Type the prompt content here...")
+                .on_action(move |action| {
+                    Message::Prompts(PromptsMessage::EditAction(action), id.clone())
+                })
+                .padding(Padding::from(20))
+                .size(20)
+                .style(style::text_editor::input)
+                .key_binding(move |key_press| {
+                    let modifiers = key_press.modifiers;
+
+                    match text_editor::Binding::from_key_press(key_press) {
+                        Some(text_editor::Binding::Enter) if !modifiers.shift() => {
+                            Some(text_editor::Binding::Custom(Message::Prompts(
+                                PromptsMessage::EditSave,
+                                id.clone(),
+                            )))
+                        }
+                        binding => binding,
+                    }
+                });
+            column![title, command, content,]
+        })
+        .padding(5)
+        .style(style::container::side_bar)
+        .into()
+    }
+}
+
 pub fn get_command_input(input: &str) -> Option<&str> {
     if let Some(split) = input.split_whitespace().last() {
         if split.contains("/") {
@@ -59,7 +193,7 @@ pub fn get_command_input(input: &str) -> Option<&str> {
 
 #[derive(Default)]
 pub struct Prompts {
-    pub expand: Option<String>,
+    pub expand: Option<Id>,
     pub input: String,
     pub prompts: Vec<Prompt>,
     pub edit: Edit,
@@ -70,7 +204,7 @@ pub struct Edit {
     pub content: text_editor::Content,
     pub title: String,
     pub command: String,
-    pub og_command: String,
+    pub id: Id,
 }
 
 impl From<Prompt> for Edit {
@@ -79,7 +213,7 @@ impl From<Prompt> for Edit {
             content: text_editor::Content::with_text(&value.content),
             title: value.title.clone(),
             command: value.command.clone(),
-            og_command: value.command.clone(),
+            id: value.id.clone(),
         }
     }
 }
@@ -89,16 +223,21 @@ impl Prompts {
         Self {
             expand: None,
             input: String::new(),
-            prompts: app.prompts.prompts.iter().map(|x| x.1.clone()).collect(),
+            prompts: app
+                .prompts
+                .prompts
+                .iter()
+                .map(|x| Prompt::from_saved(x.0.clone(), x.1.clone()))
+                .collect(),
             edit: Edit::default(),
         }
     }
     pub fn view_prompts<'a>(&'a self, app: &'a ChatApp, id: Id) -> Element<'a, Message> {
-        keyed_column(self.prompts.iter().enumerate().map(|(_i, prompt)| {
+        keyed_column(self.prompts.iter().enumerate().map(|(_, prompt)| {
             let mut expand = false;
 
             if let Some(x) = &self.expand {
-                expand = x == &prompt.command;
+                expand = x == &prompt.id;
             }
 
             (0, prompt.view(app, id.clone(), expand, &self.edit))

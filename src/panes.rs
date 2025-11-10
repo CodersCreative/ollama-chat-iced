@@ -12,8 +12,7 @@ use crate::{
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
-        button, center, column, container, horizontal_space, mouse_area, overlay, pane_grid, row,
-        svg, text,
+        button, center, column, container, horizontal_space, mouse_area, pane_grid, row, svg, text,
     },
     Padding, Renderer, Task, Theme,
 };

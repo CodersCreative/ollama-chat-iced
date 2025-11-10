@@ -1,10 +1,15 @@
-use super::{view::Edit, Prompt, PromptBuilder, SavedPrompts, PROMPTS_PATH};
-use crate::{common::Id, ChatApp, Message};
+use super::{view::Edit, SavedPrompts, PROMPTS_PATH};
+use crate::{
+    common::Id,
+    prompts::{SavedPrompt, SavedPromptBuilder},
+    ChatApp, Message,
+};
 use iced::{widget::text_editor, Task};
 
 #[derive(Debug, Clone)]
 pub enum PromptsMessage {
-    Expand(String),
+    Expand(Id),
+    Delete(Id),
     Add,
     Upload,
     Uploaded(Result<Vec<String>, String>),
@@ -35,7 +40,7 @@ impl PromptsMessage {
                     if let Some(prompt) = prompt {
                         if prompt.expand != Some(x.clone()) {
                             prompt.expand = Some(x.clone());
-                            if let Some(p) = prompt.prompts.iter().find(|y| &y.command == x) {
+                            if let Some(p) = prompt.prompts.iter().find(|y| &y.id == x) {
                                 prompt.edit = Edit::from(p.clone());
                             }
                         } else {
@@ -43,6 +48,11 @@ impl PromptsMessage {
                         }
                     }
                 });
+                Task::none()
+            }
+            Self::Delete(id) => {
+                app.prompts.prompts.remove(&id);
+                Self::save_reload_prompts(app);
                 Task::none()
             }
             Self::Upload => Task::perform(SavedPrompts::get_prompts_paths(), move |x| {
@@ -62,7 +72,7 @@ impl PromptsMessage {
                     if let Some(prompt) = prompt {
                         app.prompts.prompts.insert(
                             Id::new(),
-                            PromptBuilder::default()
+                            SavedPromptBuilder::default()
                                 .title(prompt.input.clone())
                                 .command(prompt.input.clone())
                                 .content(String::new())
@@ -112,15 +122,11 @@ impl PromptsMessage {
                 Task::none()
             }
             Self::EditSave => {
-                if let Some(prompt) = app.main_view.prompts().get(&key) {
-                    if let Some(p) = app
-                        .prompts
-                        .prompts
-                        .iter_mut()
-                        .find(|(_, x)| x.command == prompt.edit.og_command)
-                    {
-                        *p.1 = Prompt::from(&prompt.edit);
+                if let Some(prompt) = app.main_view.prompts_mut().get_mut(&key) {
+                    if let Some(p) = app.prompts.prompts.get_mut(&prompt.edit.id) {
+                        *p = SavedPrompt::from(&prompt.edit);
                     }
+                    prompt.expand = None;
                 }
 
                 Self::save_reload_prompts(app);

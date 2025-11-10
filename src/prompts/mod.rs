@@ -3,17 +3,10 @@ pub mod view;
 
 use crate::{
     common::Id,
-    style,
-    utils::{get_path_assets, get_path_settings},
-    ChatApp, Message,
+    prompts::view::{Edit, Prompt},
+    utils::get_path_settings,
 };
 use derive_builder::Builder;
-use iced::{
-    alignment::{Horizontal, Vertical},
-    widget::{button, column, container, row, svg, text, text_editor, text_input},
-    Element, Length, Padding, Renderer, Theme,
-};
-use message::PromptsMessage;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fs::File, io::Read};
 use tantivy::{
@@ -23,19 +16,18 @@ use tantivy::{
     schema::{Field, Schema, Value, STORED, TEXT},
     DocAddress, Index, IndexWriter, Score, TantivyDocument,
 };
-use view::Edit;
 
 pub const PROMPTS_PATH: &str = "prompts.json";
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Builder)]
 #[serde(rename_all = "camelCase")]
-pub struct Prompt {
+pub struct SavedPrompt {
     pub command: String,
     pub title: String,
     pub content: String,
 }
 
-impl From<&Edit> for Prompt {
+impl From<&Edit> for SavedPrompt {
     fn from(value: &Edit) -> Self {
         Self {
             content: value.content.text().to_string(),
@@ -45,102 +37,9 @@ impl From<&Edit> for Prompt {
     }
 }
 
-impl Prompt {
-    pub fn view<'a>(
-        &'a self,
-        app: &ChatApp,
-        id: Id,
-        expand: bool,
-        edit: &'a Edit,
-    ) -> Element<'a, Message> {
-        let btn = |file: &str| -> button::Button<'a, Message, Theme, Renderer> {
-            button(
-                svg(svg::Handle::from_path(get_path_assets(file.to_string())))
-                    .style(style::svg::primary)
-                    .width(Length::Fixed(32.0)),
-            )
-            .style(style::button::chosen_chat)
-            .width(Length::Fixed(48.0))
-        };
-
-        container(if !expand {
-            column![
-                button(
-                    text(self.title.clone())
-                        .color(app.theme().palette().primary)
-                        .size(24)
-                        .width(Length::Fill)
-                        .align_y(Vertical::Center)
-                        .align_x(Horizontal::Left)
-                )
-                .style(style::button::transparent_back)
-                .padding(0)
-                .on_press(Message::Prompts(
-                    PromptsMessage::Expand(self.command.clone()),
-                    id.clone(),
-                )),
-                text(&self.command)
-                    .color(app.theme().palette().danger)
-                    .size(20)
-                    .width(Length::Fill)
-                    .align_y(Vertical::Center)
-                    .align_x(Horizontal::Left)
-            ]
-        } else {
-            let title = text_input::<Message, Theme, Renderer>("Enter the title", &edit.title)
-                .on_input(move |x| Message::Prompts(PromptsMessage::EditTitle(x), id.clone()))
-                .on_submit(Message::Prompts(PromptsMessage::EditSave, id.clone()))
-                .size(16)
-                .style(style::text_input::input)
-                .width(Length::Fill);
-
-            let title = row![
-                title,
-                btn("save.svg").on_press(Message::Prompts(PromptsMessage::EditSave, id.clone(),)),
-                btn("close.svg").on_press(Message::Prompts(
-                    PromptsMessage::Expand(self.command.clone()),
-                    id.clone(),
-                )),
-            ];
-            let command =
-                text_input::<Message, Theme, Renderer>("Enter the command", &edit.command)
-                    .on_input(move |x| Message::Prompts(PromptsMessage::EditCommand(x), id.clone()))
-                    .on_submit(Message::Prompts(PromptsMessage::EditSave, id.clone()))
-                    .size(16)
-                    .style(style::text_input::input)
-                    .width(Length::Fill);
-            let content = text_editor(&edit.content)
-                .placeholder("Type the prompt content here...")
-                .on_action(move |action| {
-                    Message::Prompts(PromptsMessage::EditAction(action), id.clone())
-                })
-                .padding(Padding::from(20))
-                .size(20)
-                .style(style::text_editor::input)
-                .key_binding(move |key_press| {
-                    let modifiers = key_press.modifiers;
-
-                    match text_editor::Binding::from_key_press(key_press) {
-                        Some(text_editor::Binding::Enter) if !modifiers.shift() => {
-                            Some(text_editor::Binding::Custom(Message::Prompts(
-                                PromptsMessage::EditSave,
-                                id.clone(),
-                            )))
-                        }
-                        binding => binding,
-                    }
-                });
-            column![title, command, content,]
-        })
-        .padding(5)
-        .style(style::container::side_bar)
-        .into()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct SavedPrompts {
-    pub prompts: HashMap<Id, Prompt>,
+    pub prompts: HashMap<Id, SavedPrompt>,
     pub data: (Index, Vec<Field>, Schema),
 }
 
@@ -166,7 +65,7 @@ impl SavedPrompts {
         }
     }
 
-    pub fn new(prompts: HashMap<Id, Prompt>) -> Self {
+    pub fn new(prompts: HashMap<Id, SavedPrompt>) -> Self {
         Self {
             data: Self::into_index(&prompts).unwrap(),
             prompts,
@@ -199,7 +98,7 @@ impl SavedPrompts {
         Err("Failed".to_string())
     }
 
-    pub fn load_prompts(path: &str) -> Result<HashMap<Id, Prompt>, String> {
+    pub fn load_prompts(path: &str) -> Result<HashMap<Id, SavedPrompt>, String> {
         let path = get_path_settings(path.to_string());
         let reader = File::open(path);
 
@@ -229,7 +128,7 @@ impl SavedPrompts {
         Ok(())
     }
 
-    fn load_from_file(path: &str) -> Result<Vec<Prompt>, String> {
+    fn load_from_file(path: &str) -> Result<Vec<SavedPrompt>, String> {
         let reader = File::open(path);
 
         if let Ok(mut reader) = reader {
@@ -250,7 +149,7 @@ impl SavedPrompts {
     }
 
     fn into_index(
-        prompts: &HashMap<Id, Prompt>,
+        prompts: &HashMap<Id, SavedPrompt>,
     ) -> Result<(Index, Vec<Field>, Schema), Box<dyn Error>> {
         let mut schema_builder = Schema::builder();
         let command = schema_builder.add_text_field("command", TEXT | STORED);
@@ -281,7 +180,11 @@ impl SavedPrompts {
 
     pub fn search<'a>(&'a self, input: &'a str) -> Result<Vec<Prompt>, Box<dyn Error>> {
         if input.is_empty() || self.prompts.len() < 6 {
-            return Ok(self.prompts.iter().map(|x| x.1.clone()).collect());
+            return Ok(self
+                .prompts
+                .iter()
+                .map(|x| Prompt::from_saved(x.0.clone(), x.1.clone()))
+                .collect());
         }
 
         let reader = self.data.0.reader()?;
@@ -307,7 +210,7 @@ impl SavedPrompts {
             };
 
             if let Some(prompt) = self.prompts.iter().find(|(_, x)| x.command == command) {
-                prompts.push(prompt.1.clone());
+                prompts.push(Prompt::from_saved(prompt.0.clone(), prompt.1.clone()));
             }
         }
 
