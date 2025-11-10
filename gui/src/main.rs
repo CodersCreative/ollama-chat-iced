@@ -26,6 +26,7 @@ pub mod view;
 
 use crate::{
     chats::chat::MarkdownMessage,
+    database::init_db,
     previews::{PreviewResponse, SavedPreviews},
     providers::SavedProviders,
     save::Save,
@@ -35,7 +36,6 @@ use crate::{
 use call::{Call, CallMessage};
 use chats::{message::ChatsMessage, view::Chats, SavedChat, SavedChats, CHATS_FILE};
 use common::Id;
-use database::new_conn;
 use download::{Download, DownloadProgress};
 use iced::{
     clipboard, event,
@@ -63,7 +63,9 @@ const PREVIEW_LEN: usize = 25;
 const MIN_WIDTH: f32 = 300.0;
 
 fn main() -> iced::Result {
-    let _ = new_conn().unwrap();
+    let tokio_runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let _ = tokio_runtime.block_on(init_db()).unwrap();
     let font = Font {
         family: iced::font::Family::Name("Roboto"),
         style: iced::font::Style::Normal,
