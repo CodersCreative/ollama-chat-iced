@@ -1,5 +1,7 @@
 pub mod chats;
 pub mod errors;
+pub mod generation;
+pub mod providers;
 pub mod utils;
 use std::sync::LazyLock;
 
@@ -12,7 +14,7 @@ static CONN: LazyLock<Surreal<Db>> = LazyLock::new(Surreal::init);
 
 use axum::{
     Router,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 
 use crate::{chats::define_chat, errors::ServerError, utils::get_path_settings};
@@ -22,10 +24,22 @@ async fn main() {
     init_db().await.unwrap();
     let app = Router::new()
         .route("/message/", post(chats::create_chat_message))
-        .route("/message/{id}", get(chats::read_chat_message))
-        .route("/message/{id}", put(chats::update_chat_message))
-        .route("/message/{id}", delete(chats::delete_chat_message))
-        .route("/message/all/", get(chats::list_all_chat_messages));
+        .route("/message/all/", get(chats::list_all_chat_messages))
+        .route(
+            "/message/{id}",
+            get(chats::read_chat_message)
+                .put(chats::update_chat_message)
+                .delete(chats::delete_chat_message),
+        )
+        .route("/provider/", post(providers::add_provider))
+        .route("/provider/all/", get(providers::list_all_providers))
+        .route(
+            "/provider/{id}",
+            get(providers::read_provider)
+                .put(providers::update_provider)
+                .delete(providers::delete_provider),
+        );
+    // .route("/generation/text/run/", get(generation::text::run));
 
     let listener = tokio::net::TcpListener::bind("localhost:1212")
         .await

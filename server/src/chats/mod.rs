@@ -97,11 +97,11 @@ pub async fn update_chat_message(
 pub async fn delete_chat_message(
     id: Path<String>,
 ) -> Result<Json<Option<ChatMessage>>, ServerError> {
-    let person = CONN.delete((CHAT_MESSAGE_TABLE, &*id)).await?;
-    Ok(Json(person))
+    let chat = CONN.delete((CHAT_MESSAGE_TABLE, &*id)).await?;
+    Ok(Json(chat))
 }
 
 pub async fn list_all_chat_messages() -> Result<Json<Vec<ChatMessage>>, ServerError> {
-    let people = CONN.select(CHAT_MESSAGE_TABLE).await?;
-    Ok(Json(people))
+    let chats = CONN.select(CHAT_MESSAGE_TABLE).await?;
+    Ok(Json(chats))
 }
