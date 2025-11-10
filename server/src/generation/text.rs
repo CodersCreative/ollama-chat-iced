@@ -1,15 +1,19 @@
 use std::collections::HashMap;
 
-use async_openai::types::{
-    ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestFunctionMessageArgs,
-    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+use async_openai::{
+    Client,
+    config::OpenAIConfig,
+    types::{
+        ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestFunctionMessageArgs,
+        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+    },
 };
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{chats::Role, errors::ServerError, providers::PROVIDERS};
+use crate::{CONN, chats::Role, errors::ServerError, providers::PROVIDER_TABLE};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChatQueryData {
@@ -39,6 +43,7 @@ pub struct ChatResponse {
     pub func_calls: Vec<FunctionCall>,
 }
 
+#[axum::debug_handler]
 pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, ServerError> {
     let request = CreateChatCompletionRequestArgs::default()
         .model(data.model)
@@ -72,10 +77,11 @@ pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, 
         .build()
         .unwrap();
 
-    let response = {
-        let providers = PROVIDERS.read().unwrap();
-        let provider = providers.get(&data.provider);
-        provider.unwrap().client.chat().create(request).await?
+    let response = if let Some(provider) = CONN.select((PROVIDER_TABLE, &*data.provider)).await? {
+        let provider = Into::<Client<OpenAIConfig>>::into(&provider);
+        provider.chat().create(request).await?
+    } else {
+        panic!()
     };
 
     let mut value = String::new();

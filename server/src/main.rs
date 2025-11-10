@@ -17,7 +17,9 @@ use axum::{
     routing::{get, post},
 };
 
-use crate::{chats::define_chat, errors::ServerError, utils::get_path_settings};
+use crate::{
+    chats::define_chat, errors::ServerError, providers::define_providers, utils::get_path_settings,
+};
 
 #[tokio::main]
 async fn main() {
@@ -38,8 +40,8 @@ async fn main() {
             get(providers::read_provider)
                 .put(providers::update_provider)
                 .delete(providers::delete_provider),
-        );
-    // .route("/generation/text/run/", get(generation::text::run));
+        )
+        .route("/generation/text/run/", get(generation::text::run));
 
     let listener = tokio::net::TcpListener::bind("localhost:1212")
         .await
@@ -54,5 +56,6 @@ pub async fn init_db() -> Result<(), ServerError> {
 
     let _ = CONN.use_ns("test").use_db("test").await?;
 
-    define_chat().await
+    let _ = define_chat().await?;
+    define_providers().await
 }
