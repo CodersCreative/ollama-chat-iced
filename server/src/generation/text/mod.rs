@@ -1,3 +1,4 @@
+pub mod stream;
 use std::collections::HashMap;
 
 use async_openai::{
@@ -6,7 +7,8 @@ use async_openai::{
     types::{
         ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestFunctionMessageArgs,
         ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequest,
+        CreateChatCompletionRequestArgs,
     },
 };
 use axum::Json;
@@ -20,6 +22,42 @@ pub struct ChatQueryData {
     pub provider: String,
     pub model: String,
     pub messages: Vec<ChatQueryMessage>,
+}
+
+impl ChatQueryData {
+    pub fn get_chat_completion_request(&self) -> Result<CreateChatCompletionRequest, ServerError> {
+        CreateChatCompletionRequestArgs::default()
+            .model(self.model.clone())
+            .messages(
+                self.messages
+                    .iter()
+                    .map(|chat| match chat.role {
+                        Role::User => ChatCompletionRequestUserMessageArgs::default()
+                            .content(chat.text.to_string())
+                            .build()
+                            .unwrap_or_default()
+                            .into(),
+                        Role::AI => ChatCompletionRequestAssistantMessageArgs::default()
+                            .content(chat.text.to_string())
+                            .build()
+                            .unwrap_or_default()
+                            .into(),
+                        Role::System => ChatCompletionRequestSystemMessageArgs::default()
+                            .content(chat.text.to_string())
+                            .build()
+                            .unwrap_or_default()
+                            .into(),
+                        Role::Function => ChatCompletionRequestFunctionMessageArgs::default()
+                            .content(chat.text.to_string())
+                            .build()
+                            .unwrap_or_default()
+                            .into(),
+                    })
+                    .collect::<Vec<ChatCompletionRequestMessage>>(),
+            )
+            .build()
+            .map_err(|e| e.into())
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -45,37 +83,7 @@ pub struct ChatResponse {
 
 #[axum::debug_handler]
 pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, ServerError> {
-    let request = CreateChatCompletionRequestArgs::default()
-        .model(data.model)
-        .messages(
-            data.messages
-                .into_iter()
-                .map(|chat| match chat.role {
-                    Role::User => ChatCompletionRequestUserMessageArgs::default()
-                        .content(chat.text)
-                        .build()
-                        .unwrap_or_default()
-                        .into(),
-                    Role::AI => ChatCompletionRequestAssistantMessageArgs::default()
-                        .content(chat.text)
-                        .build()
-                        .unwrap_or_default()
-                        .into(),
-                    Role::System => ChatCompletionRequestSystemMessageArgs::default()
-                        .content(chat.text)
-                        .build()
-                        .unwrap_or_default()
-                        .into(),
-                    Role::Function => ChatCompletionRequestFunctionMessageArgs::default()
-                        .content(chat.text)
-                        .build()
-                        .unwrap_or_default()
-                        .into(),
-                })
-                .collect::<Vec<ChatCompletionRequestMessage>>(),
-        )
-        .build()
-        .unwrap();
+    let request = data.get_chat_completion_request()?;
 
     let response = if let Some(provider) = CONN.select((PROVIDER_TABLE, &*data.provider)).await? {
         let provider = Into::<Client<OpenAIConfig>>::into(&provider);
@@ -99,6 +107,7 @@ pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, 
         func_calls: Vec::new(),
     }))
 }
+
 pub fn split_text_into_thinking(text: String) -> (String, Option<String>) {
     if text.contains("<think>") {
         let c = text.clone();

@@ -41,8 +41,11 @@ async fn main() {
                 .put(providers::update_provider)
                 .delete(providers::delete_provider),
         )
-        .route("/generation/text/run/", get(generation::text::run));
-
+        .route("/generation/text/run/", get(generation::text::run))
+        .route(
+            "/generation/text/stream/",
+            get(generation::text::stream::run),
+        );
     let listener = tokio::net::TcpListener::bind("localhost:1212")
         .await
         .unwrap();
