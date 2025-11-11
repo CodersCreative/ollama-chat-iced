@@ -1,6 +1,7 @@
 pub mod chats;
 pub mod errors;
 pub mod generation;
+pub mod messages;
 pub mod providers;
 pub mod utils;
 use std::sync::LazyLock;
@@ -18,20 +19,29 @@ use axum::{
 };
 
 use crate::{
-    chats::define_chat, errors::ServerError, providers::define_providers, utils::get_path_settings,
+    errors::ServerError, messages::define_messages, providers::define_providers,
+    utils::get_path_settings,
 };
 
 #[tokio::main]
 async fn main() {
     init_db().await.unwrap();
     let app = Router::new()
-        .route("/message/", post(chats::create_chat_message))
-        .route("/message/all/", get(chats::list_all_chat_messages))
+        .route("/message/", post(messages::create_message))
+        .route("/message/all/", get(messages::list_all_messages))
         .route(
             "/message/{id}",
-            get(chats::read_chat_message)
-                .put(chats::update_chat_message)
-                .delete(chats::delete_chat_message),
+            get(messages::read_message)
+                .put(messages::update_message)
+                .delete(messages::delete_message),
+        )
+        .route("/chat/", post(chats::create_chat))
+        .route("/chat/all/", get(chats::list_all_chats))
+        .route(
+            "/chat/{id}",
+            get(chats::get_chat)
+                .put(chats::update_chat)
+                .delete(chats::delete_chat),
         )
         .route("/provider/", post(providers::add_provider))
         .route("/provider/all/", get(providers::list_all_providers))
@@ -59,6 +69,6 @@ pub async fn init_db() -> Result<(), ServerError> {
 
     let _ = CONN.use_ns("test").use_db("test").await?;
 
-    let _ = define_chat().await?;
+    let _ = define_messages().await?;
     define_providers().await
 }

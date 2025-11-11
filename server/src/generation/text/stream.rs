@@ -6,7 +6,7 @@ use futures::Stream;
 use serde::{Deserialize, Serialize};
 use tokio_stream::StreamExt;
 
-use crate::chats::Role;
+use crate::messages::Role;
 use crate::{
     CONN,
     generation::text::{ChatQueryData, ChatResponse, split_text_into_thinking},

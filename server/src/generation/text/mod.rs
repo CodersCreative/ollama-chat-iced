@@ -15,7 +15,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{CONN, chats::Role, errors::ServerError, providers::PROVIDER_TABLE};
+use crate::{CONN, errors::ServerError, messages::Role, providers::PROVIDER_TABLE};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChatQueryData {

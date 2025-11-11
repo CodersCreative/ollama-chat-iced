@@ -1,7 +1,3 @@
-pub mod messages;
-pub mod previews;
-pub mod relationships;
-
 use axum::{Json, extract::Path};
 use serde::{Deserialize, Serialize};
 use surrealdb::{Datetime, RecordId};
@@ -12,18 +8,14 @@ const CHAT_TABLE: &str = "chats";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChatData {
-    #[serde(default = "Vec::new")]
     pub default_chats: Vec<usize>,
-    #[serde(default = "Vec::new")]
     pub default_tools: Vec<String>,
     pub time: Option<Datetime>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Chat {
-    #[serde(default = "Vec::new")]
     pub default_chats: Vec<usize>,
-    #[serde(default = "Vec::new")]
     pub default_tools: Vec<String>,
     time: Datetime,
     id: RecordId,
