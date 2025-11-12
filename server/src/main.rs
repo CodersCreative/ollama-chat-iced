@@ -1,11 +1,11 @@
 pub mod chats;
 pub mod errors;
 pub mod generation;
-pub mod messages;
 pub mod providers;
 pub mod utils;
-use std::sync::LazyLock;
 
+use chats::{messages, relationships};
+use std::sync::LazyLock;
 use surrealdb::{
     Surreal,
     engine::local::{Db, RocksDb},
@@ -19,7 +19,10 @@ use axum::{
 };
 
 use crate::{
-    errors::ServerError, messages::define_messages, providers::define_providers,
+    chats::{define_chats, relationships::define_message_relationships},
+    errors::ServerError,
+    messages::define_messages,
+    providers::define_providers,
     utils::get_path_settings,
 };
 
@@ -42,6 +45,20 @@ async fn main() {
             get(chats::get_chat)
                 .put(chats::update_chat)
                 .delete(chats::delete_chat),
+        )
+        .route(
+            "/relationship/",
+            post(relationships::create_message_relationship),
+        )
+        .route(
+            "/relationship/all/",
+            get(relationships::list_all_message_relationships),
+        )
+        .route(
+            "/relationship/{id}",
+            get(relationships::get_message_relationship)
+                .put(relationships::update_message_relationship)
+                .delete(relationships::delete_message_relationship),
         )
         .route("/provider/", post(providers::add_provider))
         .route("/provider/all/", get(providers::list_all_providers))
@@ -70,5 +87,8 @@ pub async fn init_db() -> Result<(), ServerError> {
     let _ = CONN.use_ns("test").use_db("test").await?;
 
     let _ = define_messages().await?;
+    let _ = define_chats().await?;
+    let _ = define_message_relationships().await?;
+
     define_providers().await
 }

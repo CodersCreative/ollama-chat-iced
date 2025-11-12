@@ -1,23 +1,26 @@
 use async_openai::{Client, config::OpenAIConfig};
 use axum::{Json, extract::Path};
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::RecordId;
 
 use crate::{CONN, errors::ServerError};
 pub const PROVIDER_TABLE: &str = "providers";
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub enum ProviderType {
     OpenAI,
     Gemini,
+    #[default]
     Ollama,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct ProviderData {
     pub name: String,
     pub url: String,
     pub api_key: String,
+    #[builder(default = "ProviderType::Ollama")]
     pub provider_type: ProviderType,
 }
 

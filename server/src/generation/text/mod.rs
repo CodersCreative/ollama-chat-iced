@@ -12,12 +12,13 @@ use async_openai::{
     },
 };
 use axum::Json;
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{CONN, errors::ServerError, messages::Role, providers::PROVIDER_TABLE};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct ChatQueryData {
     pub provider: String,
     pub model: String,

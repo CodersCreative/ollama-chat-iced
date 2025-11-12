@@ -1,74 +1,107 @@
 use axum::{Json, extract::Path};
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Datetime, RecordId};
 
 use crate::{CONN, errors::ServerError};
 
-const CHAT_TABLE: &str = "chats";
+const MESSAGE_TABLE: &str = "messages";
+const VIDEOS_TABLE: &str = "videos";
+const IMAGES_TABLE: &str = "images";
+const AUDIO_TABLE: &str = "audios";
+const FILE_TABLE: &str = "files";
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct ChatData {
-    pub default_chats: Vec<usize>,
-    pub default_tools: Vec<String>,
-    pub time: Option<Datetime>,
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum Role {
+    #[default]
+    User,
+    AI,
+    Function,
+    System,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+pub struct MessageData {
+    content: String,
+    #[builder(default = "None")]
+    thinking: Option<String>,
+    #[builder(default = "None")]
+    time: Option<Datetime>,
+    #[serde(default = "Role::default")]
+    #[builder(default = "Role::User")]
+    role: Role,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Chat {
-    pub default_chats: Vec<usize>,
-    pub default_tools: Vec<String>,
+pub struct Message {
+    content: String,
+    thinking: Option<String>,
+    role: Role,
     time: Datetime,
     id: RecordId,
 }
 
-pub async fn define_chats() -> Result<(), ServerError> {
-    // Use a linking table for default_tools and chats
+pub async fn define_messages() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS default_chats ON TABLE {0} TYPE array<int>;
+DEFINE FIELD IF NOT EXISTS content ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS thinking ON TABLE {0} TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS role ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE datetime;
+
+DEFINE TABLE IF NOT EXISTS {1} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS path ON TABLE {1} TYPE string;
+
+DEFINE TABLE IF NOT EXISTS {2} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS path ON TABLE {2} TYPE string;
+
+DEFINE TABLE IF NOT EXISTS {3} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS path ON TABLE {3} TYPE string;
+
+DEFINE TABLE IF NOT EXISTS {4} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS path ON TABLE {4} TYPE string;
 ",
-            CHAT_TABLE,
+            MESSAGE_TABLE, VIDEOS_TABLE, IMAGES_TABLE, AUDIO_TABLE, FILE_TABLE
         ))
         .await?;
     Ok(())
 }
 
-pub async fn create_chat(
-    Json(mut chat): Json<ChatData>,
-) -> Result<Json<Option<Chat>>, ServerError> {
+pub async fn create_message(
+    Json(mut chat): Json<MessageData>,
+) -> Result<Json<Option<Message>>, ServerError> {
     if chat.time.is_none() {
         chat.time = Some(Datetime::default())
     }
-    let chat = CONN.create(CHAT_TABLE).content(chat).await?;
+    let chat = CONN.create(MESSAGE_TABLE).content(chat).await?;
 
     Ok(Json(chat))
 }
 
-pub async fn get_chat(id: Path<String>) -> Result<Json<Option<Chat>>, ServerError> {
-    let chat = CONN.select((CHAT_TABLE, &*id)).await?;
+pub async fn read_message(id: Path<String>) -> Result<Json<Option<Message>>, ServerError> {
+    let chat = CONN.select((MESSAGE_TABLE, &*id)).await?;
     Ok(Json(chat))
 }
 
-pub async fn update_chat(
+pub async fn update_message(
     id: Path<String>,
-    Json(mut chat): Json<ChatData>,
-) -> Result<Json<Option<Chat>>, ServerError> {
+    Json(mut chat): Json<MessageData>,
+) -> Result<Json<Option<Message>>, ServerError> {
     if chat.time.is_none() {
         chat.time = Some(Datetime::default())
     }
-    let chat = CONN.update((CHAT_TABLE, &*id)).content(chat).await?;
+    let chat = CONN.update((MESSAGE_TABLE, &*id)).content(chat).await?;
     Ok(Json(chat))
 }
 
-pub async fn delete_chat(id: Path<String>) -> Result<Json<Option<Chat>>, ServerError> {
-    let chat = CONN.delete((CHAT_TABLE, &*id)).await?;
+pub async fn delete_message(id: Path<String>) -> Result<Json<Option<Message>>, ServerError> {
+    let chat = CONN.delete((MESSAGE_TABLE, &*id)).await?;
     Ok(Json(chat))
 }
 
-pub async fn list_all_chats() -> Result<Json<Vec<Chat>>, ServerError> {
-    let chats = CONN.select(CHAT_TABLE).await?;
+pub async fn list_all_messages() -> Result<Json<Vec<Message>>, ServerError> {
+    let chats = CONN.select(MESSAGE_TABLE).await?;
     Ok(Json(chats))
 }
