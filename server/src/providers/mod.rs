@@ -1,3 +1,6 @@
+pub mod models;
+pub mod ollama;
+
 use async_openai::{Client, config::OpenAIConfig};
 use axum::{Json, extract::Path};
 use derive_builder::Builder;

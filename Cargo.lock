@@ -6221,6 +6221,7 @@ dependencies = [
  "natural-tts",
  "pyo3",
  "pythonize",
+ "reqwest 0.12.24",
  "rodio 0.21.1",
  "schemars 1.1.0",
  "serde",

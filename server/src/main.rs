@@ -22,7 +22,7 @@ use crate::{
     chats::{define_chats, relationships::define_message_relationships},
     errors::ServerError,
     messages::define_messages,
-    providers::define_providers,
+    providers::{define_providers, ollama::models::define_ollama_models},
     utils::get_path_settings,
 };
 
@@ -60,6 +60,20 @@ async fn main() {
                 .put(relationships::update_message_relationship)
                 .delete(relationships::delete_message_relationship),
         )
+        .route(
+            "/provider/ollama/model/all/",
+            get(providers::ollama::models::list_all_ollama_models),
+        )
+        .route(
+            "/provider/{id}/model/{model}",
+            post(providers::ollama::pull::run)
+                .get(providers::models::get_provider_model)
+                .delete(providers::models::delete_provider_model),
+        )
+        .route(
+            "/provider/{id}/model/all/",
+            get(providers::models::list_all_provider_models),
+        )
         .route("/provider/", post(providers::add_provider))
         .route("/provider/all/", get(providers::list_all_providers))
         .route(
@@ -89,6 +103,7 @@ pub async fn init_db() -> Result<(), ServerError> {
     let _ = define_messages().await?;
     let _ = define_chats().await?;
     let _ = define_message_relationships().await?;
+    let _ = define_ollama_models().await?;
 
     define_providers().await
 }

@@ -16,7 +16,12 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{CONN, errors::ServerError, messages::Role, providers::PROVIDER_TABLE};
+use crate::{
+    CONN,
+    errors::ServerError,
+    messages::Role,
+    providers::{PROVIDER_TABLE, Provider},
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct ChatQueryData {
@@ -86,7 +91,10 @@ pub struct ChatResponse {
 pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, ServerError> {
     let request = data.get_chat_completion_request()?;
 
-    let response = if let Some(provider) = CONN.select((PROVIDER_TABLE, &*data.provider)).await? {
+    let response = if let Some(provider) = CONN
+        .select::<Option<Provider>>((PROVIDER_TABLE, &*data.provider))
+        .await?
+    {
         let provider = Into::<Client<OpenAIConfig>>::into(&provider);
         provider.chat().create(request).await?
     } else {

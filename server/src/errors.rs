@@ -1,4 +1,3 @@
-use async_openai::error::OpenAIError;
 use axum::{
     Json,
     http::StatusCode,
@@ -9,26 +8,15 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ServerError {
     #[error("Database Error : {0}")]
-    Surreal(surrealdb::Error),
+    Surreal(#[from] surrealdb::Error),
     #[error("Generation Error : {0}")]
-    OpenAI(OpenAIError),
+    OpenAI(#[from] async_openai::error::OpenAIError),
+    #[error("Reqwest Error : {0}")]
+    Reqwest(#[from] reqwest::Error),
 }
 
 impl IntoResponse for ServerError {
     fn into_response(self) -> Response {
         (StatusCode::INTERNAL_SERVER_ERROR, Json(self.to_string())).into_response()
-    }
-}
-
-impl From<OpenAIError> for ServerError {
-    fn from(error: OpenAIError) -> Self {
-        eprintln!("{error}");
-        Self::OpenAI(error)
-    }
-}
-impl From<surrealdb::Error> for ServerError {
-    fn from(error: surrealdb::Error) -> Self {
-        eprintln!("{error}");
-        Self::Surreal(error)
     }
 }
