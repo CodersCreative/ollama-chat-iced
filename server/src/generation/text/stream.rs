@@ -23,7 +23,7 @@ pub enum ChatStreamResult {
 async fn run_text_stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamResult> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-    let request = data.get_chat_completion_request().unwrap();
+    let request = data.get_chat_completion_request().await.unwrap();
 
     let mut response = if let Some(provider) = CONN
         .select((PROVIDER_TABLE, &*data.provider))

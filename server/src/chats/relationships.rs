@@ -41,6 +41,7 @@ pub async fn define_message_relationships() -> Result<(), ServerError> {
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS parent ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS child ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS reason ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS index ON TABLE {0} TYPE int;
 ",
             RELATIONSHIP_TABLE,
@@ -57,14 +58,17 @@ pub async fn create_message_relationship(
         let query: Option<Value> = CONN
             .query(&format!(
                 "
-                SELECT count(child) FROM {0} WHERE parent == {1}
+                SELECT count() FROM {0} WHERE parent = '{1}' GROUP ALL;
             ",
                 RELATIONSHIP_TABLE, relationship.parent,
             ))
             .await?
             .take(0)?;
 
-        if let Some(query) = query {
+        if let Some(mut query) = query {
+            if query.is_array() {
+                query = query[0].clone();
+            }
             if query.is_object() {
                 count = query["count"].as_number().unwrap().as_u64().unwrap() as u8;
             }
@@ -72,6 +76,7 @@ pub async fn create_message_relationship(
 
         relationship.index = Some(count)
     }
+
     let relationship = CONN
         .create(RELATIONSHIP_TABLE)
         .content(relationship)
@@ -109,6 +114,22 @@ pub async fn delete_message_relationship(
 ) -> Result<Json<Option<MessageRelationship>>, ServerError> {
     let relationship = CONN.delete((RELATIONSHIP_TABLE, &*id)).await?;
     Ok(Json(relationship))
+}
+
+pub async fn list_all_message_relationships_from_parent(
+    parent: Path<String>,
+) -> Result<Json<Vec<MessageRelationship>>, ServerError> {
+    let query: Vec<MessageRelationship> = CONN
+        .query(&format!(
+            "
+                SELECT * FROM {0} WHERE parent = '{1}';
+            ",
+            RELATIONSHIP_TABLE, &*parent,
+        ))
+        .await?
+        .take(0)?;
+
+    Ok(Json(query))
 }
 
 pub async fn list_all_message_relationships() -> Result<Json<Vec<MessageRelationship>>, ServerError>

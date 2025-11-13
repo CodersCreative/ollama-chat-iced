@@ -22,6 +22,7 @@ use axum::{
 use crate::{
     chats::{define_chats, relationships::define_message_relationships},
     errors::ServerError,
+    files::define_files,
     messages::define_messages,
     providers::{define_providers, ollama::models::define_ollama_models},
     utils::get_path_settings,
@@ -32,6 +33,10 @@ async fn main() {
     init_db().await.unwrap();
     let app = Router::new()
         .route("/message/", post(messages::create_message))
+        .route(
+            "/message/parent/{parent}",
+            post(messages::create_message_with_parent),
+        )
         .route("/message/all/", get(messages::list_all_messages))
         .route(
             "/message/{id}",
@@ -46,6 +51,10 @@ async fn main() {
             get(chats::get_chat)
                 .put(chats::update_chat)
                 .delete(chats::delete_chat),
+        )
+        .route(
+            "/relationship/parent/{parent}/all",
+            get(relationships::list_all_message_relationships_from_parent),
         )
         .route(
             "/relationship/",
@@ -126,6 +135,6 @@ pub async fn init_db() -> Result<(), ServerError> {
     let _ = define_chats().await?;
     let _ = define_message_relationships().await?;
     let _ = define_ollama_models().await?;
-
+    let _ = define_files().await?;
     define_providers().await
 }

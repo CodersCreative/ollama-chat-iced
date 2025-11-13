@@ -1,3 +1,4 @@
+use crate::chats::relationships::Reason;
 use crate::files::FILE_TABLE;
 use crate::{CONN, errors::ServerError};
 use axum::{Json, extract::Path};
@@ -27,6 +28,8 @@ pub struct MessageData {
     #[serde(default = "Vec::new")]
     #[builder(default = "Vec::new()")]
     files: Vec<String>,
+    #[builder(default = "None")]
+    reason: Option<Reason>,
     #[builder(default = "None")]
     time: Option<Datetime>,
     #[serde(default = "Role::default")]
@@ -100,6 +103,39 @@ pub async fn create_message(
     let chat: Option<Message> = CONN.create(MESSAGE_TABLE).content(data).await?;
 
     if let Some(chat) = &chat {
+        for file in files.into_iter() {
+            let _ = CONN
+                .query(&format!(
+                    "RELATE {MESSAGE_TABLE}:{0} -> {MESSAGE_FILE_TABLE} -> {FILE_TABLE}:{file};",
+                    chat.id.key()
+                ))
+                .await?;
+        }
+    }
+
+    Ok(Json(chat))
+}
+
+pub async fn create_message_with_parent(
+    parent: Path<String>,
+    Json(chat): Json<MessageData>,
+) -> Result<Json<Option<Message>>, ServerError> {
+    let files = chat.files.clone();
+    let reason = chat.reason.clone();
+    let data = StoredMessageData::from(chat);
+    let chat: Option<Message> = CONN.create(MESSAGE_TABLE).content(data).await?;
+
+    if let Some(chat) = &chat {
+        let _ = super::relationships::create_message_relationship(Json(
+            super::relationships::MessageRelationshipDataBuilder::default()
+                .parent(parent.to_string())
+                .child(chat.id.key().to_string())
+                .reason(reason)
+                .build()
+                .unwrap(),
+        ))
+        .await?;
+
         for file in files.into_iter() {
             let _ = CONN
                 .query(&format!(
