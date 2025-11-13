@@ -3,6 +3,7 @@ pub mod errors;
 pub mod files;
 pub mod generation;
 pub mod providers;
+pub mod settings;
 pub mod utils;
 
 use chats::{messages, relationships};
@@ -16,15 +17,20 @@ static CONN: LazyLock<Surreal<Db>> = LazyLock::new(Surreal::init);
 
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 
 use crate::{
-    chats::{define_chats, relationships::define_message_relationships},
+    chats::{
+        define_chats,
+        previews::{self, define_previews},
+        relationships::define_message_relationships,
+    },
     errors::ServerError,
     files::define_files,
     messages::define_messages,
     providers::{define_providers, ollama::models::define_ollama_models},
+    settings::define_settings,
     utils::get_path_settings,
 };
 
@@ -35,7 +41,15 @@ async fn main() {
         .route("/message/", post(messages::create_message))
         .route(
             "/message/parent/{parent}",
-            post(messages::create_message_with_parent),
+            post(messages::create_message_with_parent).get(messages::get_message_list_from_parent),
+        )
+        .route(
+            "/message/parent/{parent}/default/",
+            get(messages::get_default_message_list_from_parent),
+        )
+        .route(
+            "/message/parent/{parent}/all/",
+            get(messages::list_all_messages_from_parent),
         )
         .route("/message/all/", get(messages::list_all_messages))
         .route(
@@ -44,7 +58,13 @@ async fn main() {
                 .put(messages::update_message)
                 .delete(messages::delete_message),
         )
+        .route("/preview/all/", get(previews::list_all_previews))
+        .route(
+            "/preview/{id}",
+            get(previews::get_preview).put(previews::update_preview),
+        )
         .route("/chat/", post(chats::create_chat))
+        .route("/chat/{id}/root/{root}", put(chats::set_chat_root))
         .route("/chat/all/", get(chats::list_all_chats))
         .route(
             "/chat/{id}",
@@ -53,7 +73,12 @@ async fn main() {
                 .delete(chats::delete_chat),
         )
         .route(
-            "/relationship/parent/{parent}/all",
+            "/settings/",
+            get(settings::get_settings).put(settings::update_settings),
+        )
+        .route("/settings/reset/", post(settings::reset_settings))
+        .route(
+            "/relationship/parent/{parent}/all/",
             get(relationships::list_all_message_relationships_from_parent),
         )
         .route(
@@ -131,10 +156,12 @@ pub async fn init_db() -> Result<(), ServerError> {
 
     let _ = CONN.use_ns("test").use_db("test").await?;
 
+    let _ = define_settings().await?;
     let _ = define_messages().await?;
     let _ = define_chats().await?;
     let _ = define_message_relationships().await?;
     let _ = define_ollama_models().await?;
+    let _ = define_previews().await?;
     let _ = define_files().await?;
     define_providers().await
 }

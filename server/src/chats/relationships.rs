@@ -6,7 +6,7 @@ use surrealdb::RecordId;
 
 use crate::{CONN, errors::ServerError};
 
-const RELATIONSHIP_TABLE: &str = "relationships";
+pub const RELATIONSHIP_TABLE: &str = "relationships";
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct MessageRelationshipData {
@@ -50,31 +50,38 @@ DEFINE FIELD IF NOT EXISTS index ON TABLE {0} TYPE int;
     Ok(())
 }
 
+pub async fn get_count_of_children(Path(parent): Path<String>) -> Result<Json<u8>, ServerError> {
+    let mut count: u8 = 0;
+    let query: Option<Value> = CONN
+        .query(&format!(
+            "
+                SELECT count() FROM {0} WHERE parent = '{1}' GROUP ALL;
+            ",
+            RELATIONSHIP_TABLE, parent,
+        ))
+        .await?
+        .take(0)?;
+
+    if let Some(mut query) = query {
+        if query.is_array() {
+            query = query[0].clone();
+        }
+        if query.is_object() {
+            count = query["count"].as_number().unwrap().as_u64().unwrap() as u8;
+        }
+    }
+
+    Ok(Json(count))
+}
 pub async fn create_message_relationship(
     Json(mut relationship): Json<MessageRelationshipData>,
 ) -> Result<Json<Option<MessageRelationship>>, ServerError> {
     if relationship.index.is_none() {
-        let mut count: u8 = 0;
-        let query: Option<Value> = CONN
-            .query(&format!(
-                "
-                SELECT count() FROM {0} WHERE parent = '{1}' GROUP ALL;
-            ",
-                RELATIONSHIP_TABLE, relationship.parent,
-            ))
-            .await?
-            .take(0)?;
-
-        if let Some(mut query) = query {
-            if query.is_array() {
-                query = query[0].clone();
-            }
-            if query.is_object() {
-                count = query["count"].as_number().unwrap().as_u64().unwrap() as u8;
-            }
-        }
-
-        relationship.index = Some(count)
+        relationship.index = Some(
+            get_count_of_children(Path(relationship.parent.to_string()))
+                .await?
+                .0,
+        )
     }
 
     let relationship = CONN

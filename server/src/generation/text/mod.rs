@@ -151,27 +151,32 @@ pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, 
 }
 
 pub fn split_text_into_thinking(text: String) -> (String, Option<String>) {
+    let deal_with_end = |text: String| -> (String, Option<String>) {
+        if text.contains("</think>") {
+            let split = text.rsplit_once("</think>").unwrap();
+
+            (
+                split.1.trim().to_string(),
+                if !split.0.trim().is_empty() {
+                    Some(split.0.trim().to_string())
+                } else {
+                    None
+                },
+            )
+        } else {
+            (text.trim().to_string(), None)
+        }
+    };
+
     if text.contains("<think>") {
         let c = text.clone();
         let split = c.split_once("<think>").unwrap();
         let mut content = split.0.to_string();
-        let think = if split.1.contains("</think>") {
-            let split2 = split.1.rsplit_once("</think>").unwrap();
-            content.push_str(split2.1);
-            split2.0.to_string()
-        } else {
-            split.1.to_string()
-        };
+        let temp = deal_with_end(split.1.trim().to_string());
+        content.push_str(&temp.0);
 
-        (
-            content.trim().to_string(),
-            if !think.trim().is_empty() {
-                Some(think.trim().to_string())
-            } else {
-                None
-            },
-        )
+        (content.trim().to_string(), temp.1)
     } else {
-        (text, None)
+        deal_with_end(text)
     }
 }

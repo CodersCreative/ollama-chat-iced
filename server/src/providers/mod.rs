@@ -33,7 +33,7 @@ pub struct Provider {
     pub url: String,
     pub api_key: String,
     pub provider_type: ProviderType,
-    id: RecordId,
+    pub id: RecordId,
 }
 
 impl Into<Client<OpenAIConfig>> for &Provider {
@@ -43,6 +43,19 @@ impl Into<Client<OpenAIConfig>> for &Provider {
                 .with_api_base(&self.url)
                 .with_api_key(&self.api_key),
         )
+    }
+}
+async fn get_local_ollama_data() -> Option<ProviderData> {
+    let url = "http://localhost:11434/v1".to_string();
+    if reqwest::Client::new().head(&url).send().await.is_ok() {
+        Some(ProviderData {
+            name: String::from("Local Ollama"),
+            url,
+            api_key: String::from("ollama"),
+            provider_type: ProviderType::Ollama,
+        })
+    } else {
+        None
     }
 }
 
@@ -59,6 +72,15 @@ DEFINE FIELD IF NOT EXISTS provider_type ON TABLE {0} TYPE string;
             PROVIDER_TABLE
         ))
         .await?;
+
+    if match list_all_providers().await {
+        Ok(x) => x.is_empty(),
+        _ => true,
+    } {
+        if let Some(ollama) = get_local_ollama_data().await {
+            let _ = add_provider(Json(ollama)).await?;
+        }
+    }
 
     Ok(())
 }

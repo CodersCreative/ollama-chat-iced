@@ -7,7 +7,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Datetime, RecordId};
 
-use crate::{CONN, errors::ServerError};
+use crate::{CONN, chats::previews::PREVIEW_TABLE, errors::ServerError};
 
 const CHAT_TABLE: &str = "chats";
 
@@ -15,10 +15,9 @@ const CHAT_TABLE: &str = "chats";
 pub struct ChatData {
     #[serde(default = "Vec::new")]
     #[builder(default = "Vec::new()")]
-    pub default_chats: Vec<usize>,
-    #[serde(default = "Vec::new")]
-    #[builder(default = "Vec::new()")]
     pub default_tools: Vec<String>,
+    #[builder(default = "None")]
+    pub root: Option<String>,
     #[builder(default = "None")]
     pub time: Option<Datetime>,
 }
@@ -26,11 +25,10 @@ pub struct ChatData {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Chat {
     #[serde(default = "Vec::new")]
-    pub default_chats: Vec<usize>,
-    #[serde(default = "Vec::new")]
     pub default_tools: Vec<String>,
-    time: Datetime,
-    id: RecordId,
+    pub root: Option<String>,
+    pub time: Datetime,
+    pub id: RecordId,
 }
 
 pub async fn define_chats() -> Result<(), ServerError> {
@@ -39,7 +37,7 @@ pub async fn define_chats() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS default_chats ON TABLE {0} TYPE array<int>;
+DEFINE FIELD IF NOT EXISTS root ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE datetime;
 ",
             CHAT_TABLE,
@@ -64,6 +62,19 @@ pub async fn get_chat(id: Path<String>) -> Result<Json<Option<Chat>>, ServerErro
     Ok(Json(chat))
 }
 
+pub async fn set_chat_root(
+    Path((id, root)): Path<(String, String)>,
+) -> Result<Json<Option<Chat>>, ServerError> {
+    Ok(Json(
+        CONN.query(&format!(
+            "UPDATE {0}:{1} SET root = '{2}';",
+            CHAT_TABLE, &*id, &*root
+        ))
+        .await?
+        .take(0)?,
+    ))
+}
+
 pub async fn update_chat(
     id: Path<String>,
     Json(mut chat): Json<ChatData>,
@@ -77,6 +88,7 @@ pub async fn update_chat(
 
 pub async fn delete_chat(id: Path<String>) -> Result<Json<Option<Chat>>, ServerError> {
     let chat = CONN.delete((CHAT_TABLE, &*id)).await?;
+    let _: Option<previews::Preview> = CONN.delete((PREVIEW_TABLE, &*id)).await?;
     Ok(Json(chat))
 }
 
