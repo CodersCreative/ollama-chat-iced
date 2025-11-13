@@ -1,15 +1,12 @@
+use crate::files::FILE_TABLE;
+use crate::{CONN, errors::ServerError};
 use axum::{Json, extract::Path};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{Datetime, RecordId};
 
-use crate::{CONN, errors::ServerError};
-
 const MESSAGE_TABLE: &str = "messages";
-const VIDEOS_TABLE: &str = "videos";
-const IMAGES_TABLE: &str = "images";
-const AUDIO_TABLE: &str = "audios";
-const FILE_TABLE: &str = "files";
+const MESSAGE_FILE_TABLE: &str = "message_files";
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Role {
@@ -27,11 +24,38 @@ pub struct MessageData {
     model: Option<ModelData>,
     #[builder(default = "None")]
     thinking: Option<String>,
+    #[serde(default = "Vec::new")]
+    #[builder(default = "Vec::new()")]
+    files: Vec<String>,
     #[builder(default = "None")]
     time: Option<Datetime>,
     #[serde(default = "Role::default")]
     #[builder(default = "Role::User")]
     role: Role,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+struct StoredMessageData {
+    content: String,
+    model: Option<ModelData>,
+    thinking: Option<String>,
+    time: Datetime,
+    role: Role,
+}
+
+impl From<MessageData> for StoredMessageData {
+    fn from(value: MessageData) -> Self {
+        Self {
+            content: value.content,
+            model: value.model,
+            thinking: value.thinking,
+            time: match value.time {
+                Some(x) => x,
+                None => Datetime::default(),
+            },
+            role: value.role,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
@@ -43,6 +67,8 @@ pub struct ModelData {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
     content: String,
+    #[serde(default = "Vec::new")]
+    files: Vec<String>,
     model: Option<ModelData>,
     thinking: Option<String>,
     role: Role,
@@ -59,32 +85,30 @@ DEFINE FIELD IF NOT EXISTS content ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS thinking ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS role ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE datetime;
-
-DEFINE TABLE IF NOT EXISTS {1} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS path ON TABLE {1} TYPE string;
-
-DEFINE TABLE IF NOT EXISTS {2} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS path ON TABLE {2} TYPE string;
-
-DEFINE TABLE IF NOT EXISTS {3} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS path ON TABLE {3} TYPE string;
-
-DEFINE TABLE IF NOT EXISTS {4} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS path ON TABLE {4} TYPE string;
 ",
-            MESSAGE_TABLE, VIDEOS_TABLE, IMAGES_TABLE, AUDIO_TABLE, FILE_TABLE
+            MESSAGE_TABLE
         ))
         .await?;
     Ok(())
 }
 
 pub async fn create_message(
-    Json(mut chat): Json<MessageData>,
+    Json(chat): Json<MessageData>,
 ) -> Result<Json<Option<Message>>, ServerError> {
-    if chat.time.is_none() {
-        chat.time = Some(Datetime::default())
+    let files = chat.files.clone();
+    let data = StoredMessageData::from(chat);
+    let chat: Option<Message> = CONN.create(MESSAGE_TABLE).content(data).await?;
+
+    if let Some(chat) = &chat {
+        for file in files.into_iter() {
+            let _ = CONN
+                .query(&format!(
+                    "RELATE {MESSAGE_TABLE}:{0} -> {MESSAGE_FILE_TABLE} -> {FILE_TABLE}:{file};",
+                    chat.id.key()
+                ))
+                .await?;
+        }
     }
-    let chat = CONN.create(MESSAGE_TABLE).content(chat).await?;
 
     Ok(Json(chat))
 }
@@ -96,12 +120,28 @@ pub async fn read_message(id: Path<String>) -> Result<Json<Option<Message>>, Ser
 
 pub async fn update_message(
     id: Path<String>,
-    Json(mut chat): Json<MessageData>,
+    Json(chat): Json<MessageData>,
 ) -> Result<Json<Option<Message>>, ServerError> {
-    if chat.time.is_none() {
-        chat.time = Some(Datetime::default())
+    let files = chat.files.clone();
+    let data = StoredMessageData::from(chat);
+    let chat: Option<Message> = CONN.update((MESSAGE_TABLE, &*id)).content(data).await?;
+
+    if let Some(chat) = &chat {
+        let _ = CONN.query(&format!(
+            "DELETE {0} WHERE in = {1}",
+            MESSAGE_FILE_TABLE,
+            chat.id.key()
+        ));
+        for file in files.into_iter() {
+            let _ = CONN
+                .query(&format!(
+                    "RELATE {MESSAGE_TABLE}:{0} -> {MESSAGE_FILE_TABLE} -> {FILE_TABLE}:{file};",
+                    chat.id.key()
+                ))
+                .await?;
+        }
     }
-    let chat = CONN.update((MESSAGE_TABLE, &*id)).content(chat).await?;
+
     Ok(Json(chat))
 }
 

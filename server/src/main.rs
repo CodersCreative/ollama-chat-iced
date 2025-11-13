@@ -1,5 +1,6 @@
 pub mod chats;
 pub mod errors;
+pub mod files;
 pub mod generation;
 pub mod providers;
 pub mod utils;
@@ -82,13 +83,20 @@ async fn main() {
                 .put(providers::update_provider)
                 .delete(providers::delete_provider),
         )
+        .route("/file/", post(files::create_file))
+        .route("/file/all/", get(files::list_all_files))
+        .route(
+            "/file/{id}",
+            get(files::get_file)
+                .put(files::update_file)
+                .delete(files::delete_file),
+        )
         .route("/generation/text/run/", get(generation::text::run))
         .route(
             "/generation/text/stream/",
             get(generation::text::stream::run),
         );
 
-    // TODO create tts and stt endpoints
     #[cfg(feature = "sound")]
     let app = app
         .route("/generation/speech/tts/run/", get(generation::tts::run))
@@ -97,6 +105,7 @@ async fn main() {
             get(generation::tts::stream::run),
         );
 
+    // TODO create stt endpoints
     #[cfg(feature = "voice")]
     let app = app.route("/generation/speech/stt/run/", get(generation::text::run));
 

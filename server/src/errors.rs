@@ -13,6 +13,8 @@ pub enum ServerError {
     OpenAI(#[from] async_openai::error::OpenAIError),
     #[error("Reqwest Error : {0}")]
     Reqwest(#[from] reqwest::Error),
+    #[error("IO Error : {0}")]
+    IO(#[from] std::io::Error),
     #[error("Error : {0}")]
     Unknown(String),
 }
