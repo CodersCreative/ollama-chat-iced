@@ -24,6 +24,8 @@ pub enum Role {
 pub struct MessageData {
     content: String,
     #[builder(default = "None")]
+    model: Option<ModelData>,
+    #[builder(default = "None")]
     thinking: Option<String>,
     #[builder(default = "None")]
     time: Option<Datetime>,
@@ -32,9 +34,16 @@ pub struct MessageData {
     role: Role,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+pub struct ModelData {
+    provider: String,
+    model: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
     content: String,
+    model: Option<ModelData>,
     thinking: Option<String>,
     role: Role,
     time: Datetime,

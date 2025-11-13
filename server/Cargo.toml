@@ -13,7 +13,7 @@ license = "MIT"
 
 [features]
 voice = ["dep:kalosm-sound", "dep:rodio", "sound"]
-sound = ["dep:natural-tts"]
+sound = ["dep:natural-tts", "dep:text-splitter"]
 python = ["dep:pyo3", "dep:pythonize"]
 full = ["python", "voice"]
 
@@ -32,6 +32,7 @@ tokio-stream = "0.1.17"
 schemars = "1.1.0"
 derive_builder = { version = "0.20.2"}
 
+
 # Python
 pyo3 = { version = "0.27.1", features = ["auto-initialize"] , optional = true}
 pythonize = {version = "0.27.0", optional = true}
@@ -41,3 +42,4 @@ natural-tts = { version = "0.2.1", features = ["gtts", "tts-rs"], optional = tru
 kalosm-sound = {version ="0.4.0", optional = true}
 rodio = {version = "0.21.1", optional = true}
 reqwest = "0.12.24"
+text-splitter = {version = "0.28.0", optional = true}

@@ -13,6 +13,8 @@ pub struct MessageRelationshipData {
     pub parent: String,
     pub child: String,
     #[builder(default = "None")]
+    pub reason: Option<Reason>,
+    #[builder(default = "None")]
     pub index: Option<u8>,
 }
 
@@ -20,8 +22,16 @@ pub struct MessageRelationshipData {
 pub struct MessageRelationship {
     pub parent: String,
     pub child: String,
+    pub reason: Option<Reason>,
     pub index: u8,
     id: RecordId,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Reason {
+    Model,
+    Regeneration,
+    Sibling,
 }
 
 pub async fn define_message_relationships() -> Result<(), ServerError> {

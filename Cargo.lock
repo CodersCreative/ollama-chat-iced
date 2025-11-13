@@ -6228,6 +6228,7 @@ dependencies = [
  "serde_json",
  "serde_json_lenient",
  "surrealdb",
+ "text-splitter",
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",

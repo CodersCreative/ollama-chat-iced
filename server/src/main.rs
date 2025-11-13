@@ -87,6 +87,19 @@ async fn main() {
             "/generation/text/stream/",
             get(generation::text::stream::run),
         );
+
+    // TODO create tts and stt endpoints
+    #[cfg(feature = "sound")]
+    let app = app
+        .route("/generation/speech/tts/run/", get(generation::tts::run))
+        .route(
+            "/generation/speech/tts/stream/",
+            get(generation::tts::stream::run),
+        );
+
+    #[cfg(feature = "voice")]
+    let app = app.route("/generation/speech/stt/run/", get(generation::text::run));
+
     let listener = tokio::net::TcpListener::bind("localhost:1212")
         .await
         .unwrap();
