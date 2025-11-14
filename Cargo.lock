@@ -183,9 +183,9 @@ checksum = "90c6333e01ba7235575b6ab53e5af10f1c327927fd97c36462917e289557ea64"
 
 [[package]]
 name = "anyhow"
-version = "1.0.99"
+version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
+checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "approx"
@@ -2751,6 +2751,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
+name = "flatbuffers"
+version = "25.9.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09b6620799e7340ebd9968d2e0708eb82cf1971e9a16821e2091b6d6e475eed5"
+dependencies = [
+ "bitflags 2.9.1",
+ "rustc_version",
+ "serde",
+]
+
+[[package]]
 name = "flate2"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3485,6 +3496,7 @@ dependencies = [
  "schemars 1.1.0",
  "serde",
  "serde_json",
+ "surrealdb-types",
  "tokio",
 ]
 
@@ -6077,10 +6089,10 @@ dependencies = [
 name = "ochat-types"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "derive_builder",
  "serde",
  "serde_json",
- "surrealdb",
 ]
 
 [[package]]
@@ -7250,6 +7262,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
+name = "relative-path"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba39f3699c378cd8970968dcbff9c43159ea4cfbd88d43c00b22f2ef10a435d2"
+
+[[package]]
 name = "rend"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7586,6 +7604,36 @@ dependencies = [
  "heapless",
  "num-traits",
  "smallvec",
+]
+
+[[package]]
+name = "rstest"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fc39292f8613e913f7df8fa892b8944ceb47c247b78e1b1ae2f09e019be789d"
+dependencies = [
+ "futures-timer",
+ "futures-util",
+ "rstest_macros",
+ "rustc_version",
+]
+
+[[package]]
+name = "rstest_macros"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f168d99749d307be9de54d23fd226628d99768225ef08f6ffb52e0182a27746"
+dependencies = [
+ "cfg-if",
+ "glob",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "relative-path",
+ "rustc_version",
+ "syn 2.0.104",
+ "unicode-ident",
 ]
 
 [[package]]
@@ -8782,6 +8830,62 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasmtimer",
  "ws_stream_wasm",
+]
+
+[[package]]
+name = "surrealdb-protocol"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "663f743d93821325a41f87fd400b773c7e6bb66359a5326cdff638d68d21a401"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bytes",
+ "chrono",
+ "flatbuffers",
+ "geo",
+ "rust_decimal",
+ "semver",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
+name = "surrealdb-types"
+version = "3.0.0-alpha.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd85899c4d5aa31cd28baace656e434fa6ea687e6e3493c894d4a05001dd36f9"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "chrono",
+ "flatbuffers",
+ "geo",
+ "hex",
+ "http 1.3.1",
+ "nanoid",
+ "regex",
+ "rstest",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "surrealdb-protocol",
+ "surrealdb-types-derive",
+ "tracing",
+ "ulid",
+ "uuid",
+]
+
+[[package]]
+name = "surrealdb-types-derive"
+version = "3.0.0-alpha.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ec26384345efbc703c170c948efe52f7820742786c060fe5dd71e27f58e4357"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]

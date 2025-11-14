@@ -1,8 +1,8 @@
-use std::fmt::Display;
-
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use surrealdb::RecordId;
+use std::fmt::Display;
+
+use crate::surreal::RecordId;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct SettingsData {

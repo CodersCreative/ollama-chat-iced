@@ -2,7 +2,8 @@ use std::io::Read;
 
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use surrealdb::RecordId;
+
+use crate::surreal::RecordId;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct B64FileData {

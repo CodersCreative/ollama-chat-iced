@@ -4,8 +4,8 @@ use crate::{CONN, errors::ServerError};
 use axum::{Json, extract::Path};
 use ochat_types::chats::messages::{Message, MessageData, ModelData, Role};
 use ochat_types::chats::relationships::{MessageRelationship, MessageRelationshipDataBuilder};
+use ochat_types::surreal::Datetime;
 use serde::{Deserialize, Serialize};
-use surrealdb::Datetime;
 
 const MESSAGE_TABLE: &str = "messages";
 const MESSAGE_FILE_TABLE: &str = "message_files";

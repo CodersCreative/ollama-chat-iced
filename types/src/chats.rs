@@ -1,6 +1,7 @@
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use surrealdb::{Datetime, RecordId};
+
+use crate::surreal::{Datetime, RecordId};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct ChatData {

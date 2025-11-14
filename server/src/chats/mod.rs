@@ -3,8 +3,10 @@ pub mod previews;
 pub mod relationships;
 
 use axum::{Json, extract::Path};
-use ochat_types::chats::{Chat, ChatData, previews::Preview};
-use surrealdb::Datetime;
+use ochat_types::{
+    chats::{Chat, ChatData, previews::Preview},
+    surreal::Datetime,
+};
 
 use crate::{CONN, chats::previews::PREVIEW_TABLE, errors::ServerError};
 
@@ -29,7 +31,7 @@ pub async fn create_chat(
     Json(mut chat): Json<ChatData>,
 ) -> Result<Json<Option<Chat>>, ServerError> {
     if chat.time.is_none() {
-        chat.time = Some(Datetime::default())
+        chat.time = Some(Datetime::default());
     }
     let chat = CONN.create(CHAT_TABLE).content(chat).await?;
 

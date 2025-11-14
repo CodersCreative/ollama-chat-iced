@@ -2,7 +2,8 @@ use std::fmt::Display;
 
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use surrealdb::RecordId;
+
+use crate::surreal::RecordId;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub enum ProviderType {

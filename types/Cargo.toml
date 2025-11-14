@@ -12,7 +12,7 @@ categories = ["gui", "accessibility"]
 license = "MIT"
 
 [dependencies]
+chrono = { version = "0.4.42", features = ["serde"] }
 derive_builder = "0.20.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
-surrealdb = "2.3.10"
