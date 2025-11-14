@@ -219,7 +219,7 @@ pub mod svg_button {
         widget::{button, svg},
     };
 
-    use crate::{Message, style::button::transparent_text, utils::get_path_assets};
+    use crate::{Message, style::button::transparent_back_white_text, utils::get_path_assets};
 
     macro_rules! svg_button {
         ($iden:ident) => {
@@ -232,7 +232,7 @@ pub mod svg_button {
                         .style(super::svg::$iden)
                         .width(Length::Fixed(size as f32)),
                 )
-                .style(transparent_text)
+                .style(transparent_back_white_text)
             }
         };
     }
@@ -251,118 +251,403 @@ pub mod button {
         widget::button::{Status, Style},
     };
 
-    pub fn rounded_primary(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(theme.palette().primary.clone())),
-            border: iced::Border::default().rounded(20),
-            text_color: theme.palette().text.clone(),
-            ..Default::default()
+    pub fn rounded_primary(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(theme.palette().primary.clone())),
+                border: iced::Border::default().rounded(20),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(theme.palette().primary.clone())),
+                border: iced::Border::default().rounded(20),
+                text_color: theme.palette().primary.clone(),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(theme.palette().primary.clone())),
+                border: iced::Border::default().rounded(20),
+                text_color: theme.palette().danger.clone(),
+                ..Default::default()
+            },
         }
     }
 
-    pub fn rounded_primary_blend(theme: &Theme, _status: Status) -> Style {
+    pub fn rounded_primary_blend(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(change_alpha(
+                    theme.palette().primary.clone(),
+                    0.1,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(change_alpha(theme.palette().primary.clone(), 0.3)),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(change_alpha(
+                    theme.palette().primary.clone(),
+                    0.1,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(change_alpha(theme.palette().primary.clone(), 0.5)),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(change_alpha(
+                    theme.palette().primary.clone(),
+                    0.1,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(change_alpha(theme.palette().primary.clone(), 0.7)),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn start(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(lighten_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(lighten_colour(theme.palette().background.clone(), 0.1)),
+                text_color: change_alpha(theme.palette().text.clone(), 0.3),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(lighten_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(lighten_colour(theme.palette().background.clone(), 0.1)),
+                text_color: change_alpha(theme.palette().text.clone(), 0.5),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(lighten_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(lighten_colour(theme.palette().background.clone(), 0.1)),
+                text_color: change_alpha(theme.palette().text.clone(), 0.7),
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn start_chosen(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(change_alpha(
+                    theme.palette().primary.clone(),
+                    0.05,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(lighten_colour(theme.palette().primary.clone(), 0.1)),
+                text_color: change_alpha(theme.palette().text.clone(), 0.3),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(change_alpha(
+                    theme.palette().primary.clone(),
+                    0.05,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(lighten_colour(theme.palette().primary.clone(), 0.1)),
+                text_color: change_alpha(theme.palette().text.clone(), 0.5),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(change_alpha(
+                    theme.palette().primary.clone(),
+                    0.05,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(lighten_colour(theme.palette().primary.clone(), 0.1)),
+                text_color: change_alpha(theme.palette().text.clone(), 0.7),
+                ..Default::default()
+            },
+        }
+    }
+    pub fn submit(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(theme.palette().primary.clone())),
+                border: iced::Border::default().rounded(Radius::default().right(20)),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(theme.palette().primary.clone())),
+                border: iced::Border::default().rounded(Radius::default().right(20)),
+                text_color: theme.palette().background.clone(),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(theme.palette().primary.clone())),
+                border: iced::Border::default().rounded(Radius::default().right(20)),
+                text_color: theme.palette().danger.clone(),
+                ..Default::default()
+            },
+        }
+    }
+    pub fn transparent_translucent(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+                text_color: change_alpha(lighten_colour(theme.palette().primary.clone(), 0.2), 0.4),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+                text_color: change_alpha(lighten_colour(theme.palette().primary.clone(), 0.4), 0.6),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+                text_color: change_alpha(lighten_colour(theme.palette().primary.clone(), 0.6), 0.8),
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn transparent_back_white_text(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(change_alpha(
+                    theme.palette().text,
+                    0.1,
+                ))),
+                border: iced::Border::default()
+                    .rounded(5)
+                    .color(change_alpha(theme.palette().primary, 0.2)),
+                text_color: theme.palette().primary.clone(),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(change_alpha(
+                    theme.palette().primary,
+                    0.1,
+                ))),
+                border: iced::Border::default()
+                    .rounded(5)
+                    .color(change_alpha(theme.palette().danger, 0.2)),
+                text_color: theme.palette().danger.clone(),
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn transparent_back_black_text(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+                text_color: theme.palette().background.clone(),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+                text_color: theme.palette().primary.clone(),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+                text_color: theme.palette().danger.clone(),
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn chosen_chat(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(theme.palette().background.clone())),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(theme.palette().background.clone())),
+                text_color: theme.palette().primary.clone(),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(theme.palette().background.clone())),
+                text_color: theme.palette().danger.clone(),
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn side_bar_chat(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.01,
+                ))),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                text_color: theme.palette().primary.clone(),
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn not_chosen_chat(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.01,
+                ))),
+                text_color: change_alpha(theme.palette().text.clone(), 0.4),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                text_color: change_alpha(theme.palette().text.clone(), 0.6),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                text_color: change_alpha(theme.palette().text.clone(), 0.8),
+                ..Default::default()
+            },
+        }
+    }
+}
+
+pub mod markdown {
+    use iced::{Padding, Theme, advanced::text::Highlight, widget::markdown::Style};
+
+    use crate::utils::darken_colour;
+
+    pub fn main(theme: &Theme) -> Style {
         Style {
-            background: Some(iced::Background::Color(change_alpha(
-                theme.palette().primary.clone(),
+            inline_code_highlight: Highlight {
+                background: iced::Background::Color(theme.palette().background.clone()),
+                border: iced::Border::default().rounded(10),
+            },
+            inline_code_padding: Padding::new(10.0),
+            inline_code_color: darken_colour(theme.palette().background.clone(), 0.01),
+            link_color: theme.palette().primary.clone(),
+        }
+    }
+}
+
+pub mod pick_list {
+    use iced::{
+        Theme,
+        widget::pick_list::{Status, Style},
+    };
+
+    use crate::utils::change_alpha;
+
+    pub fn main(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                text_color: theme.palette().text.clone(),
+                placeholder_color: change_alpha(theme.palette().text.clone(), 0.6),
+                handle_color: theme.palette().text.clone(),
+                background: iced::Background::Color(change_alpha(theme.palette().text, 0.1)),
+                border: iced::Border::default()
+                    .rounded(5)
+                    .color(theme.palette().text.clone()),
+            },
+            Status::Hovered => Style {
+                text_color: theme.palette().text.clone(),
+                placeholder_color: change_alpha(theme.palette().text.clone(), 0.6),
+                handle_color: theme.palette().primary.clone(),
+                background: iced::Background::Color(change_alpha(theme.palette().primary, 0.1)),
+                border: iced::Border::default()
+                    .rounded(5)
+                    .color(theme.palette().primary.clone()),
+            },
+            Status::Opened => Style {
+                text_color: theme.palette().text.clone(),
+                placeholder_color: change_alpha(theme.palette().text.clone(), 0.6),
+                handle_color: theme.palette().primary.clone(),
+                background: iced::Background::Color(change_alpha(theme.palette().primary, 0.25)),
+                border: iced::Border::default()
+                    .rounded(5)
+                    .color(theme.palette().danger.clone()),
+            },
+        }
+    }
+}
+
+pub mod menu {
+    use iced::{Theme, overlay::menu::Style};
+
+    use crate::utils::{change_alpha, darken_colour};
+
+    pub fn main(theme: &Theme) -> Style {
+        Style {
+            background: iced::Background::Color(darken_colour(
+                theme.palette().background.clone(),
+                0.05,
+            )),
+            border: iced::Border::default()
+                .rounded(5)
+                .color(theme.palette().primary.clone()),
+            text_color: theme.palette().text.clone(),
+            selected_text_color: theme.palette().primary.clone(),
+            selected_background: iced::Background::Color(change_alpha(
+                theme.palette().primary,
                 0.1,
-            ))),
-            border: iced::Border::default()
-                .rounded(20)
-                .width(1)
-                .color(change_alpha(theme.palette().primary.clone(), 0.3)),
-            text_color: theme.palette().text.clone(),
-            ..Default::default()
-        }
-    }
-
-    pub fn start(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(lighten_colour(
-                theme.palette().background.clone(),
-                0.05,
-            ))),
-            border: iced::Border::default()
-                .rounded(20)
-                .width(1)
-                .color(lighten_colour(theme.palette().background.clone(), 0.1)),
-            text_color: change_alpha(theme.palette().text.clone(), 0.3),
-            ..Default::default()
-        }
-    }
-
-    pub fn start_chosen(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(change_alpha(
-                theme.palette().primary.clone(),
-                0.05,
-            ))),
-            border: iced::Border::default()
-                .rounded(20)
-                .width(1)
-                .color(lighten_colour(theme.palette().primary.clone(), 0.1)),
-            text_color: change_alpha(theme.palette().text.clone(), 0.3),
-            ..Default::default()
-        }
-    }
-    pub fn submit(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(theme.palette().primary.clone())),
-            border: iced::Border::default().rounded(Radius::default().right(20)),
-            text_color: theme.palette().text.clone(),
-            ..Default::default()
-        }
-    }
-    pub fn transparent_translucent(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
-            text_color: change_alpha(lighten_colour(theme.palette().primary.clone(), 0.2), 0.4),
-            ..Default::default()
-        }
-    }
-
-    pub fn transparent_text(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
-            text_color: theme.palette().text.clone(),
-            ..Default::default()
-        }
-    }
-
-    pub fn transparent_back(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
-            text_color: theme.palette().background.clone(),
-            ..Default::default()
-        }
-    }
-
-    pub fn chosen_chat(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(theme.palette().background.clone())),
-            text_color: theme.palette().text.clone(),
-            ..Default::default()
-        }
-    }
-
-    pub fn side_bar_chat(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(darken_colour(
-                theme.palette().background.clone(),
-                0.01,
-            ))),
-            text_color: theme.palette().text.clone(),
-            ..Default::default()
-        }
-    }
-
-    pub fn not_chosen_chat(theme: &Theme, _status: Status) -> Style {
-        Style {
-            background: Some(iced::Background::Color(darken_colour(
-                theme.palette().background.clone(),
-                0.01,
-            ))),
-            text_color: change_alpha(theme.palette().text.clone(), 0.4),
-            ..Default::default()
+            )),
         }
     }
 }

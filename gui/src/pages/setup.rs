@@ -290,7 +290,9 @@ fn view_provider_input<'a>(
                 PageMessage::Setup(SetupMessage::UpdateProviderType(index, x)),
             ))
         },
-    );
+    )
+    .style(style::pick_list::main)
+    .menu_style(style::menu::main);
 
     container(column![name, url, api, provider_type])
         .padding(Padding::new(20.0))
@@ -377,7 +379,9 @@ impl SetupPage {
                             id,
                             PageMessage::Setup(SetupMessage::UpdatePreviewModel(x)),
                         ))
-                    });
+                    })
+                    .style(style::pick_list::main)
+                    .menu_style(style::menu::main);
 
                 model_column = model_column.push(sub_heading("Preview Model"));
                 model_column = model_column.push(preview_model);
@@ -388,7 +392,9 @@ impl SetupPage {
                             id,
                             PageMessage::Setup(SetupMessage::UpdateDefaultModel(x)),
                         ))
-                    });
+                    })
+                    .style(style::pick_list::main)
+                    .menu_style(style::menu::main);
 
                 model_column = model_column.push(sub_heading("Default Model"));
                 model_column = model_column.push(default_model);
@@ -398,7 +404,9 @@ impl SetupPage {
                         id,
                         PageMessage::Setup(SetupMessage::UpdateToolsModel(x)),
                     ))
-                });
+                })
+                .style(style::pick_list::main)
+                .menu_style(style::menu::main);
 
                 model_column = model_column.push(sub_heading("Tools Model"));
                 model_column = model_column.push(tools_model);
@@ -417,7 +425,9 @@ impl SetupPage {
                 id,
                 PageMessage::Setup(SetupMessage::UpdateTheme(x)),
             ))
-        });
+        })
+        .style(style::pick_list::main)
+        .menu_style(style::menu::main);
 
         let next = container(
             style::svg_button::text("forward_arrow.svg", HEADER_SIZE).on_press(Message::Window(
