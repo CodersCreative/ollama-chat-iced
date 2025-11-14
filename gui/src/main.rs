@@ -35,6 +35,7 @@ static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| {
 #[derive(Debug, Clone)]
 pub struct Application {
     pub windows: BTreeMap<window::Id, Window>,
+    pub theme: Theme,
 }
 
 fn main() -> iced::Result {
@@ -64,6 +65,7 @@ impl Application {
         (
             Self {
                 windows: BTreeMap::new(),
+                theme: Theme::CatppuccinMocha,
             },
             Task::batch([
                 open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
@@ -91,7 +93,7 @@ impl Application {
     }
 
     pub fn theme(&self, _window: window::Id) -> Theme {
-        Theme::CatppuccinMocha
+        self.theme.clone()
     }
 
     pub fn subscription(&self) -> Subscription<Message> {

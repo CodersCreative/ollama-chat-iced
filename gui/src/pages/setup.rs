@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use crate::{
     Application, DATA, Message,
     data::RequestType,
@@ -7,14 +9,19 @@ use crate::{
     windows::message::WindowMessage,
 };
 use iced::{
-    Element, Length, Padding, Task,
+    Element, Length, Padding, Task, Theme,
     alignment::Vertical,
-    widget::{center, column, container, keyed_column, pick_list, row, text, text_input},
+    widget::{
+        Scrollable, button, center, checkbox, column, container, horizontal_space, keyed_column,
+        pick_list, row,
+        scrollable::{self, Direction, Scrollbar},
+        text, text_input,
+    },
     window,
 };
 use ochat_types::{
     providers::{Provider, ProviderData, ProviderDataBuilder, ProviderType},
-    settings::{SettingsProvider, SettingsProviderBuilder},
+    settings::{SettingsData, SettingsDataBuilder, SettingsProvider, SettingsProviderBuilder},
     surreal::RecordId,
 };
 use serde_json::Value;
@@ -26,7 +33,6 @@ pub struct SetupPage {
     pub default_model: Option<SettingsProvider>,
     pub tools_model: Option<SettingsProvider>,
     pub use_panes: bool,
-    pub theme: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -39,12 +45,14 @@ pub enum SetupMessage {
     UpdateDefaultModel(SettingsProvider),
     UpdateToolsModel(SettingsProvider),
     UpdateInstanceUrl(String),
-    UpdateUsePanes(bool),
-    UpdateTheme(usize),
+    UpdateUsePanes,
+    UpdateTheme(Theme),
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
     AddProvider(usize),
     AddProviderInput,
+    Save,
+    NextPage,
 }
 
 impl SetupMessage {
@@ -157,13 +165,36 @@ impl SetupMessage {
                 let _ = page.provider_inputs.remove(index);
                 Task::none()
             }
-            Self::UpdateTheme(index) => {
-                // TODO Add Theme Switching
+            Self::UpdateTheme(theme) => {
+                app.theme = theme;
+
                 Task::none()
             }
-            Self::UpdateUsePanes(x) => {
-                // TODO Add Panes
+            Self::NextPage => {
+                // TODO Add Other Pages
                 Task::none()
+            }
+            Self::UpdateUsePanes => {
+                page.use_panes = !page.use_panes;
+                Task::none()
+            }
+            Self::Save => {
+                let settings = SettingsData {
+                    previews_provider: page.previews_model.clone(),
+                    default_provider: page.default_model.clone(),
+                    tools_provider: page.tools_model.clone(),
+                    use_panes: Some(page.use_panes),
+                    theme: Theme::ALL.iter().position(|x| x == &app.theme),
+                };
+
+                Task::future(async move {
+                    let req = DATA.read().unwrap().to_request();
+                    let _: Value = req
+                        .make_request("settings/", &settings, RequestType::Put)
+                        .await
+                        .unwrap();
+                    Message::None
+                })
             }
         }
     }
@@ -171,20 +202,23 @@ impl SetupMessage {
 
 fn view_provider<'a>(id: window::Id, provider: Provider) -> Element<'a, Message> {
     let name = row![
-        text(provider.name).size(SUB_HEADING_SIZE),
-        style::button::svg_button("delete.svg", SUB_HEADING_SIZE).on_press(Message::Window(
+        style::svg_button::danger("delete.svg", SUB_HEADING_SIZE).on_press(Message::Window(
             WindowMessage::Page(
                 id.clone(),
                 PageMessage::Setup(SetupMessage::DeleteProvider(provider.id.clone())),
             )
-        ))
-    ];
+        )),
+        text(provider.name)
+            .size(SUB_HEADING_SIZE)
+            .style(style::text::primary)
+    ]
+    .align_y(Vertical::Center);
+
+    let provider_type = text(provider.provider_type.to_string()).size(BODY_SIZE);
 
     let url = text(provider.url).size(BODY_SIZE);
 
-    let provider_type = text(provider.provider_type.to_string());
-
-    container(column![name, url, provider_type])
+    container(column![name, provider_type, url])
         .padding(Padding::new(20.0))
         .style(style::container::neutral_back)
         .into()
@@ -205,18 +239,18 @@ fn view_provider_input<'a>(
             })
             .size(SUB_HEADING_SIZE)
             .style(style::text_input::input),
-        style::button::svg_button("close.svg", SUB_HEADING_SIZE).on_press(Message::Window(
+        style::svg_button::primary("add.svg", SUB_HEADING_SIZE).on_press(Message::Window(
+            WindowMessage::Page(
+                id.clone(),
+                PageMessage::Setup(SetupMessage::AddProvider(index)),
+            )
+        )),
+        style::svg_button::danger("close.svg", SUB_HEADING_SIZE).on_press(Message::Window(
             WindowMessage::Page(
                 id.clone(),
                 PageMessage::Setup(SetupMessage::RemoveProviderInput(index)),
             )
         )),
-        style::button::svg_button("add.svg", SUB_HEADING_SIZE).on_press(Message::Window(
-            WindowMessage::Page(
-                id.clone(),
-                PageMessage::Setup(SetupMessage::AddProvider(index)),
-            )
-        ))
     ];
 
     let url = text_input("Enter the provider url...", &input.url)
@@ -266,6 +300,7 @@ fn view_provider_input<'a>(
 
 impl SetupPage {
     pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
+        let sub_heading = |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::primary);
         let banner = text("Welcome to OChat!")
             .size(HEADER_SIZE)
             .style(style::text::primary);
@@ -293,7 +328,7 @@ impl SetupPage {
                 text("Providers")
                     .size(BODY_SIZE)
                     .style(style::text::primary),
-                style::button::svg_button("add.svg", BODY_SIZE).on_press(Message::Window(
+                style::svg_button::primary("add.svg", BODY_SIZE).on_press(Message::Window(
                     WindowMessage::Page(
                         id.clone(),
                         PageMessage::Setup(SetupMessage::AddProviderInput),
@@ -316,15 +351,17 @@ impl SetupPage {
                     .spacing(5);
 
                     let data = DATA.read().unwrap();
-                    let providers = keyed_column(
-                        data.providers
+                    let providers = Scrollable::new(
+                        row(data
+                            .providers
                             .clone()
                             .into_iter()
-                            .map(|provider| (0, view_provider(id, provider))),
+                            .map(|provider| view_provider(id, provider)))
+                        .spacing(5),
                     )
-                    .spacing(5);
+                    .direction(Direction::Horizontal(Scrollbar::new()));
 
-                    column![inputs, providers].into()
+                    column![inputs, providers].spacing(5).into()
                 };
 
             container(column![header, body])
@@ -341,6 +378,8 @@ impl SetupPage {
                             PageMessage::Setup(SetupMessage::UpdatePreviewModel(x)),
                         ))
                     });
+
+                model_column = model_column.push(sub_heading("Preview Model"));
                 model_column = model_column.push(preview_model);
 
                 let default_model =
@@ -350,6 +389,8 @@ impl SetupPage {
                             PageMessage::Setup(SetupMessage::UpdateDefaultModel(x)),
                         ))
                     });
+
+                model_column = model_column.push(sub_heading("Default Model"));
                 model_column = model_column.push(default_model);
 
                 let tools_model = pick_list(x.models.clone(), self.tools_model.clone(), move |x| {
@@ -358,15 +399,58 @@ impl SetupPage {
                         PageMessage::Setup(SetupMessage::UpdateToolsModel(x)),
                     ))
                 });
+
+                model_column = model_column.push(sub_heading("Tools Model"));
                 model_column = model_column.push(tools_model);
             }
         }
 
+        let use_panes = checkbox("Use Panes", self.use_panes).on_toggle(move |_| {
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Setup(SetupMessage::UpdateUsePanes),
+            ))
+        });
+
+        let theme = pick_list(Theme::ALL, Some(app.theme.clone()), move |x| {
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Setup(SetupMessage::UpdateTheme(x)),
+            ))
+        });
+
+        let next = container(
+            style::svg_button::text("forward_arrow.svg", HEADER_SIZE).on_press(Message::Window(
+                WindowMessage::Page(id, PageMessage::Setup(SetupMessage::NextPage)),
+            )),
+        )
+        .style(style::container::chat);
+
+        let save = container(style::svg_button::text("save.svg", HEADER_SIZE).on_press(
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Setup(SetupMessage::Save),
+            )),
+        ))
+        .style(style::container::chat);
+
         center(
-            container(column![banner, ochat, providers, model_column,].spacing(10))
-                .width(Length::Shrink)
-                .padding(Padding::new(20.0))
-                .style(style::container::neutral_back),
+            container(
+                column![
+                    banner,
+                    sub_heading("Instance Url"),
+                    ochat,
+                    providers,
+                    model_column,
+                    sub_heading("Decorations"),
+                    row![theme, use_panes].spacing(10).align_y(Vertical::Center),
+                    row![save, next].spacing(10).align_y(Vertical::Center),
+                ]
+                .spacing(10),
+            )
+            .max_width(800)
+            .padding(Padding::new(20.0))
+            .style(style::container::neutral_back),
         )
         .into()
     }

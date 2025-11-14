@@ -112,9 +112,11 @@ pub async fn update_settings(
         current_settings.theme = x;
     }
 
-    let chat = CONN
-        .update((SETTINGS_TABLE, current_settings.id.key().to_string()))
+    let chat: Vec<Settings> = CONN
+        .update(SETTINGS_TABLE)
         .content(Into::<SettingsData>::into(current_settings))
         .await?;
+
+    let chat = chat.first().map(|x| x.clone());
     Ok(Json(chat))
 }

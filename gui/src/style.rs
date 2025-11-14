@@ -196,51 +196,60 @@ pub mod svg {
         widget::svg::{Status, Style},
     };
 
-    pub fn white(theme: &Theme, _status: Status) -> Style {
-        Style {
-            color: Some(theme.palette().text.clone()),
-            ..Default::default()
-        }
+    macro_rules! svg_style {
+        ($iden:ident) => {
+            pub fn $iden(theme: &Theme, _status: Status) -> Style {
+                Style {
+                    color: Some(theme.palette().$iden.clone()),
+                    ..Default::default()
+                }
+            }
+        };
     }
 
-    pub fn background(theme: &Theme, _status: Status) -> Style {
-        Style {
-            color: Some(theme.palette().background.clone()),
-            ..Default::default()
-        }
-    }
-
-    pub fn primary(theme: &Theme, _status: Status) -> Style {
-        Style {
-            color: Some(theme.palette().primary.clone()),
-            ..Default::default()
-        }
-    }
+    svg_style!(text);
+    svg_style!(background);
+    svg_style!(primary);
+    svg_style!(danger);
 }
-pub mod button {
-    use crate::{
-        Message,
-        utils::{change_alpha, darken_colour, get_path_assets, lighten_colour},
-    };
+
+pub mod svg_button {
     use iced::{
         Length, Renderer, Theme,
-        border::Radius,
-        widget::{
-            button::{self, Status, Style},
-            svg,
-        },
+        widget::{button, svg},
     };
-    pub fn svg_button<'a>(
-        path: &'a str,
-        size: u16,
-    ) -> button::Button<'a, Message, Theme, Renderer> {
-        button::Button::new(
-            svg(svg::Handle::from_path(get_path_assets(path.to_string())))
-                .style(super::svg::white)
-                .width(Length::Fixed(size as f32)),
-        )
-        .style(transparent_text)
+
+    use crate::{Message, style::button::transparent_text, utils::get_path_assets};
+
+    macro_rules! svg_button {
+        ($iden:ident) => {
+            pub fn $iden<'a>(
+                path: &'a str,
+                size: u16,
+            ) -> button::Button<'a, Message, Theme, Renderer> {
+                button::Button::new(
+                    svg(svg::Handle::from_path(get_path_assets(path.to_string())))
+                        .style(super::svg::$iden)
+                        .width(Length::Fixed(size as f32)),
+                )
+                .style(transparent_text)
+            }
+        };
     }
+
+    svg_button!(text);
+    svg_button!(background);
+    svg_button!(primary);
+    svg_button!(danger);
+}
+
+pub mod button {
+    use crate::utils::{change_alpha, darken_colour, lighten_colour};
+    use iced::{
+        Theme,
+        border::Radius,
+        widget::button::{Status, Style},
+    };
 
     pub fn rounded_primary(theme: &Theme, _status: Status) -> Style {
         Style {
