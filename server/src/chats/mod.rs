@@ -3,33 +3,12 @@ pub mod previews;
 pub mod relationships;
 
 use axum::{Json, extract::Path};
-use derive_builder::Builder;
-use serde::{Deserialize, Serialize};
-use surrealdb::{Datetime, RecordId};
+use ochat_types::chats::{Chat, ChatData, previews::Preview};
+use surrealdb::Datetime;
 
 use crate::{CONN, chats::previews::PREVIEW_TABLE, errors::ServerError};
 
 const CHAT_TABLE: &str = "chats";
-
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
-pub struct ChatData {
-    #[serde(default = "Vec::new")]
-    #[builder(default = "Vec::new()")]
-    pub default_tools: Vec<String>,
-    #[builder(default = "None")]
-    pub root: Option<String>,
-    #[builder(default = "None")]
-    pub time: Option<Datetime>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Chat {
-    #[serde(default = "Vec::new")]
-    pub default_tools: Vec<String>,
-    pub root: Option<String>,
-    pub time: Datetime,
-    pub id: RecordId,
-}
 
 pub async fn define_chats() -> Result<(), ServerError> {
     // Use a linking table for default_tools and chats
@@ -88,7 +67,7 @@ pub async fn update_chat(
 
 pub async fn delete_chat(id: Path<String>) -> Result<Json<Option<Chat>>, ServerError> {
     let chat = CONN.delete((CHAT_TABLE, &*id)).await?;
-    let _: Option<previews::Preview> = CONN.delete((PREVIEW_TABLE, &*id)).await?;
+    let _: Option<Preview> = CONN.delete((PREVIEW_TABLE, &*id)).await?;
     Ok(Json(chat))
 }
 

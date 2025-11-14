@@ -1,21 +1,14 @@
 use axum::{Json, response::IntoResponse};
 use axum_streams::StreamBodyAs;
 use futures::Stream;
-use serde::{Deserialize, Serialize};
+use ochat_types::generation::tts::{TtsQueryData, TtsResponse, TtsResponseSpec, TtsStreamResult};
 
 use crate::{
     errors::ServerError,
-    generation::tts::{NATURAL_TTS, TtsQueryData, TtsResponse, TtsResponseSpec, split_text_gtts},
+    generation::tts::{NATURAL_TTS, split_text_gtts},
 };
 
 use natural_tts::models::Spec;
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum TtsStreamResult {
-    Err(String),
-    Generating(TtsResponse),
-    Finished,
-}
 
 async fn run_tts_stream(data: TtsQueryData) -> impl Stream<Item = TtsStreamResult> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();

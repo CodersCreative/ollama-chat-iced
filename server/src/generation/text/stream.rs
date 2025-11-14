@@ -1,36 +1,29 @@
-use async_openai::{Client, config::OpenAIConfig};
 use axum::Json;
 use axum::response::IntoResponse;
 use axum_streams::StreamBodyAs;
 use futures::Stream;
-use serde::{Deserialize, Serialize};
+use ochat_types::{chats::messages::Role, generation::text::ChatStreamResult};
 use tokio_stream::StreamExt;
 
-use crate::messages::Role;
 use crate::{
     CONN,
-    generation::text::{ChatQueryData, ChatResponse, split_text_into_thinking},
-    providers::PROVIDER_TABLE,
+    generation::text::{
+        ChatQueryData, ChatResponse, get_chat_completion_request, split_text_into_thinking,
+    },
+    providers::{PROVIDER_TABLE, provider_into_config},
 };
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum ChatStreamResult {
-    Err(String),
-    Generating(ChatResponse),
-    Finished(ChatResponse),
-}
 
 async fn run_text_stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamResult> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-    let request = data.get_chat_completion_request().await.unwrap();
+    let request = get_chat_completion_request(&data).await.unwrap();
 
     let mut response = if let Some(provider) = CONN
         .select((PROVIDER_TABLE, &*data.provider))
         .await
         .unwrap()
     {
-        let provider = Into::<Client<OpenAIConfig>>::into(&provider);
+        let provider = provider_into_config(&provider);
         provider.chat().create_stream(request).await.unwrap()
     } else {
         panic!()

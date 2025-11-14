@@ -1,14 +1,10 @@
-use async_openai::{
-    Client,
-    config::OpenAIConfig,
-    types::{DeleteModelResponse, Model},
-};
+use async_openai::types::{DeleteModelResponse, Model};
 use axum::{Json, extract::Path};
 
 use crate::{
     CONN,
     errors::ServerError,
-    providers::{PROVIDER_TABLE, Provider},
+    providers::{PROVIDER_TABLE, Provider, provider_into_config},
 };
 
 pub async fn list_all_provider_models(id: Path<String>) -> Result<Json<Vec<Model>>, ServerError> {
@@ -16,7 +12,7 @@ pub async fn list_all_provider_models(id: Path<String>) -> Result<Json<Vec<Model
         .select::<Option<Provider>>((PROVIDER_TABLE, &*id))
         .await?
     {
-        let provider = Into::<Client<OpenAIConfig>>::into(&provider);
+        let provider = provider_into_config(&provider);
         provider.models().list().await?
     } else {
         panic!()
@@ -32,7 +28,7 @@ pub async fn delete_provider_model(
         .select::<Option<Provider>>((PROVIDER_TABLE, &*id))
         .await?
     {
-        let provider = Into::<Client<OpenAIConfig>>::into(&provider);
+        let provider = provider_into_config(&provider);
         provider.models().delete(&*model).await?
     } else {
         panic!()
@@ -48,7 +44,7 @@ pub async fn get_provider_model(
         .select::<Option<Provider>>((PROVIDER_TABLE, &*id))
         .await?
     {
-        let provider = Into::<Client<OpenAIConfig>>::into(&provider);
+        let provider = provider_into_config(&provider);
         provider.models().retrieve(&*model).await?
     } else {
         panic!()

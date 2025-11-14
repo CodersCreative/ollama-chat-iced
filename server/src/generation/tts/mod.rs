@@ -1,10 +1,9 @@
 use axum::Json;
-use derive_builder::Builder;
 use natural_tts::{
     NaturalTts, NaturalTtsBuilder,
     models::{Spec, gtts::GttsModel, tts_rs::TtsModel},
 };
-use serde::{Deserialize, Serialize};
+use ochat_types::generation::tts::{TtsQueryData, TtsResponse, TtsResponseSpec};
 use std::sync::{LazyLock, RwLock};
 use text_splitter::TextSplitter;
 
@@ -21,23 +20,6 @@ static NATURAL_TTS: LazyLock<RwLock<NaturalTts>> = LazyLock::new(|| {
             .unwrap(),
     )
 });
-
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
-pub struct TtsQueryData {
-    pub text: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TtsResponse {
-    spec: TtsResponseSpec,
-    data: Vec<f32>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TtsResponseSpec {
-    pub sample_rate: u32,
-    pub bits_per_sample: u16,
-}
 
 #[axum::debug_handler]
 pub async fn run(Json(data): Json<TtsQueryData>) -> Result<Json<TtsResponse>, ServerError> {

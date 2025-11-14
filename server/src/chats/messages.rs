@@ -1,56 +1,16 @@
-use crate::chats::relationships::{
-    MessageRelationship, RELATIONSHIP_TABLE, Reason, get_count_of_children,
-};
+use crate::chats::relationships::{RELATIONSHIP_TABLE, get_count_of_children};
 use crate::files::FILE_TABLE;
-use crate::generation::text::ChatQueryMessage;
 use crate::{CONN, errors::ServerError};
 use axum::{Json, extract::Path};
-use derive_builder::Builder;
+use ochat_types::chats::messages::{Message, MessageData, ModelData, Role};
+use ochat_types::chats::relationships::{MessageRelationship, MessageRelationshipDataBuilder};
 use serde::{Deserialize, Serialize};
-use surrealdb::{Datetime, RecordId};
+use surrealdb::Datetime;
 
 const MESSAGE_TABLE: &str = "messages";
 const MESSAGE_FILE_TABLE: &str = "message_files";
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub enum Role {
-    #[default]
-    User,
-    AI,
-    Function,
-    System,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
-pub struct MessageData {
-    pub content: String,
-    #[builder(default = "None")]
-    pub model: Option<ModelData>,
-    #[builder(default = "None")]
-    pub thinking: Option<String>,
-    #[serde(default = "Vec::new")]
-    #[builder(default = "Vec::new()")]
-    pub files: Vec<String>,
-    #[builder(default = "None")]
-    reason: Option<Reason>,
-    #[builder(default = "None")]
-    pub time: Option<Datetime>,
-    #[serde(default = "Role::default")]
-    #[builder(default = "Role::User")]
-    pub role: Role,
-}
-
-impl Into<ChatQueryMessage> for Message {
-    fn into(self) -> ChatQueryMessage {
-        ChatQueryMessage {
-            text: self.content,
-            files: self.files,
-            role: self.role,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct StoredMessageData {
     content: String,
     model: Option<ModelData>,
@@ -72,24 +32,6 @@ impl From<MessageData> for StoredMessageData {
             role: value.role,
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
-pub struct ModelData {
-    provider: String,
-    model: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Message {
-    pub content: String,
-    #[serde(default = "Vec::new")]
-    pub files: Vec<String>,
-    pub model: Option<ModelData>,
-    pub thinking: Option<String>,
-    pub role: Role,
-    pub time: Datetime,
-    pub id: RecordId,
 }
 
 pub async fn define_messages() -> Result<(), ServerError> {
@@ -140,7 +82,7 @@ pub async fn create_message_with_parent(
 
     if let Some(chat) = &chat {
         let _ = super::relationships::create_message_relationship(Json(
-            super::relationships::MessageRelationshipDataBuilder::default()
+            MessageRelationshipDataBuilder::default()
                 .parent(parent.to_string())
                 .child(chat.id.key().to_string())
                 .reason(reason)

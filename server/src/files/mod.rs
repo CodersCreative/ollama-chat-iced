@@ -1,36 +1,18 @@
 use std::{
     fs,
-    io::{Read, Write},
+    io::Write,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use axum::{Json, extract::Path};
-use derive_builder::Builder;
+use ochat_types::files::{B64File, B64FileData, DBFile, FileType};
 use serde::{Deserialize, Serialize};
-use surrealdb::RecordId;
 
 use crate::{CONN, errors::ServerError, utils::get_file_uploads_path};
 
 pub const FILE_TABLE: &str = "files";
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub enum FileType {
-    #[default]
-    Image,
-    Video,
-    Audio,
-    File,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
-pub struct B64FileData {
-    b64data: String,
-    #[serde(default = "FileType::default")]
-    #[builder(default = "FileType::Image")]
-    file_type: FileType,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct DBFileData {
     path: String,
     file_type: FileType,
@@ -54,35 +36,6 @@ impl TryFrom<B64FileData> for DBFileData {
             file_type: value.file_type,
         })
     }
-}
-
-impl TryInto<B64File> for DBFile {
-    type Error = ServerError;
-    fn try_into(self) -> Result<B64File, Self::Error> {
-        let mut file = fs::File::open(self.path)?;
-        let mut data = String::new();
-        let _ = file.read_to_string(&mut data)?;
-
-        Ok(B64File {
-            b64data: data,
-            file_type: self.file_type,
-            id: self.id,
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct DBFile {
-    pub path: String,
-    pub file_type: FileType,
-    pub id: RecordId,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct B64File {
-    pub b64data: String,
-    pub file_type: FileType,
-    pub id: RecordId,
 }
 
 pub async fn define_files() -> Result<(), ServerError> {

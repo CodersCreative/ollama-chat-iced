@@ -4,24 +4,9 @@ use axum::extract::Path;
 use axum::response::IntoResponse;
 use axum_streams::StreamBodyAs;
 use futures::Stream;
-use serde::{Deserialize, Serialize};
+use ochat_types::providers::ollama::{PullModelResponse, PullModelStreamResult};
 use serde_json::json;
 use tokio_stream::StreamExt;
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum PullModelStreamResult {
-    Err(String),
-    Pulling(PullModelResponse),
-    Finished,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PullModelResponse {
-    pub status: String,
-    pub digest: Option<String>,
-    pub total: Option<u64>,
-    pub completed: Option<u64>,
-}
 
 async fn run_pull_stream(
     provider: String,

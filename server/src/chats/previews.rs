@@ -1,29 +1,21 @@
 use axum::{Json, extract::Path};
-use serde::{Deserialize, Serialize};
-use surrealdb::{Datetime, RecordId};
+use ochat_types::{
+    chats::{
+        messages::Role,
+        previews::{Preview, PreviewData},
+    },
+    generation::text::{ChatQueryData, ChatQueryMessage},
+};
+use surrealdb::RecordId;
 
 use crate::{
     CONN,
     chats::{CHAT_TABLE, get_chat, messages::get_default_message_list_from_parent},
     errors::ServerError,
-    generation::text::{ChatQueryData, ChatQueryMessage},
     settings::get_settings,
 };
 
 pub const PREVIEW_TABLE: &str = "previews";
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Preview {
-    pub text: String,
-    pub time: Datetime,
-    pub id: RecordId,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct PreviewData {
-    pub text: String,
-    pub time: Datetime,
-}
 
 pub async fn define_previews() -> Result<(), ServerError> {
     let _ = CONN
@@ -74,7 +66,7 @@ Generate a **concise, 3 to 5 word title** for the previous messages.
                 ",
             ),
             files: Vec::new(),
-            role: crate::chats::messages::Role::System,
+            role: Role::System,
         },
     );
 

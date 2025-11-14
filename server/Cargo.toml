@@ -16,6 +16,7 @@ voice = ["dep:kalosm-sound", "dep:rodio", "sound"]
 sound = ["dep:natural-tts", "dep:text-splitter"]
 python = ["dep:pyo3", "dep:pythonize"]
 full = ["python", "voice"]
+default = ["full"]
 
 [dependencies]
 async-openai = "0.30.1"
@@ -30,7 +31,7 @@ thiserror = "2.0.17"
 tokio = { version = "1.48.0", features = ["full"] }
 tokio-stream = "0.1.17"
 schemars = "1.1.0"
-derive_builder = { version = "0.20.2"}
+ochat-types = {path = "../types"}
 
 
 # Python

@@ -1,23 +1,10 @@
-use std::collections::HashMap;
-
 use axum::Json;
-use serde::{Deserialize, Serialize};
+use ochat_types::providers::ollama::OllamaModelsInfo;
+use std::collections::HashMap;
 
 use crate::{CONN, errors::ServerError};
 
 const OLLAMA_MODELS_TABLE: &str = "ollama_models";
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OllamaModelsInfo {
-    #[serde(default = "String::new")]
-    pub name: String,
-    pub url: String,
-    pub tags: Vec<Vec<String>>,
-    pub author: String,
-    pub categories: Vec<String>,
-    pub languages: Vec<String>,
-    pub description: String,
-}
 
 pub async fn define_ollama_models() -> Result<(), ServerError> {
     let _ = CONN

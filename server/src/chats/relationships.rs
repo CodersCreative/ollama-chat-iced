@@ -1,38 +1,9 @@
-use axum::{Json, extract::Path};
-use derive_builder::Builder;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use surrealdb::RecordId;
-
 use crate::{CONN, errors::ServerError};
+use axum::{Json, extract::Path};
+use ochat_types::chats::relationships::{MessageRelationship, MessageRelationshipData};
+use serde_json::Value;
 
 pub const RELATIONSHIP_TABLE: &str = "relationships";
-
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
-pub struct MessageRelationshipData {
-    pub parent: String,
-    pub child: String,
-    #[builder(default = "None")]
-    pub reason: Option<Reason>,
-    #[builder(default = "None")]
-    pub index: Option<u8>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct MessageRelationship {
-    pub parent: String,
-    pub child: String,
-    pub reason: Option<Reason>,
-    pub index: u8,
-    id: RecordId,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Reason {
-    Model,
-    Regeneration,
-    Sibling,
-}
 
 pub async fn define_message_relationships() -> Result<(), ServerError> {
     let _ = CONN
