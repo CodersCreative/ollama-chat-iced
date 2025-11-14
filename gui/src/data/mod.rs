@@ -5,7 +5,7 @@ use ochat_types::{
     settings::{SettingsProvider, SettingsProviderBuilder},
 };
 use reqwest::Client;
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
 static REQWEST_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
@@ -17,6 +17,22 @@ pub struct Data {
     pub models: Vec<SettingsProvider>,
 }
 
+pub struct Request(String);
+
+impl Request {
+    pub async fn make_request<T: DeserializeOwned, Json: Serialize>(
+        &self,
+        endpoint: &str,
+        body: &Json,
+        request_type: RequestType,
+    ) -> Result<T, String> {
+        request_ochat_server(&format!("{}/{}", self.0, endpoint,), body, request_type).await
+    }
+}
+
+unsafe impl Sync for Data {}
+unsafe impl Send for Data {}
+
 impl Data {
     pub async fn get(instance: Option<String>) -> Result<Data, Box<dyn Error>> {
         let instance = match instance {
@@ -24,30 +40,32 @@ impl Data {
             _ => String::from("http://localhost:1212"),
         };
 
-        let providers: Vec<Provider> = serde_json::from_value(
-            request_ochat_server(&format!("{}/{}", instance, "provider/all/"), &()).await?,
-        )?;
+        let providers: Vec<Provider> = request_ochat_server(
+            &format!("{}/{}", instance, "provider/all/"),
+            &(),
+            RequestType::Get,
+        )
+        .await?;
 
         let mut models: Vec<SettingsProvider> = Vec::new();
 
         for provider in providers.iter() {
-            let provider_models: Vec<Value> = serde_json::from_value(
-                request_ochat_server(
-                    &format!(
-                        "{}/{}",
-                        instance,
-                        format!("provider/{}/model/all/", provider.id.key())
-                    ),
-                    &(),
-                )
-                .await?,
-            )?;
+            let provider_models: Vec<Value> = request_ochat_server(
+                &format!(
+                    "{}/{}",
+                    instance,
+                    format!("provider/{}/model/all/", provider.id.key())
+                ),
+                &(),
+                RequestType::Get,
+            )
+            .await?;
 
             for model in provider_models {
                 models.push(
                     SettingsProviderBuilder::default()
                         .provider(provider.id.key().to_string())
-                        .model(serde_json::from_value(model["id"].clone())?)
+                        .model(model["id"].as_str().unwrap().to_string())
                         .build()?,
                 );
             }
@@ -60,28 +78,39 @@ impl Data {
         })
     }
 
-    pub async fn make_request<T: Serialize>(
-        &self,
-        endpoint: &str,
-        body: &T,
-    ) -> Result<Value, Box<dyn Error>> {
-        request_ochat_server(
-            &format!("{}/{}", self.instance_url.as_ref().unwrap(), endpoint),
-            body,
-        )
-        .await
+    pub fn to_request(&self) -> Request {
+        Request(self.instance_url.clone().unwrap())
     }
 }
 
-pub async fn request_ochat_server<T: Serialize>(
+pub enum RequestType {
+    Get,
+    Post,
+    Put,
+    Delete,
+}
+
+pub async fn request_ochat_server<T: DeserializeOwned, Json: Serialize>(
     url: &str,
-    body: &T,
-) -> Result<Value, Box<dyn Error>> {
-    Ok(REQWEST_CLIENT
-        .get(url)
-        .json(body)
-        .send()
-        .await?
-        .json()
-        .await?)
+    body: &Json,
+    request_type: RequestType,
+) -> Result<T, String> {
+    let request = match request_type {
+        RequestType::Get => REQWEST_CLIENT.get(url),
+        RequestType::Post => REQWEST_CLIENT.post(url),
+        RequestType::Put => REQWEST_CLIENT.put(url),
+        RequestType::Delete => REQWEST_CLIENT.delete(url),
+    };
+
+    serde_json::from_value(
+        request
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .json()
+            .await
+            .map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())
 }

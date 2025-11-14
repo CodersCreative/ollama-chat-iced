@@ -1,16 +1,21 @@
 use iced::{Task, Vector, widget::text_input, window};
 
-use crate::{Application, Message, pages::Pages, windows::Window};
+use crate::{
+    Application, Message,
+    pages::{PageMessage, Pages},
+    windows::Window,
+};
 
 #[derive(Debug, Clone)]
 pub enum WindowMessage {
     OpenWindow,
+    Page(window::Id, PageMessage),
     WindowOpened(window::Id, Pages),
     WindowClosed(window::Id),
 }
 
 impl WindowMessage {
-    pub fn handle(self, app: &mut Application) -> Task<Message> {
+    pub fn handle<'a>(self, app: &'a mut Application) -> Task<Message> {
         match self {
             Self::OpenWindow => {
                 let Some(last_window) = app.windows.keys().last() else {
@@ -33,6 +38,7 @@ impl WindowMessage {
                     })
                     .map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
             }
+            Self::Page(id, x) => x.handle(app, id),
             Self::WindowClosed(id) => {
                 app.windows.remove(&id);
 

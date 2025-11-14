@@ -6,7 +6,7 @@ use iced::{Element, window};
 
 #[derive(Debug, Clone)]
 pub struct Window {
-    page: Pages,
+    pub page: Pages,
 }
 
 impl Window {
@@ -14,7 +14,7 @@ impl Window {
         Self { page }
     }
 
-    pub fn view<'a>(&'a self, app: &'a Application, id: &window::Id) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         self.page.view(app, id)
     }
 }

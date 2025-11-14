@@ -5,7 +5,10 @@ pub mod utils;
 pub mod windows;
 
 use iced::{Element, Font, Subscription, Task, Theme, widget::text, window};
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::{LazyLock, RwLock},
+};
 
 use crate::{
     pages::Pages,
@@ -20,9 +23,17 @@ pub mod font {
     pub const SMALL_SIZE: u16 = 8;
 }
 
+static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| {
+    RwLock::new(
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(data::Data::get(None))
+            .unwrap(),
+    )
+});
+
 #[derive(Debug, Clone)]
 pub struct Application {
-    pub data: data::Data,
     pub windows: BTreeMap<window::Id, Window>,
 }
 
@@ -45,7 +56,6 @@ fn main() -> iced::Result {
 pub enum Message {
     None,
     Window(WindowMessage),
-    SetData(Result<data::Data, String>),
 }
 
 impl Application {
@@ -53,14 +63,10 @@ impl Application {
         let (_, open) = window::open(window::Settings::default());
         (
             Self {
-                data: data::Data::default(),
                 windows: BTreeMap::new(),
             },
             Task::batch([
-                open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default()))),
-                Task::future(async move {
-                    Message::SetData(data::Data::get(None).await.map_err(|e| e.to_string()))
-                }),
+                open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
             ]),
         )
     }
@@ -69,14 +75,6 @@ impl Application {
         match message {
             Message::None => Task::none(),
             Message::Window(message) => message.handle(self),
-            Message::SetData(d) => {
-                match d {
-                    Ok(d) => self.data = d,
-                    Err(e) => println!("{e}"),
-                }
-
-                Task::none()
-            }
         }
     }
 
@@ -86,7 +84,7 @@ impl Application {
 
     pub fn view<'a>(&'a self, window_id: window::Id) -> Element<'a, Message> {
         if let Some(window) = self.windows.get(&window_id) {
-            window.view(self, &window_id)
+            window.view(self, window_id)
         } else {
             text("Window Not Found").into()
         }
