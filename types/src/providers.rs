@@ -41,6 +41,14 @@ pub struct Provider {
     pub id: RecordId,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Model {
+    pub id: String,
+    pub object: Option<String>,
+    pub created: Option<u32>,
+    pub owned_by: Option<String>,
+}
+
 pub mod ollama {
     use super::*;
 

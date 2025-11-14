@@ -1,17 +1,14 @@
-use std::{thread, time::Duration};
-
 use crate::{
     Application, DATA, Message,
-    data::{Data, RequestType},
+    data::RequestType,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     pages::{PageMessage, Pages},
     style,
-    windows::{Window, message::WindowMessage},
+    windows::message::WindowMessage,
 };
 use iced::{
     Element, Length, Padding, Task,
     alignment::Vertical,
-    futures::FutureExt,
     widget::{center, column, container, keyed_column, pick_list, row, text, text_input},
     window,
 };
@@ -95,26 +92,28 @@ impl SetupMessage {
                         )
                         .await
                     {
-                        let provider_models: Vec<Value> = req
+                        let provider_models: Result<Vec<Value>, String> = req
                             .make_request(
                                 &format!("provider/{}/model/all/", provider.id.key()),
                                 &(),
                                 RequestType::Get,
                             )
-                            .await
-                            .unwrap();
-                        let mut models = Vec::new();
+                            .await;
 
-                        for model in provider_models {
-                            models.push(
-                                SettingsProviderBuilder::default()
-                                    .provider(provider.id.key().to_string())
-                                    .model(model["id"].as_str().unwrap().to_string())
-                                    .build()
-                                    .unwrap(),
-                            );
+                        if let Ok(provider_models) = provider_models {
+                            let mut models = Vec::new();
+
+                            for model in provider_models {
+                                models.push(
+                                    SettingsProviderBuilder::default()
+                                        .provider(provider.id.key().to_string())
+                                        .model(model["id"].as_str().unwrap().to_string())
+                                        .build()
+                                        .unwrap(),
+                                );
+                            }
+                            DATA.write().unwrap().models.append(&mut models);
                         }
-                        DATA.write().unwrap().models.append(&mut models);
                         DATA.write().unwrap().providers.push(provider);
                     }
 

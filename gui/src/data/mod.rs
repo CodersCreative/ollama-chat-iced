@@ -50,7 +50,7 @@ impl Data {
         let mut models: Vec<SettingsProvider> = Vec::new();
 
         for provider in providers.iter() {
-            let provider_models: Vec<Value> = request_ochat_server(
+            let provider_models: Result<Vec<Value>, String> = request_ochat_server(
                 &format!(
                     "{}/{}",
                     instance,
@@ -59,15 +59,19 @@ impl Data {
                 &(),
                 RequestType::Get,
             )
-            .await?;
+            .await;
 
-            for model in provider_models {
-                models.push(
-                    SettingsProviderBuilder::default()
-                        .provider(provider.id.key().to_string())
-                        .model(model["id"].as_str().unwrap().to_string())
-                        .build()?,
-                );
+            if let Ok(provider_models) = provider_models {
+                for model in provider_models {
+                    models.push(
+                        SettingsProviderBuilder::default()
+                            .provider(provider.id.key().to_string())
+                            .model(model["id"].as_str().unwrap().to_string())
+                            .build()?,
+                    );
+                }
+            } else {
+                eprintln!("{:?}", provider_models);
             }
         }
 

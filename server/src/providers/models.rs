@@ -1,5 +1,7 @@
-use async_openai::types::{DeleteModelResponse, Model};
+use async_openai::types::DeleteModelResponse;
 use axum::{Json, extract::Path};
+use ochat_types::providers::Model;
+use serde_json::Value;
 
 use crate::{
     CONN,
@@ -12,13 +14,38 @@ pub async fn list_all_provider_models(id: Path<String>) -> Result<Json<Vec<Model
         .select::<Option<Provider>>((PROVIDER_TABLE, &*id))
         .await?
     {
-        let provider = provider_into_config(&provider);
-        provider.models().list().await?
+        match {
+            let provider = provider_into_config(&provider);
+            provider.models().list().await
+        } {
+            Ok(x) => x
+                .data
+                .into_iter()
+                .map(|x| Model {
+                    id: x.id,
+                    object: Some(x.object),
+                    created: Some(x.created),
+                    owned_by: Some(x.owned_by),
+                })
+                .collect(),
+            Err(e) => {
+                if let Ok(x) = reqwest::Client::new()
+                    .get(&format!("{}/models", &provider.url))
+                    .send()
+                    .await
+                {
+                    let value: Value = x.json().await?;
+                    serde_json::from_value(value.get("data").unwrap().clone()).unwrap()
+                } else {
+                    return Err(e.into());
+                }
+            }
+        }
     } else {
         panic!()
     };
 
-    Ok(Json(response.data))
+    Ok(Json(response))
 }
 
 pub async fn delete_provider_model(
@@ -44,8 +71,28 @@ pub async fn get_provider_model(
         .select::<Option<Provider>>((PROVIDER_TABLE, &*id))
         .await?
     {
-        let provider = provider_into_config(&provider);
-        provider.models().retrieve(&*model).await?
+        match {
+            let provider = provider_into_config(&provider);
+            provider.models().retrieve(&*model).await
+        } {
+            Ok(x) => Model {
+                id: x.id,
+                object: Some(x.object),
+                created: Some(x.created),
+                owned_by: Some(x.owned_by),
+            },
+            Err(e) => {
+                if let Ok(x) = reqwest::Client::new()
+                    .get(&format!("{}/models/{}", &provider.url, &*model))
+                    .send()
+                    .await
+                {
+                    x.json().await?
+                } else {
+                    return Err(e.into());
+                }
+            }
+        }
     } else {
         panic!()
     };
