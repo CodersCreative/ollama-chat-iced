@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::RecordId;
@@ -16,10 +18,16 @@ pub struct SettingsData {
     pub theme: Option<usize>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SettingsProvider {
     pub provider: String,
     pub model: String,
+}
+
+impl Display for SettingsProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.model)
+    }
 }
 
 impl Into<SettingsData> for Settings {

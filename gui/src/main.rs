@@ -1,22 +1,29 @@
+pub mod data;
 pub mod pages;
+pub mod style;
+pub mod utils;
 pub mod windows;
 
-use iced::{
-    Element, Font, Subscription, Task, Theme, Vector,
-    widget::{button, text, text_input},
-    window,
-};
+use iced::{Element, Font, Subscription, Task, Theme, widget::text, window};
 use std::collections::BTreeMap;
 
 use crate::{
     pages::Pages,
-    windows::{Window, WindowMessage},
+    windows::{Window, message::WindowMessage},
 };
-pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
+
+pub mod font {
+    pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
+    pub const HEADER_SIZE: u16 = 24;
+    pub const SUB_HEADING_SIZE: u16 = 16;
+    pub const BODY_SIZE: u16 = 12;
+    pub const SMALL_SIZE: u16 = 8;
+}
 
 #[derive(Debug, Clone)]
 pub struct Application {
-    windows: BTreeMap<window::Id, Window>,
+    pub data: data::Data,
+    pub windows: BTreeMap<window::Id, Window>,
 }
 
 fn main() -> iced::Result {
@@ -28,7 +35,7 @@ fn main() -> iced::Result {
     };
     iced::daemon(Application::title, Application::update, Application::view)
         .subscription(Application::subscription)
-        .font(FONT)
+        .font(font::FONT)
         .default_font(font)
         .theme(Application::theme)
         .run_with(Application::new)
@@ -38,6 +45,7 @@ fn main() -> iced::Result {
 pub enum Message {
     None,
     Window(WindowMessage),
+    SetData(Result<data::Data, String>),
 }
 
 impl Application {
@@ -45,59 +53,30 @@ impl Application {
         let (_, open) = window::open(window::Settings::default());
         (
             Self {
+                data: data::Data::default(),
                 windows: BTreeMap::new(),
             },
-            open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default()))),
+            Task::batch([
+                open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default()))),
+                Task::future(async move {
+                    Message::SetData(data::Data::get(None).await.map_err(|e| e.to_string()))
+                }),
+            ]),
         )
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::None => Task::none(),
-            Message::Window(message) => match message {
-                WindowMessage::OpenWindow => {
-                    let Some(last_window) = self.windows.keys().last() else {
-                        return Task::none();
-                    };
-
-                    window::get_position(*last_window)
-                        .then(|last_position| {
-                            let position =
-                                last_position.map_or(window::Position::Default, |last_position| {
-                                    window::Position::Specific(
-                                        last_position + Vector::new(20.0, 20.0),
-                                    )
-                                });
-
-                            let (_id, open) = window::open(window::Settings {
-                                position,
-                                ..window::Settings::default()
-                            });
-
-                            open
-                        })
-                        .map(|id| {
-                            Message::Window(WindowMessage::WindowOpened(id, Pages::default()))
-                        })
+            Message::Window(message) => message.handle(self),
+            Message::SetData(d) => {
+                match d {
+                    Ok(d) => self.data = d,
+                    Err(e) => println!("{e}"),
                 }
-                WindowMessage::WindowClosed(id) => {
-                    self.windows.remove(&id);
 
-                    if self.windows.is_empty() {
-                        iced::exit()
-                    } else {
-                        Task::none()
-                    }
-                }
-                WindowMessage::WindowOpened(id, page) => {
-                    let window = Window::new(page);
-                    let focus_input = text_input::focus(format!("input-{id}"));
-
-                    self.windows.insert(id, window);
-
-                    focus_input
-                }
-            },
+                Task::none()
+            }
         }
     }
 
@@ -105,11 +84,9 @@ impl Application {
         String::from("OChat")
     }
 
-    pub fn view(&self, window_id: window::Id) -> Element<'_, Message> {
+    pub fn view<'a>(&'a self, window_id: window::Id) -> Element<'a, Message> {
         if let Some(window) = self.windows.get(&window_id) {
-            button("Hello, World!")
-                .on_press(Message::Window(WindowMessage::OpenWindow))
-                .into()
+            window.view(self, &window_id)
         } else {
             text("Window Not Found").into()
         }
