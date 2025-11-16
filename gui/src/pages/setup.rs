@@ -1,10 +1,8 @@
-use std::ops::Index;
-
 use crate::{
     Application, DATA, Message,
     data::RequestType,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
-    pages::{PageMessage, Pages},
+    pages::{PageMessage, Pages, home::HomePage},
     style,
     windows::message::WindowMessage,
 };
@@ -12,16 +10,16 @@ use iced::{
     Element, Length, Padding, Task, Theme,
     alignment::Vertical,
     widget::{
-        Scrollable, button, center, checkbox, column, container, horizontal_space, keyed_column,
-        pick_list, row,
-        scrollable::{self, Direction, Scrollbar},
+        Scrollable, center, checkbox, column, container, horizontal_rule, horizontal_space,
+        keyed_column, pick_list, row,
+        scrollable::{Direction, Scrollbar},
         text, text_input,
     },
     window,
 };
 use ochat_types::{
     providers::{Provider, ProviderData, ProviderDataBuilder, ProviderType},
-    settings::{SettingsData, SettingsDataBuilder, SettingsProvider, SettingsProviderBuilder},
+    settings::{SettingsData, SettingsProvider, SettingsProviderBuilder},
     surreal::RecordId,
 };
 use serde_json::Value;
@@ -171,7 +169,7 @@ impl SetupMessage {
                 Task::none()
             }
             Self::NextPage => {
-                // TODO Add Other Pages
+                app.windows.get_mut(&id).unwrap().page = Pages::Home(HomePage::new());
                 Task::none()
             }
             Self::UpdateUsePanes => {
@@ -448,13 +446,17 @@ impl SetupPage {
             container(
                 column![
                     banner,
+                    horizontal_rule(1),
                     sub_heading("Instance Url"),
                     ochat,
                     providers,
                     model_column,
                     sub_heading("Decorations"),
                     row![theme, use_panes].spacing(10).align_y(Vertical::Center),
-                    row![save, next].spacing(10).align_y(Vertical::Center),
+                    horizontal_rule(1),
+                    row![save, horizontal_space(), next]
+                        .spacing(10)
+                        .align_y(Vertical::Center),
                 ]
                 .spacing(10),
             )

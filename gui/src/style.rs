@@ -7,7 +7,17 @@ pub mod container {
         Style {
             background: Some(iced::Background::Color(darken_colour(
                 theme.palette().background.clone(),
-                0.01,
+                0.02,
+            ))),
+            ..Default::default()
+        }
+    }
+
+    pub fn side_bar_darker(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(darken_colour(
+                theme.palette().background.clone(),
+                0.05,
             ))),
             ..Default::default()
         }
@@ -440,6 +450,11 @@ pub mod button {
 
     pub fn transparent_back_white_text(theme: &Theme, status: Status) -> Style {
         match status {
+            Status::Disabled => Style {
+                background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+                text_color: theme.palette().text.clone(),
+                ..Default::default()
+            },
             Status::Active => Style {
                 background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
                 text_color: theme.palette().text.clone(),
