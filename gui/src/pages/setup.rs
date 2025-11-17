@@ -305,23 +305,25 @@ impl SetupPage {
             .size(HEADER_SIZE)
             .style(style::text::primary);
 
-        let ochat = text_input(
-            "Enter the instance url...",
-            &DATA
-                .read()
-                .unwrap()
-                .instance_url
-                .clone()
-                .unwrap_or_default(),
-        )
-        .on_input(move |x| {
-            Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Setup(SetupMessage::UpdateInstanceUrl(x)),
-            ))
-        })
-        .size(SUB_HEADING_SIZE)
-        .style(style::text_input::input);
+        let ochat = style::svg_input::primary(
+            Some(String::from("link.svg")),
+            text_input(
+                "Enter the instance url...",
+                &DATA
+                    .read()
+                    .unwrap()
+                    .instance_url
+                    .clone()
+                    .unwrap_or_default(),
+            )
+            .on_input(move |x| {
+                Message::Window(WindowMessage::Page(
+                    id,
+                    PageMessage::Setup(SetupMessage::UpdateInstanceUrl(x)),
+                ))
+            }),
+            SUB_HEADING_SIZE,
+        );
 
         let providers = {
             let header = row![

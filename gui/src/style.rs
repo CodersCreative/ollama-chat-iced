@@ -223,6 +223,91 @@ pub mod svg {
     svg_style!(danger);
 }
 
+pub mod svg_input {
+    use crate::{Message, utils::get_path_assets};
+    use iced::{
+        Element, Length, Renderer, Theme,
+        alignment::Vertical,
+        widget::{column, container, horizontal_rule, row, svg, text_input},
+    };
+
+    macro_rules! svg_input {
+        ($iden:ident) => {
+            pub fn $iden<'a>(
+                svg_path: Option<String>,
+                input: text_input::TextInput<'a, Message, Theme, Renderer>,
+                size: u16,
+            ) -> Element<'a, Message> {
+                container(column![
+                    if let Some(path) = svg_path {
+                        container(row![
+                            svg(svg::Handle::from_path(get_path_assets(path)))
+                                .style(super::svg::$iden)
+                                .width(Length::Fixed(size as f32)),
+                            input.style(super::text_input::input).size(size)
+                        ].align_y(Vertical::Center)
+                        .spacing(5))
+                    } else {
+                        container(input.style(super::text_input::input).size(size))
+                    },
+                    horizontal_rule(1).style(super::rule::translucent::$iden)
+                ])
+                .into()
+            }
+        };
+    }
+
+    svg_input!(text);
+    svg_input!(background);
+    svg_input!(primary);
+    svg_input!(danger);
+}
+
+pub mod rule {
+    use iced::{Theme, border::Radius, widget::rule::Style};
+
+    macro_rules! rule_style {
+        ($iden:ident) => {
+            pub fn $iden(theme: &Theme) -> Style {
+                Style {
+                    color: theme.palette().$iden.clone(),
+                    width: 1,
+                    radius: Radius::new(5),
+                    fill_mode: iced::widget::rule::FillMode::Full,
+                }
+            }
+        };
+    }
+
+    rule_style!(text);
+    rule_style!(background);
+    rule_style!(primary);
+    rule_style!(danger);
+
+    pub mod translucent {
+        use super::*;
+        use crate::utils::change_alpha;
+
+        macro_rules! rule_style_translucent {
+            ($iden:ident) => {
+                pub fn $iden(theme: &Theme) -> Style {
+                    Style {
+                        color: change_alpha(theme.palette().$iden.clone(), 0.4),
+                        width: 1,
+                        radius: Radius::new(5),
+                        fill_mode: iced::widget::rule::FillMode::Full,
+                    }
+                }
+            };
+        }
+
+        rule_style_translucent!(text);
+        rule_style_translucent!(background);
+        rule_style_translucent!(primary);
+        rule_style_translucent!(danger);
+    }
+}
+
 pub mod svg_button {
     use iced::{
         Length, Renderer, Theme,

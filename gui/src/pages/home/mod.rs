@@ -1,9 +1,17 @@
 use iced::{
     Element, Length, Padding,
-    widget::{column, container, pane_grid, row, text, vertical_rule, vertical_space},
+    alignment::{Horizontal, Vertical},
+    widget::{
+        button, column, container, pane_grid, row, text, text_input, vertical_rule, vertical_space,
+    },
 };
+use ochat_types::chats::previews::Preview;
 
-use crate::{Application, Message, style};
+use crate::{
+    Application, Message,
+    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
+    style,
+};
 
 #[derive(Debug, Clone)]
 pub struct HomePage {
@@ -14,7 +22,7 @@ pub struct HomePage {
 impl HomePage {
     pub fn new() -> Self {
         Self {
-            side_bar: HomeSideBar { is_collapsed: true },
+            side_bar: HomeSideBar::default(),
             panes: HomePanes::new(HomePaneType::Chat(0)),
         }
     }
@@ -67,9 +75,11 @@ impl HomePanes {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct HomeSideBar {
     is_collapsed: bool,
+    previews: Vec<Preview>,
+    search: String,
 }
 
 impl HomeSideBar {
@@ -87,8 +97,54 @@ impl HomeSideBar {
             .into()
     }
 
+    fn view_preview<'a>(preview: &'a Preview) -> Element<'a, Message> {
+        let title = button(
+            text(&preview.text)
+                .align_x(Horizontal::Left)
+                .align_y(Vertical::Center)
+                .size(BODY_SIZE),
+        )
+        .style(style::button::transparent_back_white_text)
+        .width(Length::Fill);
+
+        let close = style::svg_button::text("close.svg", BODY_SIZE);
+
+        container(column![title, close]).into()
+    }
+
     fn chat_buttons<'a>(&'a self, app: &'a Application) -> Element<'a, Message> {
-        text("Soon...").width(Length::Fill).into()
+        let name = text("ochat")
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+            .width(Length::Fill)
+            .style(style::text::primary)
+            .size(SUB_HEADING_SIZE);
+
+        let new_chat = button(
+            text("New Chat")
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center)
+                .width(Length::Fill)
+                .size(HEADER_SIZE),
+        )
+        .style(style::button::rounded_primary_blend)
+        .width(Length::Fill)
+        .padding(Padding::from(10));
+
+        let search = style::svg_input::primary(
+            Some(String::from("search.svg")),
+            text_input("Search chats...", &self.search),
+            SUB_HEADING_SIZE,
+        );
+
+        let previews = column(self.previews.iter().map(|x| Self::view_preview(x))).spacing(5);
+
+        container(
+            column![name, new_chat, search, previews, vertical_space()]
+                .spacing(10)
+                .padding(10),
+        )
+        .into()
     }
 
     fn pane_buttons<'a>(&'a self, app: &'a Application) -> Element<'a, Message> {
