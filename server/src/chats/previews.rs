@@ -5,6 +5,7 @@ use ochat_types::{
         previews::{Preview, PreviewData},
     },
     generation::text::{ChatQueryData, ChatQueryMessage},
+    surreal::RecordIdOnly,
 };
 use surrealdb::RecordId;
 
@@ -115,7 +116,7 @@ pub async fn search_previews(search: Path<String>) -> Result<Json<Vec<Preview>>,
     let result = CONN
         .query(&format!(
             "            
-SELECT *, search::score(1) AS score FROM {0} WHERE title @1@ {1} ORDER BY score DESC LIMIT 15;
+SELECT *, search::score(1) AS score FROM {0} WHERE title @1@ {1} ORDER BY score DESC LIMIT 25;
 ",
             PREVIEW_TABLE, &*search
         ))
@@ -126,32 +127,6 @@ SELECT *, search::score(1) AS score FROM {0} WHERE title @1@ {1} ORDER BY score 
 }
 
 pub async fn list_all_previews() -> Result<Json<Vec<Preview>>, ServerError> {
-    let chats: Vec<RecordId> = CONN
-        .query(&format!("SELECT id FROM {0}", CHAT_TABLE))
-        .await?
-        .take(0)?;
-
-    let previews: Vec<RecordId> = CONN
-        .query(&format!("SELECT id FROM {0}", PREVIEW_TABLE))
-        .await?
-        .take(0)?;
-
-    let mut to_add: Vec<String> = Vec::new();
-
-    for chat in chats {
-        if previews
-            .iter()
-            .find(|x| x.key().to_string() == chat.key().to_string())
-            .is_none()
-        {
-            to_add.push(chat.key().to_string());
-        }
-    }
-
-    for key in to_add {
-        let _ = update_preview(Path(key)).await?;
-    }
-
     let previews = CONN.select(PREVIEW_TABLE).await?;
     Ok(Json(previews))
 }

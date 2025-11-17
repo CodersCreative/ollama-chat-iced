@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::Deref};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,16 @@ impl RecordId {
 
     pub fn key(&self) -> &RecordIdKey {
         &self.id
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RecordIdOnly(RecordId);
+
+impl Deref for RecordIdOnly {
+    type Target = RecordId;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

@@ -70,8 +70,6 @@ impl Data {
                             .build()?,
                     );
                 }
-            } else {
-                eprintln!("{:?}", provider_models);
             }
         }
 

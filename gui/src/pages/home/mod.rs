@@ -1,8 +1,9 @@
 use iced::{
-    Element, Length, Padding,
+    Element, Length, Padding, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, container, pane_grid, row, text, text_input, vertical_rule, vertical_space,
+        button, column, container, markdown, mouse_area, pane_grid, row, text, text_input,
+        vertical_rule, vertical_space,
     },
 };
 use ochat_types::chats::previews::Preview;
@@ -78,7 +79,7 @@ impl HomePanes {
 #[derive(Debug, Clone, Default)]
 pub struct HomeSideBar {
     is_collapsed: bool,
-    previews: Vec<Preview>,
+    previews: Vec<Vec<markdown::Item>>,
     search: String,
 }
 
@@ -97,19 +98,21 @@ impl HomeSideBar {
             .into()
     }
 
-    fn view_preview<'a>(preview: &'a Preview) -> Element<'a, Message> {
+    fn view_preview<'a>(preview: &'a Vec<markdown::Item>, theme: &Theme) -> Element<'a, Message> {
         let title = button(
-            text(&preview.text)
-                .align_x(Horizontal::Left)
-                .align_y(Vertical::Center)
-                .size(BODY_SIZE),
+            markdown(
+                preview.into_iter(),
+                markdown::Settings::with_text_size(BODY_SIZE + 2),
+                style::markdown::main(theme),
+            )
+            .map(|_| Message::None),
         )
         .style(style::button::transparent_back_white_text)
         .width(Length::Fill);
 
-        let close = style::svg_button::text("close.svg", BODY_SIZE);
+        let close = style::svg_button::text("close.svg", BODY_SIZE + 2);
 
-        container(column![title, close]).into()
+        container(row![title, close].align_y(Vertical::Center)).into()
     }
 
     fn chat_buttons<'a>(&'a self, app: &'a Application) -> Element<'a, Message> {
@@ -137,7 +140,16 @@ impl HomeSideBar {
             SUB_HEADING_SIZE,
         );
 
-        let previews = column(self.previews.iter().map(|x| Self::view_preview(x))).spacing(5);
+        let previews = column(
+            if self.search.is_empty() {
+                &app.previews
+            } else {
+                &self.previews
+            }
+            .iter()
+            .map(|x| Self::view_preview(x, &app.theme)),
+        )
+        .spacing(5);
 
         container(
             column![name, new_chat, search, previews, vertical_space()]

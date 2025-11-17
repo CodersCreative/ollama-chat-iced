@@ -4,7 +4,12 @@ pub mod style;
 pub mod utils;
 pub mod windows;
 
-use iced::{Element, Font, Subscription, Task, Theme, widget::text, window};
+use iced::{
+    Element, Font, Subscription, Task, Theme,
+    widget::{markdown, text},
+    window,
+};
+use ochat_types::chats::previews::Preview;
 use std::{
     collections::BTreeMap,
     sync::{LazyLock, RwLock},
@@ -35,6 +40,7 @@ static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| {
 #[derive(Debug, Clone)]
 pub struct Application {
     pub windows: BTreeMap<window::Id, Window>,
+    pub previews: Vec<Vec<markdown::Item>>,
     pub theme: Theme,
 }
 
@@ -57,19 +63,30 @@ fn main() -> iced::Result {
 pub enum Message {
     None,
     Window(WindowMessage),
+    SetPreviews(Vec<Preview>),
 }
 
 impl Application {
     pub fn new() -> (Self, Task<Message>) {
+        drop(DATA.read());
         let (_, open) = window::open(window::Settings::default());
         (
             Self {
                 windows: BTreeMap::new(),
                 theme: Theme::CatppuccinMocha,
+                previews: Vec::new(),
             },
-            Task::batch([
-                open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
-            ]),
+            open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
+                .chain(Task::future(async {
+                    let req = DATA.read().unwrap().to_request();
+
+                    let previews = req
+                        .make_request("preview/all/", &(), data::RequestType::Get)
+                        .await
+                        .unwrap_or_default();
+
+                    Message::SetPreviews(previews)
+                })),
         )
     }
 
@@ -77,6 +94,13 @@ impl Application {
         match message {
             Message::None => Task::none(),
             Message::Window(message) => message.handle(self),
+            Message::SetPreviews(previews) => {
+                self.previews = previews
+                    .into_iter()
+                    .map(|x| markdown::parse(&x.text).collect())
+                    .collect();
+                Task::none()
+            }
         }
     }
 
