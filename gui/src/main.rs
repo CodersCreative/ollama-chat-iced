@@ -16,7 +16,7 @@ use std::{
 };
 
 use crate::{
-    pages::Pages,
+    pages::{Pages, home::sidebar::PreviewMk},
     windows::{Window, message::WindowMessage},
 };
 
@@ -40,7 +40,7 @@ static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| {
 #[derive(Debug, Clone)]
 pub struct Application {
     pub windows: BTreeMap<window::Id, Window>,
-    pub previews: Vec<Vec<markdown::Item>>,
+    pub previews: Vec<PreviewMk>,
     pub theme: Theme,
 }
 
@@ -95,10 +95,7 @@ impl Application {
             Message::None => Task::none(),
             Message::Window(message) => message.handle(self),
             Message::SetPreviews(previews) => {
-                self.previews = previews
-                    .into_iter()
-                    .map(|x| markdown::parse(&x.text).collect())
-                    .collect();
+                self.previews = previews.into_iter().map(|x| x.into()).collect();
                 Task::none()
             }
         }
