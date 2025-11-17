@@ -24,6 +24,9 @@ pub async fn define_previews() -> Result<(), ServerError> {
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS text ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE datetime;
+
+DEFINE ANALYZER IF NOT EXISTS analyzer TOKENIZERS blank FILTERS lowercase, snowball(english);
+DEFINE INDEX IF NOT EXISTS text_index ON {0} FIELDS text SEARCH ANALYZER analyzer BM25;
 ",
             PREVIEW_TABLE,
         ))
@@ -106,6 +109,20 @@ pub async fn get_preview(id: Path<String>) -> Result<Json<Option<Preview>>, Serv
     } else {
         update_preview(id).await
     }
+}
+
+pub async fn search_previews(search: Path<String>) -> Result<Json<Vec<Preview>>, ServerError> {
+    let result = CONN
+        .query(&format!(
+            "            
+SELECT *, search::score(1) AS score FROM {0} WHERE title @1@ {1} ORDER BY score DESC LIMIT 15;
+",
+            PREVIEW_TABLE, &*search
+        ))
+        .await?
+        .take(0)?;
+
+    Ok(Json(result))
 }
 
 pub async fn list_all_previews() -> Result<Json<Vec<Preview>>, ServerError> {

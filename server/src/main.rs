@@ -59,6 +59,7 @@ async fn main() {
                 .delete(messages::delete_message),
         )
         .route("/preview/all/", get(previews::list_all_previews))
+        .route("/preview/search/{search}", get(previews::search_previews))
         .route(
             "/preview/{id}",
             get(previews::get_preview).put(previews::update_preview),
@@ -98,6 +99,10 @@ async fn main() {
         .route(
             "/provider/ollama/model/all/",
             get(providers::ollama::models::list_all_ollama_models),
+        )
+        .route(
+            "/provider/ollama/model/search/{search}",
+            get(providers::ollama::models::search_ollama_models),
         )
         .route(
             "/provider/{id}/model/{model}",

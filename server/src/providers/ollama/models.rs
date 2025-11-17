@@ -1,4 +1,4 @@
-use axum::Json;
+use axum::{Json, extract::Path};
 use ochat_types::providers::ollama::OllamaModelsInfo;
 use std::collections::HashMap;
 
@@ -18,6 +18,11 @@ DEFINE FIELD IF NOT EXISTS author ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS categories ON TABLE {0} TYPE array<string>;
 DEFINE FIELD IF NOT EXISTS languages ON TABLE {0} TYPE array<string>;
 DEFINE FIELD IF NOT EXISTS description ON TABLE {0} TYPE string;
+
+DEFINE ANALYZER IF NOT EXISTS analyzer TOKENIZERS blank FILTERS lowercase, snowball(english);
+DEFINE INDEX IF NOT EXISTS name_index ON {0} FIELDS name SEARCH ANALYZER analyzer BM25;
+DEFINE INDEX IF NOT EXISTS desc_index ON {0} FIELDS description SEARCH ANALYZER analyzer BM25;
+DEFINE INDEX IF NOT EXISTS author_index ON {0} FIELDS author SEARCH ANALYZER analyzer BM25;
 ",
             OLLAMA_MODELS_TABLE,
         ))
@@ -69,6 +74,21 @@ async fn get_all_ollama_models() -> Result<Vec<OllamaModelsInfo>, ServerError> {
     };
 
     Ok(models)
+}
+
+pub async fn search_ollama_models(
+    search: Path<String>,
+) -> Result<Json<Vec<OllamaModelsInfo>>, ServerError> {
+    let result : Vec<OllamaModelsInfo>= CONN
+        .query(&format!(
+            "
+SELECT *, search::score(1) + search::score(2) + search::score(3) AS score FROM {0} WHERE name @1@ '{1}' or description @2@ '{1}' or author @3@ '{1}' ORDER BY score DESC LIMIT 15;
+",
+            OLLAMA_MODELS_TABLE, &*search
+        ))
+        .await?.take(0)?;
+
+    Ok(Json(result))
 }
 
 pub async fn list_all_ollama_models() -> Result<Json<Vec<OllamaModelsInfo>>, ServerError> {
