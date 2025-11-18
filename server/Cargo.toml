@@ -16,7 +16,6 @@ voice = ["dep:kalosm-sound", "dep:rodio", "sound"]
 sound = ["dep:natural-tts", "dep:text-splitter"]
 python = ["dep:pyo3", "dep:pythonize"]
 full = ["python", "voice"]
-default = ["full"]
 
 [dependencies]
 async-openai = "0.30.1"
