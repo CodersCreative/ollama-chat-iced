@@ -1,6 +1,6 @@
 use crate::{
     Application, DATA, Message,
-    data::RequestType,
+    data::{Data, RequestType},
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     pages::{PageMessage, Pages, home::HomePage},
     style,
@@ -24,13 +24,19 @@ use ochat_types::{
 };
 use serde_json::Value;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct SetupPage {
+    pub instance_url: String,
     pub provider_inputs: Vec<ProviderData>,
-    pub previews_model: Option<SettingsProvider>,
-    pub default_model: Option<SettingsProvider>,
-    pub tools_model: Option<SettingsProvider>,
-    pub use_panes: bool,
+}
+
+impl Default for SetupPage {
+    fn default() -> Self {
+        Self {
+            instance_url: String::from("http://localhost:1212"),
+            provider_inputs: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -43,13 +49,13 @@ pub enum SetupMessage {
     UpdateDefaultModel(SettingsProvider),
     UpdateToolsModel(SettingsProvider),
     UpdateInstanceUrl(String),
-    UpdateUsePanes,
+    SubmitInstanceUrl,
+    UpdateUsePanes(bool),
     UpdateTheme(Theme),
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
     AddProvider(usize),
     AddProviderInput,
-    Save,
     NextPage,
 }
 
@@ -68,8 +74,8 @@ impl SetupMessage {
 
         macro_rules! UpdateModel {
             ($model:expr, $prop:ident) => {{
-                page.$prop = Some($model);
-                Task::none()
+                app.cache.settings.$prop = Some($model);
+                Task::future(save_settings(app.cache.settings.clone()))
             }};
         }
 
@@ -152,50 +158,50 @@ impl SetupMessage {
                 UpdateProviderInputProperty!(index, provider_type)
             }
             Self::UpdateProviderKey(index, api_key) => UpdateProviderInputProperty!(index, api_key),
-            Self::UpdatePreviewModel(model) => UpdateModel!(model, previews_model),
-            Self::UpdateDefaultModel(model) => UpdateModel!(model, default_model),
-            Self::UpdateToolsModel(model) => UpdateModel!(model, tools_model),
+            Self::UpdatePreviewModel(model) => UpdateModel!(model, previews_provider),
+            Self::UpdateDefaultModel(model) => UpdateModel!(model, default_provider),
+            Self::UpdateToolsModel(model) => UpdateModel!(model, tools_provider),
             Self::UpdateInstanceUrl(url) => {
-                // TODO Find an easy way to cache this value as to not send too many requests
+                page.instance_url = url;
                 Task::none()
+            }
+            Self::SubmitInstanceUrl => {
+                let instance = page.instance_url.clone();
+                Task::future(async {
+                    if let Ok(x) = Data::get(Some(instance)).await {
+                        *DATA.write().unwrap() = x;
+                    }
+                    Message::None
+                })
+                .chain(Application::update_data_cache())
             }
             Self::RemoveProviderInput(index) => {
                 let _ = page.provider_inputs.remove(index);
                 Task::none()
             }
             Self::UpdateTheme(theme) => {
-                app.theme = theme;
-
-                Task::none()
+                app.cache.settings.theme = Theme::ALL.iter().position(|x| x == &theme);
+                Task::future(save_settings(app.cache.settings.clone()))
             }
             Self::NextPage => {
                 app.windows.get_mut(&id).unwrap().page = Pages::Home(HomePage::new());
                 Task::none()
             }
-            Self::UpdateUsePanes => {
-                page.use_panes = !page.use_panes;
-                Task::none()
-            }
-            Self::Save => {
-                let settings = SettingsData {
-                    previews_provider: page.previews_model.clone(),
-                    default_provider: page.default_model.clone(),
-                    tools_provider: page.tools_model.clone(),
-                    use_panes: Some(page.use_panes),
-                    theme: Theme::ALL.iter().position(|x| x == &app.theme),
-                };
-
-                Task::future(async move {
-                    let req = DATA.read().unwrap().to_request();
-                    let _: Value = req
-                        .make_request("settings/", &settings, RequestType::Put)
-                        .await
-                        .unwrap();
-                    Message::None
-                })
+            Self::UpdateUsePanes(x) => {
+                app.cache.settings.use_panes = Some(x);
+                Task::future(save_settings(app.cache.settings.clone()))
             }
         }
     }
+}
+
+async fn save_settings(settings: SettingsData) -> Message {
+    let req = DATA.read().unwrap().to_request();
+    let _: Value = req
+        .make_request("settings/", &settings, RequestType::Put)
+        .await
+        .unwrap();
+    Message::None
 }
 
 fn view_provider<'a>(id: window::Id, provider: Provider) -> Element<'a, Message> {
@@ -307,21 +313,17 @@ impl SetupPage {
 
         let ochat = style::svg_input::primary(
             Some(String::from("link.svg")),
-            text_input(
-                "Enter the instance url...",
-                &DATA
-                    .read()
-                    .unwrap()
-                    .instance_url
-                    .clone()
-                    .unwrap_or_default(),
-            )
-            .on_input(move |x| {
-                Message::Window(WindowMessage::Page(
+            text_input("Enter the instance url...", &self.instance_url)
+                .on_input(move |x| {
+                    Message::Window(WindowMessage::Page(
+                        id,
+                        PageMessage::Setup(SetupMessage::UpdateInstanceUrl(x)),
+                    ))
+                })
+                .on_submit(Message::Window(WindowMessage::Page(
                     id,
-                    PageMessage::Setup(SetupMessage::UpdateInstanceUrl(x)),
-                ))
-            }),
+                    PageMessage::Setup(SetupMessage::SubmitInstanceUrl),
+                ))),
             SUB_HEADING_SIZE,
         );
 
@@ -373,38 +375,48 @@ impl SetupPage {
 
         if let Ok(x) = DATA.read() {
             if !x.models.is_empty() {
-                let preview_model =
-                    pick_list(x.models.clone(), self.previews_model.clone(), move |x| {
+                let preview_model = pick_list(
+                    x.models.clone(),
+                    app.cache.settings.previews_provider.clone(),
+                    move |x| {
                         Message::Window(WindowMessage::Page(
                             id,
                             PageMessage::Setup(SetupMessage::UpdatePreviewModel(x)),
                         ))
-                    })
-                    .style(style::pick_list::main)
-                    .menu_style(style::menu::main);
+                    },
+                )
+                .style(style::pick_list::main)
+                .menu_style(style::menu::main);
 
                 model_column = model_column.push(sub_heading("Preview Model"));
                 model_column = model_column.push(preview_model);
 
-                let default_model =
-                    pick_list(x.models.clone(), self.default_model.clone(), move |x| {
+                let default_model = pick_list(
+                    x.models.clone(),
+                    app.cache.settings.default_provider.clone(),
+                    move |x| {
                         Message::Window(WindowMessage::Page(
                             id,
                             PageMessage::Setup(SetupMessage::UpdateDefaultModel(x)),
                         ))
-                    })
-                    .style(style::pick_list::main)
-                    .menu_style(style::menu::main);
+                    },
+                )
+                .style(style::pick_list::main)
+                .menu_style(style::menu::main);
 
                 model_column = model_column.push(sub_heading("Default Model"));
                 model_column = model_column.push(default_model);
 
-                let tools_model = pick_list(x.models.clone(), self.tools_model.clone(), move |x| {
-                    Message::Window(WindowMessage::Page(
-                        id,
-                        PageMessage::Setup(SetupMessage::UpdateToolsModel(x)),
-                    ))
-                })
+                let tools_model = pick_list(
+                    x.models.clone(),
+                    app.cache.settings.tools_provider.clone(),
+                    move |x| {
+                        Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Setup(SetupMessage::UpdateToolsModel(x)),
+                        ))
+                    },
+                )
                 .style(style::pick_list::main)
                 .menu_style(style::menu::main);
 
@@ -413,14 +425,15 @@ impl SetupPage {
             }
         }
 
-        let use_panes = checkbox("Use Panes", self.use_panes).on_toggle(move |_| {
-            Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Setup(SetupMessage::UpdateUsePanes),
-            ))
-        });
+        let use_panes = checkbox("Use Panes", app.cache.settings.use_panes.unwrap_or(true))
+            .on_toggle(move |x| {
+                Message::Window(WindowMessage::Page(
+                    id,
+                    PageMessage::Setup(SetupMessage::UpdateUsePanes(x)),
+                ))
+            });
 
-        let theme = pick_list(Theme::ALL, Some(app.theme.clone()), move |x| {
+        let theme = pick_list(Theme::ALL, Some(app.theme()), move |x| {
             Message::Window(WindowMessage::Page(
                 id,
                 PageMessage::Setup(SetupMessage::UpdateTheme(x)),
@@ -436,14 +449,6 @@ impl SetupPage {
         )
         .style(style::container::chat);
 
-        let save = container(style::svg_button::text("save.svg", HEADER_SIZE).on_press(
-            Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Setup(SetupMessage::Save),
-            )),
-        ))
-        .style(style::container::chat);
-
         center(
             container(
                 column![
@@ -456,7 +461,7 @@ impl SetupPage {
                     sub_heading("Decorations"),
                     row![theme, use_panes].spacing(10).align_y(Vertical::Center),
                     horizontal_rule(1),
-                    row![save, horizontal_space(), next]
+                    row![horizontal_space(), next]
                         .spacing(10)
                         .align_y(Vertical::Center),
                 ]

@@ -1,4 +1,4 @@
-use iced::{Task, widget::markdown, window};
+use iced::{Task, window};
 use ochat_types::chats::previews::Preview;
 
 use crate::{
@@ -69,7 +69,7 @@ impl HomeMessage {
                 Task::none()
             }
             Self::DeleteChat(x) => {
-                app.previews.retain(|x| x.id != x.id);
+                app.cache.previews.retain(|x| x.id != x.id);
 
                 for window in app.windows.iter_mut() {
                     if let Pages::Home(x) = &mut window.1.page {

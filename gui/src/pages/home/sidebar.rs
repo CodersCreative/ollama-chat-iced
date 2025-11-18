@@ -131,12 +131,12 @@ impl HomeSideBar {
 
         let previews = column(
             if self.search.is_empty() || self.previews.is_empty() {
-                &app.previews
+                &app.cache.previews
             } else {
                 &self.previews
             }
             .iter()
-            .map(|x| Self::view_preview(id.clone(), x, &app.theme)),
+            .map(|x| Self::view_preview(id.clone(), x, &app.theme())),
         )
         .spacing(5);
 

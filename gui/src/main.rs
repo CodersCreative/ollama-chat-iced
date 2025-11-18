@@ -9,7 +9,10 @@ use iced::{
     widget::{markdown, text},
     window,
 };
-use ochat_types::chats::previews::Preview;
+use ochat_types::{
+    chats::previews::Preview,
+    settings::{Settings, SettingsData},
+};
 use std::{
     collections::BTreeMap,
     sync::{LazyLock, RwLock},
@@ -33,15 +36,20 @@ static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| {
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(data::Data::get(None))
-            .unwrap(),
+            .unwrap_or_default(),
     )
 });
 
 #[derive(Debug, Clone)]
 pub struct Application {
     pub windows: BTreeMap<window::Id, Window>,
+    pub cache: AppCache,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AppCache {
     pub previews: Vec<PreviewMk>,
-    pub theme: Theme,
+    pub settings: SettingsData,
 }
 
 fn main() -> iced::Result {
@@ -55,7 +63,7 @@ fn main() -> iced::Result {
         .subscription(Application::subscription)
         .font(font::FONT)
         .default_font(font)
-        .theme(Application::theme)
+        .theme(|x, _| Application::theme(x))
         .run_with(Application::new)
 }
 
@@ -64,6 +72,7 @@ pub enum Message {
     None,
     Window(WindowMessage),
     SetPreviews(Vec<Preview>),
+    SetSettings(SettingsData),
 }
 
 impl Application {
@@ -73,21 +82,37 @@ impl Application {
         (
             Self {
                 windows: BTreeMap::new(),
-                theme: Theme::CatppuccinMocha,
-                previews: Vec::new(),
+                cache: AppCache::default(),
             },
             open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
-                .chain(Task::future(async {
-                    let req = DATA.read().unwrap().to_request();
-
-                    let previews = req
-                        .make_request("preview/all/", &(), data::RequestType::Get)
-                        .await
-                        .unwrap_or_default();
-
-                    Message::SetPreviews(previews)
-                })),
+                .chain(Self::update_data_cache()),
         )
+    }
+
+    pub fn update_data_cache() -> Task<Message> {
+        Task::batch([
+            Task::future(async {
+                let req = DATA.read().unwrap().to_request();
+
+                Message::SetPreviews(
+                    req.make_request("preview/all/", &(), data::RequestType::Get)
+                        .await
+                        .unwrap_or_default(),
+                )
+            }),
+            Task::future(async {
+                let req = DATA.read().unwrap().to_request();
+
+                if let Ok(settings) = req
+                    .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
+                    .await
+                {
+                    Message::SetSettings(settings.into())
+                } else {
+                    Message::None
+                }
+            }),
+        ])
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -95,7 +120,11 @@ impl Application {
             Message::None => Task::none(),
             Message::Window(message) => message.handle(self),
             Message::SetPreviews(previews) => {
-                self.previews = previews.into_iter().map(|x| x.into()).collect();
+                self.cache.previews = previews.into_iter().map(|x| x.into()).collect();
+                Task::none()
+            }
+            Message::SetSettings(settings) => {
+                self.cache.settings = settings;
                 Task::none()
             }
         }
@@ -113,8 +142,13 @@ impl Application {
         }
     }
 
-    pub fn theme(&self, _window: window::Id) -> Theme {
-        self.theme.clone()
+    pub fn theme(&self) -> Theme {
+        Theme::ALL[if let Some(theme) = &self.cache.settings.theme {
+            theme.clone()
+        } else {
+            11
+        }]
+        .clone()
     }
 
     pub fn subscription(&self) -> Subscription<Message> {

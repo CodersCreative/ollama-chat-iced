@@ -4,7 +4,7 @@ use std::fmt::Display;
 
 use crate::surreal::RecordId;
 
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct SettingsData {
     #[builder(default = "None")]
     pub previews_provider: Option<SettingsProvider>,
