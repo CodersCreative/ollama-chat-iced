@@ -130,6 +130,7 @@ async fn main() {
         )
         .route("/options/", post(options::add_gen_options))
         .route("/options/all/", get(options::list_all_gen_options))
+        .route("/options/search/{search}", get(options::search_gen_options))
         .route(
             "/options/{id}",
             get(options::get_gen_options)
