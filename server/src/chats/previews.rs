@@ -5,13 +5,11 @@ use ochat_types::{
         previews::{Preview, PreviewData},
     },
     generation::text::{ChatQueryData, ChatQueryMessage},
-    surreal::RecordIdOnly,
 };
-use surrealdb::RecordId;
 
 use crate::{
     CONN,
-    chats::{CHAT_TABLE, get_chat, messages::get_default_message_list_from_parent},
+    chats::{get_chat, messages::get_default_message_list_from_parent},
     errors::ServerError,
     settings::get_settings,
 };

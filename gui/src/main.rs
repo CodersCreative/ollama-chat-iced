@@ -4,11 +4,7 @@ pub mod style;
 pub mod utils;
 pub mod windows;
 
-use iced::{
-    Element, Font, Subscription, Task, Theme,
-    widget::{markdown, text},
-    window,
-};
+use iced::{Element, Font, Subscription, Task, Theme, widget::text, window};
 use ochat_types::{
     chats::previews::Preview,
     settings::{Settings, SettingsData},
@@ -19,7 +15,10 @@ use std::{
 };
 
 use crate::{
-    pages::{Pages, home::sidebar::PreviewMk},
+    pages::{
+        Pages,
+        home::{panes::data::HomePaneData, sidebar::PreviewMk},
+    },
     windows::{Window, message::WindowMessage},
 };
 
@@ -50,6 +49,7 @@ pub struct Application {
 pub struct AppCache {
     pub previews: Vec<PreviewMk>,
     pub settings: SettingsData,
+    pub home_panes: HomePaneData,
 }
 
 fn main() -> iced::Result {
