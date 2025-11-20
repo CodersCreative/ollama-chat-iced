@@ -122,6 +122,10 @@ impl GenOption {
         }
     }
 
+    pub fn reset(self) -> Self {
+        self.key.into()
+    }
+
     pub fn get_all() -> [Self; 16] {
         GenOptionKey::ALL
             .into_iter()
@@ -167,6 +171,24 @@ pub struct GenOptionsData {
     #[builder(default = "GenOption::get_all()")]
     #[serde(default = "GenOption::get_all")]
     pub data: [GenOption; 16],
+}
+
+impl Default for GenOptionsData {
+    fn default() -> Self {
+        Self {
+            name: String::from("default"),
+            data: GenOption::get_all(),
+        }
+    }
+}
+
+impl From<GenOptions> for GenOptionsData {
+    fn from(value: GenOptions) -> Self {
+        Self {
+            name: value.name,
+            data: value.data,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

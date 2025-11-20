@@ -2,6 +2,7 @@ pub mod chats;
 pub mod errors;
 pub mod files;
 pub mod generation;
+pub mod options;
 pub mod providers;
 pub mod settings;
 pub mod utils;
@@ -29,6 +30,7 @@ use crate::{
     errors::ServerError,
     files::define_files,
     messages::define_messages,
+    options::{define_gen_options, relationships::define_gen_models},
     providers::{define_providers, ollama::models::define_ollama_models},
     settings::define_settings,
     utils::get_path_settings,
@@ -111,6 +113,10 @@ async fn main() {
                 .delete(providers::models::delete_provider_model),
         )
         .route(
+            "/provider/{id}/model/{model}/options/",
+            get(options::relationships::get_default_gen_options_from_model),
+        )
+        .route(
             "/provider/{id}/model/all/",
             get(providers::models::list_all_provider_models),
         )
@@ -121,6 +127,32 @@ async fn main() {
             get(providers::read_provider)
                 .put(providers::update_provider)
                 .delete(providers::delete_provider),
+        )
+        .route("/options/", post(options::add_gen_options))
+        .route("/options/all/", get(options::list_all_gen_options))
+        .route(
+            "/options/{id}",
+            get(options::get_gen_options)
+                .put(options::update_gen_options)
+                .delete(options::delete_gen_options),
+        )
+        .route(
+            "/options/relationship/",
+            post(options::relationships::add_gen_models),
+        )
+        .route(
+            "/options/relationship/all/",
+            get(options::relationships::list_all_gen_models),
+        )
+        .route(
+            "/options/relationship/{id}",
+            get(options::relationships::get_gen_models)
+                .put(options::relationships::update_gen_models)
+                .delete(options::relationships::delete_gen_models),
+        )
+        .route(
+            "/options/{id}/model/all",
+            get(options::relationships::get_models_from_options),
         )
         .route("/file/", post(files::create_file))
         .route("/file/all/", get(files::list_all_files))
@@ -168,5 +200,7 @@ pub async fn init_db() -> Result<(), ServerError> {
     let _ = define_ollama_models().await?;
     let _ = define_previews().await?;
     let _ = define_files().await?;
+    let _ = define_gen_options().await?;
+    let _ = define_gen_models().await?;
     define_providers().await
 }
