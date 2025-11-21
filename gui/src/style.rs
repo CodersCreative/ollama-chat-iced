@@ -62,6 +62,13 @@ pub mod container {
     pub fn window_back(theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            ..Default::default()
+        }
+    }
+
+    pub fn window_title_back(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
             border: iced::Border::default()
                 .width(2)
                 .color(darken_colour(theme.palette().background.clone(), 0.05))

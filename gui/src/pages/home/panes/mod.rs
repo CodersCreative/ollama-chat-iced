@@ -59,12 +59,6 @@ impl Into<HomePaneType> for HomePaneTypeWithId {
     }
 }
 
-impl HomePaneType {
-    pub fn new_chat(app: &mut Application) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct HomePanes {
     pub focus: Option<pane_grid::Pane>,
@@ -93,6 +87,7 @@ pub enum PaneMessage {
     Resized(pane_grid::ResizeEvent),
     Split(pane_grid::Axis, pane_grid::Pane, HomePaneType),
     Replace(pane_grid::Pane, HomePaneType),
+    ReplaceChat(pane_grid::Pane, String),
     Pick(HomePickingType),
     UnPick,
 }
@@ -167,7 +162,7 @@ impl PaneMessage {
 
                 Task::none()
             }
-            _ => Task::none(),
+            PaneMessage::ReplaceChat(_pane, _chat_id) => Task::none(),
         }
     }
 }

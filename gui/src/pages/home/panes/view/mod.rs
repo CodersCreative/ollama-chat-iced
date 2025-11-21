@@ -33,12 +33,45 @@ fn add_to_window<'a>(
     title: String,
     action: Option<HomePickingType>,
     child: Element<'a, Message>,
-) -> Element<'a, Message> {
-    match action {
-        Some(HomePickingType::ReplaceChat(x)) => {}
+) -> pane_grid::Content<'a, Message> {
+    let header = pane_grid::TitleBar::new(
+        text(title)
+            .color(app.theme().palette().primary)
+            .size(BODY_SIZE + 2)
+            .align_y(Vertical::Center)
+            .align_x(Horizontal::Left),
+    )
+    .controls(pane_grid::Controls::new(
+        style::svg_button::danger("close.svg", BODY_SIZE + 2).on_press(Message::Window(
+            WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Close(pane.clone()))),
+            ),
+        )),
+    ))
+    .style(style::container::window_title_back)
+    .padding(5);
 
-        Some(HomePickingType::OpenPane(pick)) => {
-            return container(center(row![
+    pane_grid::Content::new(
+        container(match action.clone() {
+            Some(HomePickingType::ReplaceChat(x)) => container(center(row![
+                style::svg_button::text("restart.svg", HEADER_SIZE * 2).on_press(Message::Window(
+                    WindowMessage::Page(
+                        id,
+                        PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(
+                            pane,
+                            x.clone()
+                        )))
+                    )
+                )),
+                style::svg_button::text("close.svg", HEADER_SIZE * 2).on_press(Message::Window(
+                    WindowMessage::Page(
+                        id,
+                        PageMessage::Home(HomeMessage::Pane(PaneMessage::UnPick))
+                    )
+                )),
+            ])),
+            Some(HomePickingType::OpenPane(pick)) => container(center(row![
                 style::svg_button::text("vertical.svg", HEADER_SIZE * 2).on_press(Message::Window(
                     WindowMessage::Page(
                         id,
@@ -74,42 +107,16 @@ fn add_to_window<'a>(
                         )))
                     ))
                 )
-            ]))
-            .style(style::container::window_back_danger)
-            .into();
-        }
-        None => {}
-    };
-
-    let header = container(
-        row![
-            text(title)
-                .color(app.theme().palette().primary)
-                .size(BODY_SIZE)
-                .align_y(Vertical::Center)
-                .align_x(Horizontal::Left),
-            horizontal_space(),
-            style::svg_button::danger("close.svg", BODY_SIZE).on_press(Message::Window(
-                WindowMessage::Page(
-                    id,
-                    PageMessage::Home(HomeMessage::Pane(PaneMessage::Close(pane.clone())))
-                )
-            ))
-        ]
-        .align_y(Vertical::Center),
-    );
-
-    container(
-        column![
-            header,
-            horizontal_rule(1).style(style::rule::translucent::text),
-            child,
-        ]
-        .spacing(5),
+            ])),
+            _ => container(child),
+        })
+        .style(match action {
+            None => style::container::window_back,
+            Some(_) => style::container::window_back_danger,
+        })
+        .padding(5),
     )
-    .style(style::container::window_back)
-    .padding(Padding::default().top(5).bottom(5).left(5).right(5))
-    .into()
+    .title_bar(header)
 }
 
 impl HomePanes {
@@ -126,14 +133,14 @@ impl HomePanes {
                     _ => None,
                 };
 
-                pane_grid::Content::new(add_to_window(
+                add_to_window(
                     app,
                     id.clone(),
                     pane,
                     state.to_string(),
                     action,
                     state.view(app, id.clone()),
-                ))
+                )
             })
             .on_click(move |x| {
                 Message::Window(WindowMessage::Page(
