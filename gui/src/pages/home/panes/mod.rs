@@ -2,7 +2,10 @@ use iced::{Task, widget::pane_grid, window};
 
 use crate::{
     Application, Message,
-    pages::{Pages, home::message::HomePickingType},
+    pages::{
+        Pages,
+        home::{HomePage, message::HomePickingType},
+    },
 };
 
 pub mod data;
@@ -17,6 +20,12 @@ pub enum HomePaneType {
     Options,
     Settings,
     Tools,
+}
+
+impl HomePaneType {
+    pub fn new(&self, app: &mut Application) -> HomePaneTypeWithId {
+        HomePaneTypeWithId::Chat(0)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -90,40 +99,71 @@ pub enum PaneMessage {
 
 impl PaneMessage {
     pub fn handle(self, app: &mut Application, id: window::Id) -> Task<Message> {
-        let Pages::Home(ref mut page) = app.windows.get_mut(&id).unwrap().page else {
-            return Task::none();
-        };
-
         match self {
             Self::Pick(x) => {
-                page.panes.pick = Some(x);
+                app.get_home_page(&id).unwrap().panes.pick = Some(x);
                 Task::none()
             }
             Self::UnPick => {
-                page.panes.pick = None;
+                app.get_home_page(&id).unwrap().panes.pick = None;
                 Task::none()
             }
             Self::Dragged(pane_grid::DragEvent::Dropped { pane, target }) => {
-                page.panes.panes.drop(pane, target);
+                app.get_home_page(&id)
+                    .unwrap()
+                    .panes
+                    .panes
+                    .drop(pane, target);
                 Task::none()
             }
             Self::Dragged(_) => Task::none(),
             Self::Resized(pane_grid::ResizeEvent { split, ratio }) => {
-                page.panes.panes.resize(split, ratio);
+                app.get_home_page(&id)
+                    .unwrap()
+                    .panes
+                    .panes
+                    .resize(split, ratio);
                 Task::none()
             }
             Self::Clicked(pane) => {
-                page.panes.focus = Some(pane);
+                app.get_home_page(&id).unwrap().panes.focus = Some(pane);
                 Task::none()
             }
             Self::Close(pane) => {
+                let page = app.get_home_page(&id).unwrap();
                 if page.panes.panes.len() <= 1 {
                     return Task::none();
                 }
 
+                // TODO remove pane from view_data
                 if let Some((_, sibling)) = page.panes.panes.close(pane) {
                     page.panes.focus = Some(sibling);
                 }
+
+                Task::none()
+            }
+            Self::Replace(pane, pane_type) => {
+                let value = pane_type.new(app);
+                let page = app.get_home_page(&id).unwrap();
+
+                // TODO remove pane from view_data
+                let _ = page.panes.panes.panes.insert(pane.clone(), value);
+
+                page.panes.pick = None;
+                page.panes.focus = Some(pane);
+
+                Task::none()
+            }
+            Self::Split(axis, pane, pane_type) => {
+                let value = pane_type.new(app);
+                let page = app.get_home_page(&id).unwrap();
+                let result = page.panes.panes.split(axis, pane, value);
+
+                if let Some((p, _)) = result {
+                    page.panes.focus = Some(p);
+                }
+
+                page.panes.pick = None;
 
                 Task::none()
             }

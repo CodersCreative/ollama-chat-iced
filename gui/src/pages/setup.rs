@@ -60,13 +60,14 @@ pub enum SetupMessage {
 
 impl SetupMessage {
     pub fn handle(self, app: &mut Application, id: window::Id) -> Task<Message> {
-        let Pages::Setup(ref mut page) = app.windows.get_mut(&id).unwrap().page else {
-            return Task::none();
-        };
-
         macro_rules! UpdateProviderInputProperty {
             ($index:expr, $prop:ident) => {{
-                page.provider_inputs.get_mut($index).unwrap().$prop = $prop;
+                app.get_setup_page(&id)
+                    .unwrap()
+                    .provider_inputs
+                    .get_mut($index)
+                    .unwrap()
+                    .$prop = $prop;
                 Task::none()
             }};
         }
@@ -80,7 +81,7 @@ impl SetupMessage {
 
         match self {
             Self::AddProviderInput => {
-                page.provider_inputs.push(
+                app.get_setup_page(&id).unwrap().provider_inputs.push(
                     ProviderDataBuilder::default()
                         .name(String::new())
                         .url(String::new())
@@ -92,7 +93,11 @@ impl SetupMessage {
                 Task::none()
             }
             Self::AddProvider(index) => {
-                let input = page.provider_inputs.remove(index);
+                let input = app
+                    .get_setup_page(&id)
+                    .unwrap()
+                    .provider_inputs
+                    .remove(index);
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
                     if let Ok(Some(provider)) = req
@@ -161,11 +166,11 @@ impl SetupMessage {
             Self::UpdateDefaultModel(model) => UpdateModel!(model, default_provider),
             Self::UpdateToolsModel(model) => UpdateModel!(model, tools_provider),
             Self::InstanceUrl(InputMessage::Update(url)) => {
-                page.instance_url = url;
+                app.get_setup_page(&id).unwrap().instance_url = url;
                 Task::none()
             }
             Self::InstanceUrl(_) => {
-                let instance = page.instance_url.clone();
+                let instance = app.get_setup_page(&id).unwrap().instance_url.clone();
                 Task::future(async {
                     if let Ok(x) = Data::get(Some(instance)).await {
                         *DATA.write().unwrap() = x;
@@ -175,7 +180,11 @@ impl SetupMessage {
                 .chain(Application::update_data_cache())
             }
             Self::RemoveProviderInput(index) => {
-                let _ = page.provider_inputs.remove(index);
+                let _ = app
+                    .get_setup_page(&id)
+                    .unwrap()
+                    .provider_inputs
+                    .remove(index);
                 Task::none()
             }
             Self::UpdateTheme(theme) => {

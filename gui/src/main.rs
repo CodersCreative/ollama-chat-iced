@@ -17,7 +17,8 @@ use std::{
 use crate::{
     pages::{
         Pages,
-        home::{panes::data::HomePaneSharedData, sidebar::PreviewMk},
+        home::{HomePage, panes::data::HomePaneSharedData, sidebar::PreviewMk},
+        setup::SetupPage,
     },
     windows::{Window, message::WindowMessage},
 };
@@ -167,5 +168,21 @@ impl Application {
 
     pub fn subscription(&self) -> Subscription<Message> {
         window::close_events().map(|id| Message::Window(WindowMessage::WindowClosed(id)))
+    }
+
+    pub fn get_home_page(&mut self, id: &window::Id) -> Option<&mut HomePage> {
+        let Pages::Home(ref mut page) = self.windows.get_mut(id).unwrap().page else {
+            return None;
+        };
+
+        Some(page)
+    }
+
+    pub fn get_setup_page(&mut self, id: &window::Id) -> Option<&mut SetupPage> {
+        let Pages::Setup(ref mut page) = self.windows.get_mut(id).unwrap().page else {
+            return None;
+        };
+
+        Some(page)
     }
 }

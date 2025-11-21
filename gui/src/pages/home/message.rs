@@ -29,12 +29,9 @@ pub enum HomeMessage {
 
 impl HomeMessage {
     pub fn handle(self, app: &mut Application, id: window::Id) -> Task<Message> {
-        let Pages::Home(ref mut page) = app.windows.get_mut(&id).unwrap().page else {
-            return Task::none();
-        };
-
         match self {
             Self::SearchPreviews(InputMessage::Update(x)) => {
+                let page = app.get_home_page(&id).unwrap();
                 if x.is_empty() {
                     page.side_bar.previews.clear();
                 }
@@ -42,7 +39,7 @@ impl HomeMessage {
                 Task::none()
             }
             Self::SearchPreviews(_) => {
-                let search = page.side_bar.search.clone();
+                let search = app.get_home_page(&id).unwrap().side_bar.search.clone();
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
 
@@ -58,10 +55,12 @@ impl HomeMessage {
                 })
             }
             Self::SetPreviews(previews) => {
-                page.side_bar.previews = previews.into_iter().map(|x| x.into()).collect();
+                app.get_home_page(&id).unwrap().side_bar.previews =
+                    previews.into_iter().map(|x| x.into()).collect();
                 Task::none()
             }
             Self::CollapseSideBar => {
+                let page = app.get_home_page(&id).unwrap();
                 page.side_bar.is_collapsed = !page.side_bar.is_collapsed;
                 Task::none()
             }

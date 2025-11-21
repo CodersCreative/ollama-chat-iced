@@ -152,7 +152,8 @@ impl HomePanes {
                     id,
                     PageMessage::Home(HomeMessage::Pane(PaneMessage::Resized(x))),
                 ))
-            }),
+            })
+            .spacing(10),
         )
         .padding(10)
         .into()
