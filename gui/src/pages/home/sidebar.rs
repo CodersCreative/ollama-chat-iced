@@ -6,6 +6,7 @@ use crate::{
         home::{
             HomePaneType,
             message::{HomeMessage, HomePickingType},
+            panes::PaneMessage,
         },
     },
     style,
@@ -73,8 +74,8 @@ impl HomeSideBar {
         )
         .on_press(Message::Window(WindowMessage::Page(
             id,
-            PageMessage::Home(HomeMessage::PanePick(HomePickingType::ReplaceChat(
-                preview.id.key().to_string(),
+            PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                HomePickingType::ReplaceChat(preview.id.key().to_string()),
             ))),
         )))
         .style(style::button::transparent_back_white_text)
@@ -171,8 +172,8 @@ impl HomeSideBar {
         let new_chat_pane = style::svg_button::text("add_chat.svg", size).on_press(
             Message::Window(WindowMessage::Page(
                 id,
-                PageMessage::Home(HomeMessage::PanePick(HomePickingType::OpenPane(
-                    HomePaneType::Chat(0),
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Chat),
                 ))),
             )),
         );
@@ -180,8 +181,8 @@ impl HomeSideBar {
         let new_models_pane = style::svg_button::text("star.svg", size).on_press(Message::Window(
             WindowMessage::Page(
                 id,
-                PageMessage::Home(HomeMessage::PanePick(HomePickingType::OpenPane(
-                    HomePaneType::Chat(0),
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Chat),
                 ))),
             ),
         ));
@@ -189,8 +190,8 @@ impl HomeSideBar {
         let new_prompts_pane = style::svg_button::text("prompt.svg", size).on_press(
             Message::Window(WindowMessage::Page(
                 id,
-                PageMessage::Home(HomeMessage::PanePick(HomePickingType::OpenPane(
-                    HomePaneType::Chat(0),
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Chat),
                 ))),
             )),
         );
@@ -198,8 +199,8 @@ impl HomeSideBar {
         let new_tools_pane = style::svg_button::text("tools.svg", size).on_press(Message::Window(
             WindowMessage::Page(
                 id,
-                PageMessage::Home(HomeMessage::PanePick(HomePickingType::OpenPane(
-                    HomePaneType::Chat(0),
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Chat),
                 ))),
             ),
         ));
@@ -207,16 +208,16 @@ impl HomeSideBar {
         let new_options_pane =
             style::svg_button::text("ai.svg", size).on_press(Message::Window(WindowMessage::Page(
                 id,
-                PageMessage::Home(HomeMessage::PanePick(HomePickingType::OpenPane(
-                    HomePaneType::Chat(0),
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Chat),
                 ))),
             )));
 
         let new_downloads_pane = style::svg_button::text("downloads.svg", size).on_press(
             Message::Window(WindowMessage::Page(
                 id,
-                PageMessage::Home(HomeMessage::PanePick(HomePickingType::OpenPane(
-                    HomePaneType::Chat(0),
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Chat),
                 ))),
             )),
         );
@@ -224,8 +225,8 @@ impl HomeSideBar {
         let new_settings_pane = style::svg_button::text("settings.svg", size).on_press(
             Message::Window(WindowMessage::Page(
                 id,
-                PageMessage::Home(HomeMessage::PanePick(HomePickingType::OpenPane(
-                    HomePaneType::Chat(0),
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Chat),
                 ))),
             )),
         );

@@ -4,7 +4,10 @@ use ochat_types::chats::previews::Preview;
 use crate::{
     Application, DATA, Message,
     data::RequestType,
-    pages::{PageMessage, Pages, home::HomePaneType},
+    pages::{
+        PageMessage, Pages,
+        home::{HomePaneType, panes::PaneMessage},
+    },
     windows::message::WindowMessage,
 };
 
@@ -16,12 +19,12 @@ pub enum HomePickingType {
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
-    PanePick(HomePickingType),
     ChangeSearchPreviews(String),
     SubmitSearchPreviews,
     SetPreviews(Vec<Preview>),
     NewChat,
     DeleteChat(String),
+    Pane(PaneMessage),
     CollapseSideBar,
 }
 
@@ -32,11 +35,6 @@ impl HomeMessage {
         };
 
         match self {
-            Self::PanePick(x) => {
-                // TODO Handle pane creation logic and add the rest of the panes
-                page.panes.pick = Some(x);
-                Task::none()
-            }
             Self::ChangeSearchPreviews(x) => {
                 if x.is_empty() {
                     page.side_bar.previews.clear();
@@ -85,6 +83,7 @@ impl HomeMessage {
                     Message::None
                 })
             }
+            Self::Pane(x) => x.handle(app, id),
             // TODO finish all other cases
             _ => Task::none(),
         }

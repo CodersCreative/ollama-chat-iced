@@ -152,8 +152,12 @@ async fn main() {
                 .delete(options::relationships::delete_gen_models),
         )
         .route(
-            "/options/{id}/model/all",
+            "/options/{id}/model/all/",
             get(options::relationships::get_models_from_options),
+        )
+        .route(
+            "/options/{id}/all/",
+            get(options::relationships::get_gen_models_from_options),
         )
         .route("/file/", post(files::create_file))
         .route("/file/all/", get(files::list_all_files))

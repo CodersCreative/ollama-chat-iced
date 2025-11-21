@@ -64,8 +64,19 @@ pub mod container {
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
             border: iced::Border::default()
                 .width(2)
-                .color(theme.palette().danger.clone())
-                .rounded(5),
+                .color(darken_colour(theme.palette().background.clone(), 0.02))
+                .rounded(10),
+            ..Default::default()
+        }
+    }
+
+    pub fn window_back_danger(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            border: iced::Border::default()
+                .width(2)
+                .color(change_alpha(theme.palette().danger.clone(), 0.6))
+                .rounded(10),
             ..Default::default()
         }
     }

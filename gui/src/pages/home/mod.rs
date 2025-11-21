@@ -5,7 +5,7 @@ pub mod sidebar;
 use crate::{
     Application, Message,
     pages::home::{
-        panes::{HomePaneType, HomePanes},
+        panes::{HomePaneType, HomePaneTypeWithId, HomePanes},
         sidebar::HomeSideBar,
     },
 };
@@ -21,11 +21,11 @@ impl HomePage {
     pub fn new() -> Self {
         Self {
             side_bar: HomeSideBar::default(),
-            panes: HomePanes::new(HomePaneType::Chat(0)),
+            panes: HomePanes::new(HomePaneTypeWithId::Chat(0)),
         }
     }
 
     pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
-        row![self.side_bar.view(app, id), self.panes.view(app)].into()
+        row![self.side_bar.view(app, id), self.panes.view(app, id)].into()
     }
 }

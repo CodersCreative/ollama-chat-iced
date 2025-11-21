@@ -87,6 +87,20 @@ pub async fn get_models_from_options(
     Ok(Json(models))
 }
 
+pub async fn get_gen_models_from_options(
+    id: Path<String>,
+) -> Result<Json<Vec<GenModelRelationship>>, ServerError> {
+    let models = CONN
+        .query(&format!(
+            "SELECT * FROM {0} WHERE option = '{1}';",
+            GEN_MODELS_TABLE, &*id
+        ))
+        .await?
+        .take(0)?;
+
+    Ok(Json(models))
+}
+
 pub async fn delete_gen_models(
     id: Path<String>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
