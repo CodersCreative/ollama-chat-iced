@@ -1,5 +1,5 @@
 use crate::{
-    Application, Message,
+    Application, InputMessage, Message,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     pages::{
         PageMessage,
@@ -120,12 +120,12 @@ impl HomeSideBar {
                 .on_input(move |x| {
                     Message::Window(WindowMessage::Page(
                         id,
-                        PageMessage::Home(HomeMessage::ChangeSearchPreviews(x)),
+                        PageMessage::Home(HomeMessage::SearchPreviews(InputMessage::Update(x))),
                     ))
                 })
                 .on_submit(Message::Window(WindowMessage::Page(
                     id,
-                    PageMessage::Home(HomeMessage::SubmitSearchPreviews),
+                    PageMessage::Home(HomeMessage::SearchPreviews(InputMessage::Submit)),
                 ))),
             SUB_HEADING_SIZE,
         );

@@ -17,13 +17,14 @@ use std::{
 use crate::{
     pages::{
         Pages,
-        home::{panes::data::HomePaneData, sidebar::PreviewMk},
+        home::{panes::data::HomePaneSharedData, sidebar::PreviewMk},
     },
     windows::{Window, message::WindowMessage},
 };
 
 pub mod font {
     pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
+
     pub const HEADER_SIZE: u16 = 24;
     pub const SUB_HEADING_SIZE: u16 = 16;
     pub const BODY_SIZE: u16 = 12;
@@ -43,13 +44,25 @@ static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| {
 pub struct Application {
     pub windows: BTreeMap<window::Id, Window>,
     pub cache: AppCache,
+    pub view_data: ViewData,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct AppCache {
     pub previews: Vec<PreviewMk>,
     pub settings: SettingsData,
-    pub home_panes: HomePaneData,
+    pub home_shared: HomePaneSharedData,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ViewData {
+    pub counter: usize,
+}
+
+#[derive(Debug, Clone)]
+pub enum InputMessage {
+    Update(String),
+    Submit,
 }
 
 fn main() -> iced::Result {
@@ -83,6 +96,7 @@ impl Application {
             Self {
                 windows: BTreeMap::new(),
                 cache: AppCache::default(),
+                view_data: ViewData::default(),
             },
             open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
                 .chain(Self::update_data_cache()),

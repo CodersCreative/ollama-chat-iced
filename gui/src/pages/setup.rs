@@ -1,5 +1,5 @@
 use crate::{
-    Application, DATA, Message,
+    Application, DATA, InputMessage, Message,
     data::{Data, RequestType},
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     pages::{PageMessage, Pages, home::HomePage},
@@ -48,8 +48,7 @@ pub enum SetupMessage {
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
     UpdateToolsModel(SettingsProvider),
-    UpdateInstanceUrl(String),
-    SubmitInstanceUrl,
+    InstanceUrl(InputMessage),
     UpdateUsePanes(bool),
     UpdateTheme(Theme),
     DeleteProvider(RecordId),
@@ -161,11 +160,11 @@ impl SetupMessage {
             Self::UpdatePreviewModel(model) => UpdateModel!(model, previews_provider),
             Self::UpdateDefaultModel(model) => UpdateModel!(model, default_provider),
             Self::UpdateToolsModel(model) => UpdateModel!(model, tools_provider),
-            Self::UpdateInstanceUrl(url) => {
+            Self::InstanceUrl(InputMessage::Update(url)) => {
                 page.instance_url = url;
                 Task::none()
             }
-            Self::SubmitInstanceUrl => {
+            Self::InstanceUrl(_) => {
                 let instance = page.instance_url.clone();
                 Task::future(async {
                     if let Ok(x) = Data::get(Some(instance)).await {
@@ -317,12 +316,12 @@ impl SetupPage {
                 .on_input(move |x| {
                     Message::Window(WindowMessage::Page(
                         id,
-                        PageMessage::Setup(SetupMessage::UpdateInstanceUrl(x)),
+                        PageMessage::Setup(SetupMessage::InstanceUrl(InputMessage::Update(x))),
                     ))
                 })
                 .on_submit(Message::Window(WindowMessage::Page(
                     id,
-                    PageMessage::Setup(SetupMessage::SubmitInstanceUrl),
+                    PageMessage::Setup(SetupMessage::InstanceUrl(InputMessage::Submit)),
                 ))),
             SUB_HEADING_SIZE,
         );

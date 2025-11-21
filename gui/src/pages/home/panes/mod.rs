@@ -1,8 +1,4 @@
-use iced::{
-    Element, Length, Task,
-    widget::{pane_grid, text},
-    window,
-};
+use iced::{Task, widget::pane_grid, window};
 
 use crate::{
     Application, Message,
@@ -83,8 +79,9 @@ impl HomePanes {
 #[derive(Debug, Clone)]
 pub enum PaneMessage {
     Close(pane_grid::Pane),
-    PaneDragged(pane_grid::DragEvent),
-    PaneResized(pane_grid::ResizeEvent),
+    Clicked(pane_grid::Pane),
+    Dragged(pane_grid::DragEvent),
+    Resized(pane_grid::ResizeEvent),
     Split(pane_grid::Axis, pane_grid::Pane, HomePaneType),
     Replace(pane_grid::Pane, HomePaneType),
     Pick(HomePickingType),
@@ -104,6 +101,30 @@ impl PaneMessage {
             }
             Self::UnPick => {
                 page.panes.pick = None;
+                Task::none()
+            }
+            Self::Dragged(pane_grid::DragEvent::Dropped { pane, target }) => {
+                page.panes.panes.drop(pane, target);
+                Task::none()
+            }
+            Self::Dragged(_) => Task::none(),
+            Self::Resized(pane_grid::ResizeEvent { split, ratio }) => {
+                page.panes.panes.resize(split, ratio);
+                Task::none()
+            }
+            Self::Clicked(pane) => {
+                page.panes.focus = Some(pane);
+                Task::none()
+            }
+            Self::Close(pane) => {
+                if page.panes.panes.len() <= 1 {
+                    return Task::none();
+                }
+
+                if let Some((_, sibling)) = page.panes.panes.close(pane) {
+                    page.panes.focus = Some(sibling);
+                }
+
                 Task::none()
             }
             _ => Task::none(),

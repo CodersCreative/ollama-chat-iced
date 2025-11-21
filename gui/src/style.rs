@@ -64,7 +64,7 @@ pub mod container {
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
             border: iced::Border::default()
                 .width(2)
-                .color(darken_colour(theme.palette().background.clone(), 0.02))
+                .color(darken_colour(theme.palette().background.clone(), 0.05))
                 .rounded(10),
             ..Default::default()
         }
@@ -75,7 +75,7 @@ pub mod container {
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
             border: iced::Border::default()
                 .width(2)
-                .color(change_alpha(theme.palette().danger.clone(), 0.6))
+                .color(change_alpha(theme.palette().danger.clone(), 0.4))
                 .rounded(10),
             ..Default::default()
         }

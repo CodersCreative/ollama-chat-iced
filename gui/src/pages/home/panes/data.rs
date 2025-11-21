@@ -9,7 +9,7 @@ use ochat_types::{
 use crate::{DATA, data::RequestType};
 
 #[derive(Debug, Clone, Default)]
-pub struct HomePaneData {
+pub struct HomePaneSharedData {
     pub downloads: DownloadsData,
     pub models: ModelsData,
     pub tools: ToolsData,

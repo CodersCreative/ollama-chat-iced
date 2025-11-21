@@ -2,7 +2,7 @@ use iced::{Task, window};
 use ochat_types::chats::previews::Preview;
 
 use crate::{
-    Application, DATA, Message,
+    Application, DATA, InputMessage, Message,
     data::RequestType,
     pages::{
         PageMessage, Pages,
@@ -19,8 +19,7 @@ pub enum HomePickingType {
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
-    ChangeSearchPreviews(String),
-    SubmitSearchPreviews,
+    SearchPreviews(InputMessage),
     SetPreviews(Vec<Preview>),
     NewChat,
     DeleteChat(String),
@@ -35,14 +34,14 @@ impl HomeMessage {
         };
 
         match self {
-            Self::ChangeSearchPreviews(x) => {
+            Self::SearchPreviews(InputMessage::Update(x)) => {
                 if x.is_empty() {
                     page.side_bar.previews.clear();
                 }
                 page.side_bar.search = x;
                 Task::none()
             }
-            Self::SubmitSearchPreviews => {
+            Self::SearchPreviews(_) => {
                 let search = page.side_bar.search.clone();
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
