@@ -65,6 +65,7 @@ pub struct AppCache {
 #[derive(Debug, Clone, Default)]
 pub struct ViewData {
     pub counter: u32,
+    pub page_stack: Vec<Pages>,
     pub home: HomePaneViewData,
 }
 
@@ -110,7 +111,7 @@ impl Application {
                 cache: AppCache::default(),
                 view_data: ViewData::default(),
             },
-            open.map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
+            open.map(|id| Message::Window(WindowMessage::WindowOpened(id)))
                 .chain(Self::update_data_cache()),
         )
     }

@@ -1,8 +1,16 @@
-use iced::{Task, widget::pane_grid, window};
+use iced::{Task, Vector, widget::pane_grid, window};
 
 use crate::{
     Application, Message,
-    pages::home::{message::HomePickingType, panes::view::models::ModelsView},
+    pages::{
+        PageMessage, Pages,
+        home::{
+            HomePage,
+            message::{HomeMessage, HomePickingType},
+            panes::view::models::ModelsView,
+        },
+    },
+    windows::message::WindowMessage,
 };
 
 pub mod data;
@@ -91,6 +99,7 @@ impl HomePanes {
 #[derive(Debug, Clone)]
 pub enum PaneMessage {
     Close(pane_grid::Pane),
+    NewWindow(pane_grid::Pane),
     Clicked(pane_grid::Pane),
     Dragged(pane_grid::DragEvent),
     Resized(pane_grid::ResizeEvent),
@@ -158,6 +167,26 @@ impl PaneMessage {
 
                 Task::none()
             }
+            Self::NewWindow(pane) => {
+                let page = app.get_home_page(&id).unwrap();
+
+                if page.panes.panes.len() <= 1 {
+                    return Task::none();
+                }
+
+                if let Some((value, sibling)) = page.panes.panes.close(pane) {
+                    page.panes.focus = Some(sibling);
+
+                    let mut page = HomePage::new();
+                    page.panes = HomePanes::new(value);
+                    app.view_data.page_stack.push(Pages::Home(page));
+                } else {
+                    return Task::none();
+                }
+
+                Task::done(Message::Window(WindowMessage::OpenWindow))
+            }
+
             Self::Split(axis, pane, pane_type) => {
                 let value = pane_type.new(app);
                 let page = app.get_home_page(&id).unwrap();

@@ -62,14 +62,20 @@ fn add_to_window<'a>(
             .align_y(Vertical::Center)
             .align_x(Horizontal::Left),
     )
-    .controls(pane_grid::Controls::new(
+    .controls(pane_grid::Controls::new(row![
+        style::svg_button::text("add_window.svg", BODY_SIZE + 2).on_press(Message::Window(
+            WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::NewWindow(pane.clone()))),
+            ),
+        )),
         style::svg_button::danger("close.svg", BODY_SIZE + 2).on_press(Message::Window(
             WindowMessage::Page(
                 id,
                 PageMessage::Home(HomeMessage::Pane(PaneMessage::Close(pane.clone()))),
             ),
         )),
-    ))
+    ]))
     .style(style::container::window_title_back)
     .padding(5);
 

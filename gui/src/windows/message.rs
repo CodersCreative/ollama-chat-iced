@@ -1,16 +1,12 @@
 use iced::{Task, Vector, widget::text_input, window};
 
-use crate::{
-    Application, Message,
-    pages::{PageMessage, Pages},
-    windows::Window,
-};
+use crate::{Application, Message, pages::PageMessage, windows::Window};
 
 #[derive(Debug, Clone)]
 pub enum WindowMessage {
     OpenWindow,
     Page(window::Id, PageMessage),
-    WindowOpened(window::Id, Pages),
+    WindowOpened(window::Id),
     WindowClosed(window::Id),
 }
 
@@ -36,7 +32,7 @@ impl WindowMessage {
 
                         open
                     })
-                    .map(|id| Message::Window(WindowMessage::WindowOpened(id, Pages::default())))
+                    .map(|id| Message::Window(WindowMessage::WindowOpened(id)))
             }
             Self::Page(id, x) => x.handle(app, id),
             Self::WindowClosed(id) => {
@@ -48,8 +44,8 @@ impl WindowMessage {
                     Task::none()
                 }
             }
-            Self::WindowOpened(id, page) => {
-                let window = Window::new(page);
+            Self::WindowOpened(id) => {
+                let window = Window::new(app.view_data.page_stack.pop().unwrap_or_default());
                 let focus_input = text_input::focus(format!("input-{id}"));
 
                 app.windows.insert(id, window);
