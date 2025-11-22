@@ -165,8 +165,29 @@ pub mod text {
     }
 
     text_style!(text);
+    text_style!(background);
     text_style!(primary);
     text_style!(danger);
+
+    pub mod translucent {
+        use super::*;
+        use crate::utils::change_alpha;
+
+        macro_rules! text_style_translucent {
+            ($iden:ident) => {
+                pub fn $iden(theme: &Theme) -> Style {
+                    Style {
+                        color: Some(change_alpha(theme.palette().$iden.clone(), 0.6)),
+                    }
+                }
+            };
+        }
+
+        text_style_translucent!(text);
+        text_style_translucent!(background);
+        text_style_translucent!(primary);
+        text_style_translucent!(danger);
+    }
 }
 
 pub mod text_input {
@@ -283,6 +304,17 @@ pub mod svg_input {
 
 pub mod rule {
     use iced::{Theme, border::Radius, widget::rule::Style};
+
+    use crate::utils::darken_colour;
+
+    pub fn side_bar_darker(theme: &Theme) -> Style {
+        Style {
+            color: darken_colour(theme.palette().background.clone(), 0.05),
+            width: 2,
+            radius: Radius::new(5),
+            fill_mode: iced::widget::rule::FillMode::Full,
+        }
+    }
 
     macro_rules! rule_style {
         ($iden:ident) => {

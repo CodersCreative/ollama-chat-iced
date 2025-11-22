@@ -53,7 +53,7 @@ impl ModelsData {
         let req = DATA.read().unwrap().to_request();
 
         Self(
-            req.make_request(
+            req.make_request::<Vec<OllamaModelsInfo>, ()>(
                 &if let Some(search) = search {
                     format!("provider/ollama/model/search/{}", search)
                 } else {
@@ -63,6 +63,13 @@ impl ModelsData {
                 RequestType::Get,
             )
             .await
+            .map(|x| {
+                if x.len() > 400 {
+                    x[0..=400].to_vec()
+                } else {
+                    x
+                }
+            })
             .unwrap_or_default(),
         )
     }

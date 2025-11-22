@@ -4,7 +4,7 @@ pub mod style;
 pub mod utils;
 pub mod windows;
 
-use iced::{Element, Font, Subscription, Task, Theme, widget::text, window};
+use iced::{Element, Font, Subscription, Task, Theme, exit, widget::text, window};
 use ochat_types::{
     chats::previews::Preview,
     settings::{Settings, SettingsData},
@@ -17,7 +17,14 @@ use std::{
 use crate::{
     pages::{
         Pages,
-        home::{HomePage, panes::data::HomePaneSharedData, sidebar::PreviewMk},
+        home::{
+            HomePage,
+            panes::{
+                data::{HomePaneSharedData, ModelsData},
+                view::{HomePaneViewData, HomePaneViewMessage, models::ModelsView},
+            },
+            sidebar::PreviewMk,
+        },
         setup::SetupPage,
     },
     windows::{Window, message::WindowMessage},
@@ -57,7 +64,8 @@ pub struct AppCache {
 
 #[derive(Debug, Clone, Default)]
 pub struct ViewData {
-    pub counter: usize,
+    pub counter: u32,
+    pub home: HomePaneViewData,
 }
 
 #[derive(Debug, Clone)]
@@ -84,8 +92,11 @@ fn main() -> iced::Result {
 #[derive(Debug, Clone)]
 pub enum Message {
     None,
+    Quit,
     Window(WindowMessage),
+    HomePaneView(HomePaneViewMessage),
     SetPreviews(Vec<Preview>),
+    SetModels(ModelsData),
     SetSettings(SettingsData),
 }
 
@@ -127,6 +138,7 @@ impl Application {
                     Message::None
                 }
             }),
+            Task::future(async { Message::SetModels(ModelsData::get_ollama(None).await) }),
         ])
     }
 
@@ -138,10 +150,16 @@ impl Application {
                 self.cache.previews = previews.into_iter().map(|x| x.into()).collect();
                 Task::none()
             }
+            Message::HomePaneView(message) => message.handle(self),
             Message::SetSettings(settings) => {
                 self.cache.settings = settings;
                 Task::none()
             }
+            Message::SetModels(models) => {
+                self.cache.home_shared.models = models;
+                Task::none()
+            }
+            Message::Quit => exit(),
         }
     }
 
@@ -184,5 +202,9 @@ impl Application {
         };
 
         Some(page)
+    }
+
+    pub fn get_models_view(&mut self, id: &u32) -> Option<&mut ModelsView> {
+        self.view_data.home.models.get_mut(id)
     }
 }

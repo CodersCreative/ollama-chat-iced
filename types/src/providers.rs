@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::surreal::RecordId;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, Eq, PartialOrd, Ord)]
 pub enum ProviderType {
     OpenAI,
     Gemini,
@@ -32,13 +32,19 @@ pub struct ProviderData {
     pub provider_type: ProviderType,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Provider {
     pub name: String,
     pub url: String,
     pub api_key: String,
     pub provider_type: ProviderType,
     pub id: RecordId,
+}
+
+impl Display for Provider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

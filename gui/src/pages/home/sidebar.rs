@@ -16,7 +16,8 @@ use iced::{
     Element, Length, Padding, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, container, markdown, row, text, text_input, vertical_rule, vertical_space,
+        Button, button, column, container, markdown, row, text, text_input, vertical_rule,
+        vertical_space,
     },
     window,
 };
@@ -51,7 +52,7 @@ impl HomeSideBar {
             content = content.push(self.chat_buttons(app, id));
         }
 
-        content = content.push(vertical_rule(1));
+        content = content.push(vertical_rule(2).style(style::rule::side_bar_darker));
 
         container(content)
             .style(style::container::side_bar)
@@ -149,6 +150,83 @@ impl HomeSideBar {
         .into()
     }
 
+    fn pane_buttons_vec<'a>(&'a self, id: window::Id, size: u16) -> Vec<Button<'a, Message>> {
+        let new_chat_pane = style::svg_button::text("add_chat.svg", size).on_press(
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Chat),
+                ))),
+            )),
+        );
+
+        let new_models_pane = style::svg_button::text("star.svg", size).on_press(Message::Window(
+            WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Models),
+                ))),
+            ),
+        ));
+
+        let new_prompts_pane = style::svg_button::text("prompt.svg", size).on_press(
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Prompts),
+                ))),
+            )),
+        );
+
+        let new_tools_pane = style::svg_button::text("tools.svg", size).on_press(Message::Window(
+            WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Tools),
+                ))),
+            ),
+        ));
+
+        let new_options_pane =
+            style::svg_button::text("ai.svg", size).on_press(Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Options),
+                ))),
+            )));
+
+        let new_downloads_pane = style::svg_button::text("downloads.svg", size).on_press(
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Downloads),
+                ))),
+            )),
+        );
+
+        let new_settings_pane = style::svg_button::text("settings.svg", size).on_press(
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Settings),
+                ))),
+            )),
+        );
+
+        let quit = style::svg_button::danger("quit.svg", size).on_press(Message::Quit);
+
+        vec![
+            new_chat_pane,
+            new_models_pane,
+            new_prompts_pane,
+            new_tools_pane,
+            new_options_pane,
+            new_downloads_pane,
+            new_settings_pane,
+            quit,
+        ]
+    }
+
     fn pane_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         let size = 24;
 
@@ -169,85 +247,16 @@ impl HomeSideBar {
             WindowMessage::Page(id, PageMessage::Home(HomeMessage::NewChat)),
         ));
 
-        let new_chat_pane = style::svg_button::text("add_chat.svg", size).on_press(
-            Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                    HomePickingType::OpenPane(HomePaneType::Chat),
-                ))),
-            )),
-        );
-
-        let new_models_pane = style::svg_button::text("star.svg", size).on_press(Message::Window(
-            WindowMessage::Page(
-                id,
-                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                    HomePickingType::OpenPane(HomePaneType::Chat),
-                ))),
-            ),
-        ));
-
-        let new_prompts_pane = style::svg_button::text("prompt.svg", size).on_press(
-            Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                    HomePickingType::OpenPane(HomePaneType::Chat),
-                ))),
-            )),
-        );
-
-        let new_tools_pane = style::svg_button::text("tools.svg", size).on_press(Message::Window(
-            WindowMessage::Page(
-                id,
-                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                    HomePickingType::OpenPane(HomePaneType::Chat),
-                ))),
-            ),
-        ));
-
-        let new_options_pane =
-            style::svg_button::text("ai.svg", size).on_press(Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                    HomePickingType::OpenPane(HomePaneType::Chat),
-                ))),
-            )));
-
-        let new_downloads_pane = style::svg_button::text("downloads.svg", size).on_press(
-            Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                    HomePickingType::OpenPane(HomePaneType::Chat),
-                ))),
-            )),
-        );
-
-        let new_settings_pane = style::svg_button::text("settings.svg", size).on_press(
-            Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                    HomePickingType::OpenPane(HomePaneType::Chat),
-                ))),
-            )),
-        );
-
-        container(
-            column![
-                collapse,
-                new_chat,
-                vertical_space(),
-                new_chat_pane,
-                new_models_pane,
-                new_prompts_pane,
-                new_tools_pane,
-                new_options_pane,
-                new_downloads_pane,
-                new_settings_pane
-            ]
+        let mut col = column![collapse, new_chat, vertical_space()]
             .spacing(5)
-            .padding(Padding::default().top(5).bottom(5)),
-        )
-        .style(style::container::side_bar_darker)
-        .into()
+            .padding(Padding::default().top(5).bottom(5));
+
+        for button in self.pane_buttons_vec(id, size) {
+            col = col.push(button);
+        }
+
+        container(col)
+            .style(style::container::side_bar_darker)
+            .into()
     }
 }

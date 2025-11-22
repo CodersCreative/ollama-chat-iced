@@ -2,10 +2,7 @@ use iced::{Task, widget::pane_grid, window};
 
 use crate::{
     Application, Message,
-    pages::{
-        Pages,
-        home::{HomePage, message::HomePickingType},
-    },
+    pages::home::{message::HomePickingType, panes::view::models::ModelsView},
 };
 
 pub mod data;
@@ -24,7 +21,19 @@ pub enum HomePaneType {
 
 impl HomePaneType {
     pub fn new(&self, app: &mut Application) -> HomePaneTypeWithId {
-        HomePaneTypeWithId::Chat(0)
+        app.view_data.counter += 1;
+        let count = app.view_data.counter;
+
+        match self {
+            Self::Models => {
+                app.view_data
+                    .home
+                    .models
+                    .insert(count, ModelsView::default());
+                HomePaneTypeWithId::Models(count)
+            }
+            _ => HomePaneTypeWithId::Chat(count),
+        }
     }
 }
 

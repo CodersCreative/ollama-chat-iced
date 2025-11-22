@@ -1,9 +1,9 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use iced::{
-    Element, Padding,
+    Element, Task,
     alignment::{Horizontal, Vertical},
-    widget::{center, column, container, horizontal_rule, horizontal_space, pane_grid, row, text},
+    widget::{center, container, pane_grid, row, text},
     window,
 };
 
@@ -14,7 +14,10 @@ use crate::{
         PageMessage,
         home::{
             message::{HomeMessage, HomePickingType},
-            panes::{HomePaneTypeWithId, HomePanes, PaneMessage},
+            panes::{
+                HomePaneTypeWithId, HomePanes, PaneMessage,
+                view::models::{ModelsView, ModelsViewMessage},
+            },
         },
     },
     style,
@@ -25,6 +28,24 @@ pub mod downloads;
 pub mod models;
 pub mod options;
 pub mod settings;
+
+#[derive(Debug, Clone, Default)]
+pub struct HomePaneViewData {
+    pub models: HashMap<u32, ModelsView>,
+}
+
+#[derive(Debug, Clone)]
+pub enum HomePaneViewMessage {
+    Models(u32, ModelsViewMessage),
+}
+
+impl HomePaneViewMessage {
+    pub fn handle(self, app: &mut Application) -> Task<Message> {
+        match self {
+            Self::Models(id, x) => x.handle(app, id),
+        }
+    }
+}
 
 fn add_to_window<'a>(
     app: &'a Application,
@@ -188,6 +209,7 @@ impl Display for HomePaneTypeWithId {
 impl HomePaneTypeWithId {
     pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         match self {
+            Self::Models(x) => app.view_data.home.models.get(x).unwrap().view(app, *x),
             _ => text("Hello, World!!!").into(),
         }
     }

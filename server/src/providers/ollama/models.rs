@@ -82,7 +82,7 @@ pub async fn search_ollama_models(
     let result : Vec<OllamaModelsInfo>= CONN
         .query(&format!(
             "
-SELECT *, search::score(1) + search::score(2) + search::score(3) AS score FROM {0} WHERE name @1@ '{1}' or description @2@ '{1}' or author @3@ '{1}' ORDER BY score DESC LIMIT 15;
+SELECT *, search::score(1) + search::score(2) + search::score(3) AS score FROM {0} WHERE name @1@ '{1}' or description @2@ '{1}' or author @3@ '{1}' ORDER BY score DESC LIMIT 50;
 ",
             OLLAMA_MODELS_TABLE, &*search
         ))
