@@ -23,5 +23,4 @@ serde = { version = "1.0.228", features = ["derive"] }
 indicatif = { version = "0.18.3", features = ["tokio"] }
 futures = "0.3.31"
 tokio-stream = "0.1.17"
-# rustyline = "17.0.2"
-rustyline-async = "0.4.7"
+rustyline = "17.0.2"

@@ -12,7 +12,7 @@ use ochat_types::{
         ollama::{OllamaModelsInfo, PullModelStreamResult},
     },
 };
-use rustyline_async::{Readline, ReadlineEvent};
+use rustyline::{DefaultEditor, error::ReadlineError};
 use serde_json::Value;
 use std::{
     error::Error,
@@ -221,14 +221,13 @@ async fn repl(req: &data::Request, provider: String, model: String) -> Result<()
     }
 
     let mut messages: Vec<ChatQueryMessage> = Vec::new();
-    let (mut editor, mut _writer) = Readline::new(String::from(">> "))?;
+    let mut editor = DefaultEditor::new()?;
 
     loop {
-        let _ = editor.update_prompt(">> ").unwrap();
-
-        match editor.readline().await {
-            Ok(ReadlineEvent::Line(line)) => {
-                let _ = editor.add_history_entry(line.clone());
+        let readline = editor.readline("\n>>> ");
+        match readline {
+            Ok(line) => {
+                editor.add_history_entry(line.clone())?;
                 messages.push(
                     ChatQueryMessageBuilder::default()
                         .text(line)
@@ -251,7 +250,6 @@ async fn repl(req: &data::Request, provider: String, model: String) -> Result<()
                     .unwrap()
                     .bytes_stream();
 
-                let _ = editor.update_prompt("").unwrap();
                 let mut stdout = io::stdout();
 
                 while let Some(response) = response.next().await {
@@ -275,12 +273,14 @@ async fn repl(req: &data::Request, provider: String, model: String) -> Result<()
                         Err(e) => eprintln!("{e}"),
                     }
                 }
+
+                let _ = stdout.write_all(b"\n");
             }
-            Ok(ReadlineEvent::Interrupted) => {
+            Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
                 break;
             }
-            Ok(ReadlineEvent::Eof) => {
+            Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
                 break;
             }
