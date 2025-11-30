@@ -55,7 +55,7 @@ async fn run_text_stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamRe
 
         let (content, thinking) = split_text_into_thinking(content.clone());
 
-        let _ = tx.send(ChatStreamResult::Generating(ChatResponse {
+        let _ = tx.send(ChatStreamResult::Finished(ChatResponse {
             role: Role::AI,
             content,
             thinking,

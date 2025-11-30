@@ -14,7 +14,11 @@ pub enum ChatStreamResult {
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct ChatQueryMessage {
     pub text: String,
+    #[serde(default = "Vec::new")]
+    #[builder(default = "Vec::new()")]
     pub files: Vec<String>,
+    #[serde(default = "Role::default")]
+    #[builder(default = "Role::User")]
     pub role: Role,
 }
 
@@ -30,12 +34,25 @@ pub struct ChatResponse {
     pub role: Role,
     pub content: String,
     pub thinking: Option<String>,
+    #[serde(default = "Vec::new")]
     pub func_calls: Vec<FunctionCall>,
+}
+
+impl Into<ChatQueryMessage> for ChatResponse {
+    fn into(self) -> ChatQueryMessage {
+        ChatQueryMessageBuilder::default()
+            .text(self.content)
+            .role(self.role)
+            .build()
+            .unwrap()
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct ChatQueryData {
     pub provider: String,
     pub model: String,
+    #[serde(default = "Vec::new")]
+    #[builder(default = "Vec::new()")]
     pub messages: Vec<ChatQueryMessage>,
 }

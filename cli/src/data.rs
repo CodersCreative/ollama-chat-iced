@@ -2,7 +2,7 @@ use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
 use std::sync::LazyLock;
 
-static REQWEST_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
+pub static REQWEST_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
 
 pub struct Request(pub String);
 
