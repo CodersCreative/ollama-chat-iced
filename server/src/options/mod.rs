@@ -15,8 +15,8 @@ DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS name ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS data ON TABLE {0} TYPE array<string, 16>;
 
-DEFINE ANALYZER IF NOT EXISTS analyzer TOKENIZERS blank FILTERS lowercase, snowball(english);
-DEFINE INDEX IF NOT EXISTS name_index ON {0} FIELDS text SEARCH ANALYZER analyzer BM25;
+DEFINE ANALYZER options_analyzer TOKENIZERS class, blank FILTERS lowercase, ascii;
+DEFINE INDEX name_index ON TABLE {0} COLUMNS text SEARCH ANALYZER options_analyzer BM25;
 ",
             GEN_OPTIONS_TABLE,
         ))

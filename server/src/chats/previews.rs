@@ -24,8 +24,8 @@ DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS text ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE datetime;
 
-DEFINE ANALYZER IF NOT EXISTS analyzer TOKENIZERS blank FILTERS lowercase, snowball(english);
-DEFINE INDEX IF NOT EXISTS text_index ON {0} FIELDS text SEARCH ANALYZER analyzer BM25;
+DEFINE ANALYZER previews_analyzer TOKENIZERS class, blank FILTERS lowercase, ascii;
+DEFINE INDEX text_index ON TABLE {0} COLUMNS text SEARCH ANALYZER previews_analyzer BM25;
 ",
             PREVIEW_TABLE,
         ))

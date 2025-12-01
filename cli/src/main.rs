@@ -157,14 +157,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let _ = repl(&req, args.id, model).await?;
             }
             ProviderAction::Rm { model } => {
-                if req
+                if let Ok(Some(_)) = req
                     .make_request::<Option<Value>, ()>(
                         &format!("provider/{0}/model/{1}", args.id, model),
                         &(),
                         RequestType::Delete,
                     )
                     .await
-                    .is_ok()
                 {
                     println!("Successfully deleted {}!", model);
                 } else {
@@ -207,15 +206,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn repl(req: &data::Request, provider: String, model: String) -> Result<(), Box<dyn Error>> {
-    if req
+    if let Ok(Some(_)) = req
         .make_request::<Option<Value>, ()>(
             &format!("provider/{0}/model/{1}", provider, model),
             &(),
             RequestType::Get,
         )
         .await
-        .is_err()
     {
+        // Model succesfully retrieved!
+    } else {
         println!("Pulling {}.", model);
         pull_model(&req, &provider, &model).await;
     }
