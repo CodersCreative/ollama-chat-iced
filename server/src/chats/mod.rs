@@ -33,14 +33,11 @@ pub async fn create_chat(
     if chat.time.is_none() {
         chat.time = Some(Datetime::default());
     }
-    let chat = CONN.create(CHAT_TABLE).content(chat).await?;
-
-    Ok(Json(chat))
+    Ok(Json(CONN.create(CHAT_TABLE).content(chat).await?))
 }
 
 pub async fn get_chat(id: Path<String>) -> Result<Json<Option<Chat>>, ServerError> {
-    let chat = CONN.select((CHAT_TABLE, &*id)).await?;
-    Ok(Json(chat))
+    Ok(Json(CONN.select((CHAT_TABLE, &*id)).await?))
 }
 
 pub async fn set_chat_root(
@@ -63,17 +60,14 @@ pub async fn update_chat(
     if chat.time.is_none() {
         chat.time = Some(Datetime::default())
     }
-    let chat = CONN.update((CHAT_TABLE, &*id)).content(chat).await?;
-    Ok(Json(chat))
+    Ok(Json(CONN.update((CHAT_TABLE, &*id)).content(chat).await?))
 }
 
 pub async fn delete_chat(id: Path<String>) -> Result<Json<Option<Chat>>, ServerError> {
-    let chat = CONN.delete((CHAT_TABLE, &*id)).await?;
     let _: Option<Preview> = CONN.delete((PREVIEW_TABLE, &*id)).await?;
-    Ok(Json(chat))
+    Ok(Json(CONN.delete((CHAT_TABLE, &*id)).await?))
 }
 
 pub async fn list_all_chats() -> Result<Json<Vec<Chat>>, ServerError> {
-    let chats = CONN.select(CHAT_TABLE).await?;
-    Ok(Json(chats))
+    Ok(Json(CONN.select(CHAT_TABLE).await?))
 }

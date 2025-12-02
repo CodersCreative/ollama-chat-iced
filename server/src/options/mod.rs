@@ -16,7 +16,7 @@ DEFINE FIELD IF NOT EXISTS name ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS data ON TABLE {0} TYPE array<string, 16>;
 
 DEFINE ANALYZER options_analyzer TOKENIZERS class, blank FILTERS lowercase, ascii;
-DEFINE INDEX name_index ON TABLE {0} COLUMNS text SEARCH ANALYZER options_analyzer BM25;
+DEFINE INDEX name_index ON TABLE {0} COLUMNS name SEARCH ANALYZER options_analyzer BM25;
 ",
             GEN_OPTIONS_TABLE,
         ))
@@ -27,49 +27,43 @@ DEFINE INDEX name_index ON TABLE {0} COLUMNS text SEARCH ANALYZER options_analyz
 pub async fn add_gen_options(
     Json(options): Json<GenOptionsData>,
 ) -> Result<Json<Option<GenOptions>>, ServerError> {
-    let options: Option<GenOptions> = CONN.create(GEN_OPTIONS_TABLE).content(options).await?;
-
-    Ok(Json(options))
+    Ok(Json(CONN.create(GEN_OPTIONS_TABLE).content(options).await?))
 }
 
 pub async fn update_gen_options(
     id: Path<String>,
     Json(options): Json<GenOptionsData>,
 ) -> Result<Json<Option<GenOptions>>, ServerError> {
-    let options = CONN
-        .update((GEN_OPTIONS_TABLE, &*id))
-        .content(options)
-        .await?;
-    Ok(Json(options))
+    Ok(Json(
+        CONN.update((GEN_OPTIONS_TABLE, &*id))
+            .content(options)
+            .await?,
+    ))
 }
 
 pub async fn get_gen_options(id: Path<String>) -> Result<Json<Option<GenOptions>>, ServerError> {
-    let options = CONN.select((GEN_OPTIONS_TABLE, &*id)).await?;
-    Ok(Json(options))
+    Ok(Json(CONN.select((GEN_OPTIONS_TABLE, &*id)).await?))
 }
 
 pub async fn search_gen_options(
     search: Path<String>,
 ) -> Result<Json<Vec<GenOptions>>, ServerError> {
-    let result = CONN
-        .query(&format!(
+    Ok(Json(
+        CONN.query(&format!(
             "            
 SELECT *, search::score(1) AS score FROM {0} WHERE name @1@ {1} ORDER BY score DESC LIMIT 25;
 ",
             GEN_OPTIONS_TABLE, &*search
         ))
         .await?
-        .take(0)?;
-
-    Ok(Json(result))
+        .take(0)?,
+    ))
 }
 
 pub async fn delete_gen_options(id: Path<String>) -> Result<Json<Option<GenOptions>>, ServerError> {
-    let options = CONN.delete((GEN_OPTIONS_TABLE, &*id)).await?;
-    Ok(Json(options))
+    Ok(Json(CONN.delete((GEN_OPTIONS_TABLE, &*id)).await?))
 }
 
 pub async fn list_all_gen_options() -> Result<Json<Vec<GenOptions>>, ServerError> {
-    let options = CONN.select(GEN_OPTIONS_TABLE).await?;
-    Ok(Json(options))
+    Ok(Json(CONN.select(GEN_OPTIONS_TABLE).await?))
 }

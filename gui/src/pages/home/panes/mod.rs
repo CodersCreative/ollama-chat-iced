@@ -1,13 +1,13 @@
-use iced::{Task, Vector, widget::pane_grid, window};
+use iced::{Task, widget::pane_grid, window};
 
 use crate::{
     Application, Message,
     pages::{
-        PageMessage, Pages,
+        Pages,
         home::{
             HomePage,
-            message::{HomeMessage, HomePickingType},
-            panes::view::models::ModelsView,
+            message::HomePickingType,
+            panes::view::{models::ModelsView, prompts::PromptsView},
         },
     },
     windows::message::WindowMessage,
@@ -39,6 +39,13 @@ impl HomePaneType {
                     .models
                     .insert(count, ModelsView::default());
                 HomePaneTypeWithId::Models(count)
+            }
+            Self::Prompts => {
+                app.view_data
+                    .home
+                    .prompts
+                    .insert(count, PromptsView::default());
+                HomePaneTypeWithId::Prompts(count)
             }
             _ => HomePaneTypeWithId::Chat(count),
         }

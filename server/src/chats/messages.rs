@@ -105,8 +105,7 @@ pub async fn create_message_with_parent(
 }
 
 pub async fn read_message(id: Path<String>) -> Result<Json<Option<Message>>, ServerError> {
-    let chat = CONN.select((MESSAGE_TABLE, &*id)).await?;
-    Ok(Json(chat))
+    Ok(Json(CONN.select((MESSAGE_TABLE, &*id)).await?))
 }
 
 pub async fn update_message(
@@ -137,8 +136,7 @@ pub async fn update_message(
 }
 
 pub async fn delete_message(id: Path<String>) -> Result<Json<Option<Message>>, ServerError> {
-    let chat = CONN.delete((MESSAGE_TABLE, &*id)).await?;
-    Ok(Json(chat))
+    Ok(Json(CONN.delete((MESSAGE_TABLE, &*id)).await?))
 }
 
 pub async fn get_message_list_from_parent(
@@ -253,6 +251,5 @@ pub async fn list_all_messages_from_parent(
 }
 
 pub async fn list_all_messages() -> Result<Json<Vec<Message>>, ServerError> {
-    let chats = CONN.select(MESSAGE_TABLE).await?;
-    Ok(Json(chats))
+    Ok(Json(CONN.select(MESSAGE_TABLE).await?))
 }

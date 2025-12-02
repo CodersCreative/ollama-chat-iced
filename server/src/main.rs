@@ -3,6 +3,7 @@ pub mod errors;
 pub mod files;
 pub mod generation;
 pub mod options;
+pub mod prompts;
 pub mod providers;
 pub mod settings;
 pub mod utils;
@@ -31,6 +32,7 @@ use crate::{
     files::define_files,
     messages::define_messages,
     options::{define_gen_options, relationships::define_gen_models},
+    prompts::define_prompts,
     providers::{define_providers, ollama::models::define_ollama_models},
     settings::define_settings,
     utils::get_path_settings,
@@ -80,6 +82,15 @@ async fn main() {
             get(settings::get_settings).put(settings::update_settings),
         )
         .route("/settings/reset/", post(settings::reset_settings))
+        .route("/prompt/", post(chats::create_chat))
+        .route("/prompt/all/", get(prompts::list_all_prompts))
+        .route("/prompt/search/{search}", get(prompts::search_prompts))
+        .route(
+            "/prompt/{id}",
+            get(prompts::get_prompt)
+                .put(prompts::update_prompt)
+                .delete(prompts::delete_prompt),
+        )
         .route(
             "/relationship/parent/{parent}/all/",
             get(relationships::list_all_message_relationships_from_parent),
@@ -205,6 +216,7 @@ pub async fn init_db() -> Result<(), ServerError> {
     let _ = define_ollama_models().await?;
     let _ = define_previews().await?;
     let _ = define_files().await?;
+    let _ = define_prompts().await?;
     let _ = define_gen_options().await?;
     let _ = define_gen_models().await?;
     define_providers().await

@@ -4,7 +4,7 @@ use iced::{
     widget::{
         button, column, container, horizontal_rule, horizontal_space, pick_list, row,
         scrollable::{self, Scrollbar},
-        text, text_input, vertical_rule, vertical_space,
+        text, text_input,
     },
 };
 use ochat_types::providers::{Provider, ProviderType, ollama::OllamaModelsInfo};

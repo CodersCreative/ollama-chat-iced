@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use ochat_types::{
     chats::messages::Message,
     options::{GenOptions, relationships::GenModelRelationship},
+    prompts::Prompt,
     providers::ollama::{OllamaModelsInfo, PullModelStreamResult},
 };
 
@@ -28,7 +29,7 @@ pub struct MessagesData(pub HashMap<String, Message>);
 pub struct ModelsData(pub Vec<OllamaModelsInfo>);
 
 #[derive(Debug, Clone, Default)]
-pub struct PromptsData();
+pub struct PromptsData(pub Vec<Prompt>);
 
 #[derive(Debug, Clone, Default)]
 pub struct ToolsData();
@@ -108,5 +109,25 @@ impl OptionsData {
         }
 
         Self(value)
+    }
+}
+
+impl PromptsData {
+    pub async fn get_prompts(search: Option<String>) -> Self {
+        let req = DATA.read().unwrap().to_request();
+
+        Self(
+            req.make_request::<Vec<Prompt>, ()>(
+                &if let Some(search) = search {
+                    format!("prompts/search/{}", search)
+                } else {
+                    "prompts/all/".to_string()
+                },
+                &(),
+                RequestType::Get,
+            )
+            .await
+            .unwrap_or_default(),
+        )
     }
 }

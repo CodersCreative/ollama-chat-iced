@@ -111,20 +111,18 @@ pub async fn get_preview(id: Path<String>) -> Result<Json<Option<Preview>>, Serv
 }
 
 pub async fn search_previews(search: Path<String>) -> Result<Json<Vec<Preview>>, ServerError> {
-    let result = CONN
-        .query(&format!(
+    Ok(Json(
+        CONN.query(&format!(
             "            
 SELECT *, search::score(1) AS score FROM {0} WHERE title @1@ {1} ORDER BY score DESC LIMIT 25;
 ",
             PREVIEW_TABLE, &*search
         ))
         .await?
-        .take(0)?;
-
-    Ok(Json(result))
+        .take(0)?,
+    ))
 }
 
 pub async fn list_all_previews() -> Result<Json<Vec<Preview>>, ServerError> {
-    let previews = CONN.select(PREVIEW_TABLE).await?;
-    Ok(Json(previews))
+    Ok(Json(CONN.select(PREVIEW_TABLE).await?))
 }

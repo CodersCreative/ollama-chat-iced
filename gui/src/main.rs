@@ -20,8 +20,10 @@ use crate::{
         home::{
             HomePage,
             panes::{
-                data::{HomePaneSharedData, ModelsData},
-                view::{HomePaneViewData, HomePaneViewMessage, models::ModelsView},
+                data::{HomePaneSharedData, ModelsData, PromptsData},
+                view::{
+                    HomePaneViewData, HomePaneViewMessage, models::ModelsView, prompts::PromptsView,
+                },
             },
             sidebar::PreviewMk,
         },
@@ -96,9 +98,7 @@ pub enum Message {
     Quit,
     Window(WindowMessage),
     HomePaneView(HomePaneViewMessage),
-    SetPreviews(Vec<Preview>),
-    SetModels(ModelsData),
-    SetSettings(SettingsData),
+    SetCache(AppCache),
 }
 
 impl Application {
@@ -112,52 +112,44 @@ impl Application {
                 view_data: ViewData::default(),
             },
             open.map(|id| Message::Window(WindowMessage::WindowOpened(id)))
-                .chain(Self::update_data_cache()),
+                .chain(Task::batch([Self::update_data_cache()])),
         )
     }
 
     pub fn update_data_cache() -> Task<Message> {
-        Task::batch([
-            Task::future(async {
-                let req = DATA.read().unwrap().to_request();
+        Task::future(async {
+            let req = DATA.read().unwrap().to_request();
+            let mut cache = AppCache::default();
 
-                Message::SetPreviews(
-                    req.make_request("preview/all/", &(), data::RequestType::Get)
-                        .await
-                        .unwrap_or_default(),
-                )
-            }),
-            Task::future(async {
-                let req = DATA.read().unwrap().to_request();
+            cache.previews = req
+                .make_request::<Vec<Preview>, ()>("preview/all/", &(), data::RequestType::Get)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .map(|x| x.into())
+                .collect();
 
-                if let Ok(settings) = req
-                    .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
-                    .await
-                {
-                    Message::SetSettings(settings.into())
-                } else {
-                    Message::None
-                }
-            }),
-            Task::future(async { Message::SetModels(ModelsData::get_ollama(None).await) }),
-        ])
+            if let Ok(settings) = req
+                .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
+                .await
+            {
+                cache.settings = settings.into();
+            }
+
+            cache.home_shared.models = ModelsData::get_ollama(None).await;
+            cache.home_shared.prompts = PromptsData::get_prompts(None).await;
+
+            Message::SetCache(cache)
+        })
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::None => Task::none(),
             Message::Window(message) => message.handle(self),
-            Message::SetPreviews(previews) => {
-                self.cache.previews = previews.into_iter().map(|x| x.into()).collect();
-                Task::none()
-            }
             Message::HomePaneView(message) => message.handle(self),
-            Message::SetSettings(settings) => {
-                self.cache.settings = settings;
-                Task::none()
-            }
-            Message::SetModels(models) => {
-                self.cache.home_shared.models = models;
+            Message::SetCache(cache) => {
+                self.cache = cache;
                 Task::none()
             }
             Message::Quit => exit(),
@@ -207,5 +199,9 @@ impl Application {
 
     pub fn get_models_view(&mut self, id: &u32) -> Option<&mut ModelsView> {
         self.view_data.home.models.get_mut(id)
+    }
+
+    pub fn get_prompts_view(&mut self, id: &u32) -> Option<&mut PromptsView> {
+        self.view_data.home.prompts.get_mut(id)
     }
 }

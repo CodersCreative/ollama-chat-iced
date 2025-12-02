@@ -88,21 +88,16 @@ async fn get_all_ollama_models() -> Result<Vec<OllamaModelsInfo>, ServerError> {
 pub async fn search_ollama_models(
     search: Path<String>,
 ) -> Result<Json<Vec<OllamaModelsInfo>>, ServerError> {
-    let result : Vec<OllamaModelsInfo>= CONN
+    Ok(Json(CONN
         .query(&format!(
             "
 SELECT *, search::score(1) + search::score(2) + search::score(3) AS score FROM {0} WHERE name @1@ '{1}' or description @2@ '{1}' or author @3@ '{1}' ORDER BY score DESC;
 ",
             OLLAMA_MODELS_TABLE, &*search
         ))
-        .await?.take(0)?;
-
-    println!("{:?}", result);
-
-    Ok(Json(result))
+        .await?.take(0)?))
 }
 
 pub async fn list_all_ollama_models() -> Result<Json<Vec<OllamaModelsInfo>>, ServerError> {
-    let models = CONN.select(OLLAMA_MODELS_TABLE).await?;
-    Ok(Json(models))
+    Ok(Json(CONN.select(OLLAMA_MODELS_TABLE).await?))
 }

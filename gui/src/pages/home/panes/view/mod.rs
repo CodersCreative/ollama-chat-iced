@@ -16,7 +16,10 @@ use crate::{
             message::{HomeMessage, HomePickingType},
             panes::{
                 HomePaneTypeWithId, HomePanes, PaneMessage,
-                view::models::{ModelsView, ModelsViewMessage},
+                view::{
+                    models::{ModelsView, ModelsViewMessage},
+                    prompts::{PromptsView, PromptsViewMessage},
+                },
             },
         },
     },
@@ -27,22 +30,26 @@ use crate::{
 pub mod downloads;
 pub mod models;
 pub mod options;
+pub mod prompts;
 pub mod settings;
 
 #[derive(Debug, Clone, Default)]
 pub struct HomePaneViewData {
     pub models: HashMap<u32, ModelsView>,
+    pub prompts: HashMap<u32, PromptsView>,
 }
 
 #[derive(Debug, Clone)]
 pub enum HomePaneViewMessage {
     Models(u32, ModelsViewMessage),
+    Prompts(u32, PromptsViewMessage),
 }
 
 impl HomePaneViewMessage {
     pub fn handle(self, app: &mut Application) -> Task<Message> {
         match self {
             Self::Models(id, x) => x.handle(app, id),
+            Self::Prompts(id, x) => x.handle(app, id),
         }
     }
 }
@@ -216,6 +223,7 @@ impl HomePaneTypeWithId {
     pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         match self {
             Self::Models(x) => app.view_data.home.models.get(x).unwrap().view(app, *x),
+            Self::Prompts(x) => app.view_data.home.prompts.get(x).unwrap().view(app, *x),
             _ => text("Hello, World!!!").into(),
         }
     }

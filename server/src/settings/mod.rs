@@ -117,6 +117,5 @@ pub async fn update_settings(
         .content(Into::<SettingsData>::into(current_settings))
         .await?;
 
-    let chat = chat.first().map(|x| x.clone());
-    Ok(Json(chat))
+    Ok(Json(chat.first().map(|x| x.clone())))
 }

@@ -56,19 +56,15 @@ pub async fn create_file(
     Json(file): Json<B64FileData>,
 ) -> Result<Json<Option<DBFile>>, ServerError> {
     let file = DBFileData::try_from(file)?;
-    let file = CONN.create(FILE_TABLE).content(file).await?;
-    Ok(Json(file))
+    Ok(Json(CONN.create(FILE_TABLE).content(file).await?))
 }
 
 pub async fn get_file(id: Path<String>) -> Result<Json<Option<B64File>>, ServerError> {
     let file: Option<DBFile> = CONN.select((FILE_TABLE, &*id)).await?;
-
-    let file = match file {
+    Ok(Json(match file {
         Some(x) => Some(x.try_into()?),
         _ => None,
-    };
-
-    Ok(Json(file))
+    }))
 }
 
 pub async fn update_file(
@@ -80,8 +76,7 @@ pub async fn update_file(
     }
 
     let file = DBFileData::try_from(file)?;
-    let file = CONN.update((FILE_TABLE, &*id)).content(file).await?;
-    Ok(Json(file))
+    Ok(Json(CONN.update((FILE_TABLE, &*id)).content(file).await?))
 }
 
 pub async fn delete_file(id: Path<String>) -> Result<Json<Option<DBFile>>, ServerError> {
@@ -95,6 +90,5 @@ pub async fn delete_file(id: Path<String>) -> Result<Json<Option<DBFile>>, Serve
 }
 
 pub async fn list_all_files() -> Result<Json<Vec<DBFile>>, ServerError> {
-    let file = CONN.select(FILE_TABLE).await?;
-    Ok(Json(file))
+    Ok(Json(CONN.select(FILE_TABLE).await?))
 }

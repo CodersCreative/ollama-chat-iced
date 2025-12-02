@@ -29,10 +29,9 @@ DEFINE FIELD IF NOT EXISTS option ON TABLE {0} TYPE string;
 pub async fn add_gen_models(
     Json(relationship): Json<GenModelRelationshipData>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
-    let relationship: Option<GenModelRelationship> =
-        CONN.create(GEN_OPTIONS_TABLE).content(relationship).await?;
-
-    Ok(Json(relationship))
+    Ok(Json(
+        CONN.create(GEN_OPTIONS_TABLE).content(relationship).await?,
+    ))
 }
 
 pub async fn update_gen_models(
@@ -43,72 +42,64 @@ pub async fn update_gen_models(
         "DELETE {0} WHERE provider = '{1}' and model = '{2}';",
         GEN_MODELS_TABLE, options.provider, options.model
     ));
-
-    let relationship = CONN
-        .update((GEN_MODELS_TABLE, &*id))
-        .content(options)
-        .await?;
-
-    Ok(Json(relationship))
+    Ok(Json(
+        CONN.update((GEN_MODELS_TABLE, &*id))
+            .content(options)
+            .await?,
+    ))
 }
 
 pub async fn get_gen_models(
     id: Path<String>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
-    let relationship = CONN.select((GEN_MODELS_TABLE, &*id)).await?;
-    Ok(Json(relationship))
+    Ok(Json(CONN.select((GEN_MODELS_TABLE, &*id)).await?))
 }
 
 pub async fn get_default_gen_options_from_model(
     Path((id, model)): Path<(String, String)>,
 ) -> Result<Json<Option<GenOptions>>, ServerError> {
-    let options = CONN
-        .query(&format!(
+    Ok(Json(
+        CONN.query(&format!(
             "SELECT * FROM {0} WHERE provider = '{1}' and model = '{2}';",
             GEN_MODELS_TABLE, &*id, &*model
         ))
         .await?
-        .take(0)?;
-
-    Ok(Json(options))
+        .take(0)?,
+    ))
 }
 
 pub async fn get_models_from_options(
     id: Path<String>,
 ) -> Result<Json<Vec<SettingsProvider>>, ServerError> {
-    let models = CONN
-        .query(&format!(
+    Ok(Json(
+        CONN.query(&format!(
             "SELECT * FROM {0} WHERE option = '{1}';",
             GEN_MODELS_TABLE, &*id
         ))
         .await?
-        .take(0)?;
-
-    Ok(Json(models))
+        .take(0)?,
+    ))
 }
 
 pub async fn get_gen_models_from_options(
     id: Path<String>,
 ) -> Result<Json<Vec<GenModelRelationship>>, ServerError> {
-    let models = CONN
-        .query(&format!(
+    Ok(Json(
+        CONN.query(&format!(
             "SELECT * FROM {0} WHERE option = '{1}';",
             GEN_MODELS_TABLE, &*id
         ))
         .await?
-        .take(0)?;
-
-    Ok(Json(models))
+        .take(0)?,
+    ))
 }
 
 pub async fn delete_gen_models(
     id: Path<String>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
-    let relationship = CONN.delete((GEN_OPTIONS_TABLE, &*id)).await?;
-    Ok(Json(relationship))
+    Ok(Json(CONN.delete((GEN_OPTIONS_TABLE, &*id)).await?))
 }
 
 pub async fn list_all_gen_models() -> Result<Json<Vec<GenOptions>>, ServerError> {
-    let relationships = CONN.select(GEN_OPTIONS_TABLE).await?;
-    Ok(Json(relationships))
+    Ok(Json(CONN.select(GEN_OPTIONS_TABLE).await?))
 }

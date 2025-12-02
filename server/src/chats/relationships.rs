@@ -55,19 +55,17 @@ pub async fn create_message_relationship(
         )
     }
 
-    let relationship = CONN
-        .create(RELATIONSHIP_TABLE)
-        .content(relationship)
-        .await?;
-
-    Ok(Json(relationship))
+    Ok(Json(
+        CONN.create(RELATIONSHIP_TABLE)
+            .content(relationship)
+            .await?,
+    ))
 }
 
 pub async fn get_message_relationship(
     id: Path<String>,
 ) -> Result<Json<Option<MessageRelationship>>, ServerError> {
-    let relationship = CONN.select((RELATIONSHIP_TABLE, &*id)).await?;
-    Ok(Json(relationship))
+    Ok(Json(CONN.select((RELATIONSHIP_TABLE, &*id)).await?))
 }
 
 pub async fn update_message_relationship(
@@ -79,39 +77,35 @@ pub async fn update_message_relationship(
         relationship.index = Some(previous.unwrap().index)
     }
 
-    let relationship = CONN
-        .update((RELATIONSHIP_TABLE, &*id))
-        .content(relationship)
-        .await?;
-
-    Ok(Json(relationship))
+    Ok(Json(
+        CONN.update((RELATIONSHIP_TABLE, &*id))
+            .content(relationship)
+            .await?,
+    ))
 }
 
 pub async fn delete_message_relationship(
     id: Path<String>,
 ) -> Result<Json<Option<MessageRelationship>>, ServerError> {
-    let relationship = CONN.delete((RELATIONSHIP_TABLE, &*id)).await?;
-    Ok(Json(relationship))
+    Ok(Json(CONN.delete((RELATIONSHIP_TABLE, &*id)).await?))
 }
 
 pub async fn list_all_message_relationships_from_parent(
     parent: Path<String>,
 ) -> Result<Json<Vec<MessageRelationship>>, ServerError> {
-    let query: Vec<MessageRelationship> = CONN
-        .query(&format!(
+    Ok(Json(
+        CONN.query(&format!(
             "
                 SELECT * FROM {0} WHERE parent = '{1}';
             ",
             RELATIONSHIP_TABLE, &*parent,
         ))
         .await?
-        .take(0)?;
-
-    Ok(Json(query))
+        .take(0)?,
+    ))
 }
 
 pub async fn list_all_message_relationships() -> Result<Json<Vec<MessageRelationship>>, ServerError>
 {
-    let relationship = CONN.select(RELATIONSHIP_TABLE).await?;
-    Ok(Json(relationship))
+    Ok(Json(CONN.select(RELATIONSHIP_TABLE).await?))
 }
