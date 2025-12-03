@@ -82,7 +82,7 @@ async fn main() {
             get(settings::get_settings).put(settings::update_settings),
         )
         .route("/settings/reset/", post(settings::reset_settings))
-        .route("/prompt/", post(chats::create_chat))
+        .route("/prompt/", post(prompts::add_prompt))
         .route("/prompt/all/", get(prompts::list_all_prompts))
         .route("/prompt/search/{search}", get(prompts::search_prompts))
         .route(

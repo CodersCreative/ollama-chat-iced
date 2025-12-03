@@ -3,6 +3,7 @@ use iced::Color;
 use image::ImageFormat;
 #[cfg(feature = "voice")]
 use rodio::{Decoder, OutputStream, Sink};
+use serde::de::DeserializeOwned;
 use std::{
     env,
     io::{self, Write},
@@ -37,6 +38,26 @@ pub fn read_input() -> String {
 pub fn write_read(message: String) -> String {
     println!("{}", message);
     return read_input();
+}
+
+pub fn load_from_file<T: DeserializeOwned>(path: &str) -> Result<T, String> {
+    let reader = File::open(path);
+
+    if let Ok(mut reader) = reader {
+        let mut data = String::new();
+        let _ = reader
+            .read_to_string(&mut data)
+            .map_err(|e| e.to_string())?;
+
+        let de_data = serde_json::from_str(&data);
+
+        return match de_data {
+            Ok(x) => Ok(x),
+            Err(e) => Err(e.to_string()),
+        };
+    }
+
+    return Err("Failed to open file".to_string());
 }
 
 pub fn write_read_line(message: String) -> String {

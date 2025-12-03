@@ -8,6 +8,14 @@ pub struct PromptData {
     pub command: String,
     pub title: String,
     pub content: String,
+    #[builder(default = "None")]
+    pub downloads: Option<i16>,
+    #[builder(default = "None")]
+    pub upvotes: Option<i16>,
+    #[builder(default = "None")]
+    pub downvotes: Option<i16>,
+    #[builder(default = "None")]
+    pub user: Option<OpenWebUIUser>,
 }
 
 impl Display for Prompt {
@@ -22,6 +30,10 @@ impl Into<PromptData> for Prompt {
             command: self.command,
             title: self.title,
             content: self.content,
+            downloads: self.downloads,
+            upvotes: self.upvotes,
+            downvotes: self.downvotes,
+            user: self.user,
         }
     }
 }
@@ -31,5 +43,15 @@ pub struct Prompt {
     pub command: String,
     pub title: String,
     pub content: String,
+    pub downloads: Option<i16>,
+    pub upvotes: Option<i16>,
+    pub downvotes: Option<i16>,
+    pub user: Option<OpenWebUIUser>,
     pub id: RecordId,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct OpenWebUIUser {
+    pub username: String,
+    pub verified: bool,
 }

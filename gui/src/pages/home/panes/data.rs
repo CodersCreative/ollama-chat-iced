@@ -119,9 +119,9 @@ impl PromptsData {
         Self(
             req.make_request::<Vec<Prompt>, ()>(
                 &if let Some(search) = search {
-                    format!("prompts/search/{}", search)
+                    format!("prompt/search/{}", search)
                 } else {
-                    "prompts/all/".to_string()
+                    "prompt/all/".to_string()
                 },
                 &(),
                 RequestType::Get,
