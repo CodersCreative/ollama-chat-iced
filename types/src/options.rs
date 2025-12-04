@@ -122,8 +122,12 @@ impl GenOption {
         }
     }
 
-    pub fn reset(self) -> Self {
-        self.key.into()
+    pub fn get_default(&self) -> Self {
+        self.key.clone().into()
+    }
+
+    pub fn reset(&mut self) {
+        *self = self.get_default();
     }
 
     pub fn get_all() -> [Self; 16] {
@@ -140,6 +144,16 @@ pub enum GenOptionValue {
     Float(f32),
     Text(String),
     Int(i32),
+}
+
+impl Display for GenOptionValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Float(x) => write!(f, "{}", x),
+            Self::Text(x) => write!(f, "{}", x),
+            Self::Int(x) => write!(f, "{}", x),
+        }
+    }
 }
 
 impl From<GenOptionKey> for GenOption {
@@ -222,5 +236,14 @@ pub mod relationships {
         pub model: String,
         pub option: String,
         pub id: RecordId,
+    }
+
+    impl Into<SettingsProvider> for GenModelRelationship {
+        fn into(self) -> SettingsProvider {
+            SettingsProvider {
+                provider: self.provider,
+                model: self.model,
+            }
+        }
     }
 }

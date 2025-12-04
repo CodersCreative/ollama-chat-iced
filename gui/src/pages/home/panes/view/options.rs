@@ -1,8 +1,8 @@
 use crate::{
     Application, DATA, InputMessage, Message,
-    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
+    font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE},
     pages::home::panes::{
-        data::{OptionData, OptionsData},
+        data::{OptionData, OptionRelationshipData, OptionsData},
         view::HomePaneViewMessage,
     },
     style,
@@ -11,12 +11,15 @@ use iced::{
     Element, Length, Task,
     alignment::Vertical,
     widget::{
-        column, container, horizontal_rule, horizontal_space, row,
+        column, container, horizontal_rule, horizontal_space, pick_list, row,
         scrollable::{self, Scrollbar},
-        text, text_input,
+        text, text_input, toggler, vertical_space,
     },
 };
-use ochat_types::options::{GenOptions, GenOptionsData};
+use ochat_types::{
+    options::{GenOption, GenOptions, GenOptionsData},
+    settings::SettingsProvider,
+};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
@@ -30,8 +33,13 @@ pub struct OptionsView {
 #[derive(Debug, Clone)]
 pub enum OptionsViewMessage {
     Search(InputMessage),
-    UpdateField(String, String),
+    UpdateName(String, String),
+    UpdateField(String, usize, String),
+    UpdateFieldActivated(String, usize, bool),
+    ResetField(String, usize),
     SaveOption(String),
+    UpdateRelationshipModel(String, usize, SettingsProvider),
+    AddRelationship(String),
     SetOptions(OptionsData),
     Expand(String),
     Edit(String),
@@ -63,6 +71,103 @@ impl OptionsViewMessage {
                         ),
                     ))
                 })
+            }
+            Self::AddRelationship(option_id) => {
+                app.get_options_view(&id)
+                    .unwrap()
+                    .editing
+                    .get_mut(&option_id)
+                    .unwrap()
+                    .models
+                    .push(OptionRelationshipData {
+                        model: None,
+                        option: option_id.clone(),
+                        id: None,
+                    });
+                Task::none()
+            }
+            Self::UpdateRelationshipModel(option_id, index, model) => {
+                app.get_options_view(&id)
+                    .unwrap()
+                    .editing
+                    .get_mut(&option_id)
+                    .unwrap()
+                    .models
+                    .get_mut(index)
+                    .unwrap()
+                    .model = Some(model);
+                Task::none()
+            }
+            Self::UpdateName(option_id, name) => {
+                app.get_options_view(&id)
+                    .unwrap()
+                    .editing
+                    .get_mut(&option_id)
+                    .unwrap()
+                    .option
+                    .name = name;
+                Task::none()
+            }
+            Self::UpdateFieldActivated(option_id, index, value) => {
+                app.get_options_view(&id)
+                    .unwrap()
+                    .editing
+                    .get_mut(&option_id)
+                    .unwrap()
+                    .option
+                    .data
+                    .get_mut(index)
+                    .unwrap()
+                    .activated = value;
+
+                Task::none()
+            }
+            Self::ResetField(option_id, index) => {
+                app.get_options_view(&id)
+                    .unwrap()
+                    .editing
+                    .get_mut(&option_id)
+                    .unwrap()
+                    .option
+                    .data
+                    .get_mut(index)
+                    .unwrap()
+                    .reset();
+
+                Task::none()
+            }
+            Self::UpdateField(option_id, index, value) => {
+                let field = app
+                    .get_options_view(&id)
+                    .unwrap()
+                    .editing
+                    .get_mut(&option_id)
+                    .unwrap()
+                    .option
+                    .data
+                    .get_mut(index)
+                    .unwrap();
+
+                let value = match field.value {
+                    ochat_types::options::GenOptionValue::Float(_) => {
+                        ochat_types::options::GenOptionValue::Float(match value.parse() {
+                            Ok(x) => x,
+                            _ => return Task::none(),
+                        })
+                    }
+                    ochat_types::options::GenOptionValue::Int(_) => {
+                        ochat_types::options::GenOptionValue::Int(match value.parse() {
+                            Ok(x) => x,
+                            _ => return Task::none(),
+                        })
+                    }
+                    ochat_types::options::GenOptionValue::Text(_) => {
+                        ochat_types::options::GenOptionValue::Text(value)
+                    }
+                };
+
+                field.value = value;
+                Task::none()
             }
             Self::SetOptions(x) => {
                 app.get_options_view(&id).unwrap().options = x;
@@ -148,6 +253,7 @@ impl OptionsViewMessage {
                     .clone();
 
                 let view = app.get_options_view(&id).unwrap();
+
                 if view.editing.contains_key(&x) {
                     view.editing.remove(&x);
                 } else {
@@ -211,12 +317,102 @@ impl OptionsViewMessage {
 }
 
 impl OptionsView {
+    pub fn view_gen_option<'a>(
+        id: u32,
+        option_id: String,
+        index: usize,
+        value: &'a GenOption,
+        editing: bool,
+    ) -> Element<'a, Message> {
+        if editing {
+            let name = text(value.key.name())
+                .size(SUB_HEADING_SIZE)
+                .style(style::text::primary);
+
+            let desc = text(value.key.desc())
+                .size(BODY_SIZE)
+                .style(style::text::translucent::text);
+
+            let reset = style::svg_button::danger("restart.svg", SUB_HEADING_SIZE).on_press(
+                Message::HomePaneView(HomePaneViewMessage::Options(
+                    id,
+                    OptionsViewMessage::ResetField(option_id.clone(), index),
+                )),
+            );
+
+            let id2 = option_id.clone();
+
+            let activated = toggler(value.activated)
+                .size(SUB_HEADING_SIZE)
+                .on_toggle(move |x| {
+                    Message::HomePaneView(HomePaneViewMessage::Options(
+                        id,
+                        OptionsViewMessage::UpdateFieldActivated(id2.clone(), index, x),
+                    ))
+                });
+
+            let val = text_input("Enter a value...", &value.value.to_string())
+                .size(SUB_HEADING_SIZE)
+                .style(style::text_input::input)
+                .on_input(move |x| {
+                    Message::HomePaneView(HomePaneViewMessage::Options(
+                        id,
+                        OptionsViewMessage::UpdateField(option_id.clone(), index, x),
+                    ))
+                });
+
+            container(
+                column![
+                    row![
+                        name.width(Length::Fixed(175.0)),
+                        horizontal_space(),
+                        reset,
+                        activated,
+                        val
+                    ]
+                    .width(Length::Fill)
+                    .spacing(20)
+                    .align_y(Vertical::Center),
+                    desc
+                ]
+                .spacing(10),
+            )
+            .padding(20)
+            .style(style::container::chat_back)
+            .into()
+        } else {
+            let name = text(value.key.name())
+                .size(SUB_HEADING_SIZE)
+                .style(style::text::primary);
+
+            let desc = text(value.key.desc())
+                .size(BODY_SIZE)
+                .style(style::text::translucent::text);
+
+            let val = text(value.value.to_string())
+                .size(SUB_HEADING_SIZE)
+                .style(style::text::text);
+
+            container(
+                column![
+                    row![name, horizontal_space(), val].align_y(Vertical::Center),
+                    desc
+                ]
+                .spacing(10),
+            )
+            .padding(20)
+            .style(style::container::chat_back)
+            .into()
+        }
+    }
+
     pub fn view_option<'a>(
         id: u32,
         option: &'a OptionData,
         expanded: bool,
         edit_data: Option<&'a OptionData>,
     ) -> Element<'a, Message> {
+        let sub_heading = |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::primary);
         let edit = style::svg_button::primary(
             if edit_data.is_some() {
                 "close.svg"
@@ -247,13 +443,16 @@ impl OptionsView {
             .size(HEADER_SIZE)
             .style(style::text::primary);
 
-        let mut col = if let Some(edit_data) = edit_data {
-            let sub_heading =
-                |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::primary);
-
+        let col = if let Some(edit_data) = edit_data {
             let name = text_input("Enter a title...", &edit_data.option.name)
                 .size(HEADER_SIZE)
-                .style(style::text_input::input);
+                .style(style::text_input::input)
+                .on_input(move |x| {
+                    Message::HomePaneView(HomePaneViewMessage::Options(
+                        id,
+                        OptionsViewMessage::UpdateName(option.option.id.key().to_string(), x),
+                    ))
+                });
 
             let delete = style::svg_button::danger("delete.svg", HEADER_SIZE).on_press(
                 Message::HomePaneView(HomePaneViewMessage::Options(
@@ -269,28 +468,123 @@ impl OptionsView {
                 )),
             );
 
-            let mut col = column![
+            column![
                 row![delete, name, horizontal_space(), edit, save].align_y(Vertical::Center),
                 horizontal_rule(1).style(style::rule::translucent::primary),
+                sub_heading("Models"),
+                row![
+                    {
+                        let models = DATA.read().unwrap().models.clone();
+                        scrollable::Scrollable::new(
+                            row(option.models.iter().enumerate().map(|(i, x)| {
+                                pick_list(models.clone(), x.model.clone(), move |x| {
+                                    Message::HomePaneView(HomePaneViewMessage::Options(
+                                        id,
+                                        OptionsViewMessage::UpdateRelationshipModel(
+                                            option.option.id.key().to_string(),
+                                            i,
+                                            x,
+                                        ),
+                                    ))
+                                })
+                                .style(style::pick_list::main)
+                                .menu_style(style::menu::main)
+                                .into()
+                            }))
+                            .spacing(10),
+                        )
+                        .direction(scrollable::Direction::Horizontal(Scrollbar::new()))
+                        .width(Length::Fill)
+                    },
+                    horizontal_space(),
+                    style::svg_button::primary("add.svg", BODY_SIZE).on_press(
+                        Message::HomePaneView(HomePaneViewMessage::Options(
+                            id,
+                            OptionsViewMessage::AddRelationship(option.option.id.key().to_string()),
+                        )),
+                    )
+                ],
                 sub_heading("Options"),
+                column(edit_data.option.data.iter().enumerate().map(|(i, x)| {
+                    Self::view_gen_option(
+                        id.clone(),
+                        option.option.id.key().to_string(),
+                        i,
+                        x,
+                        true,
+                    )
+                }),)
+                .spacing(5)
             ]
-            .spacing(10);
-
-            col
+            .spacing(10)
         } else if expanded {
             let mut col = column![
-                row![name, horizontal_space(), expand].align_y(Vertical::Center),
-                horizontal_rule(1).style(style::rule::translucent::primary),
-            ]
-            .spacing(10);
-
-            col
-        } else {
-            column![
                 row![name, horizontal_space(), edit, expand].align_y(Vertical::Center),
                 horizontal_rule(1).style(style::rule::translucent::primary),
             ]
-            .spacing(10)
+            .spacing(10);
+
+            if !option.models.is_empty() {
+                col = col.push(sub_heading("Models"));
+                col = col.push(
+                    scrollable::Scrollable::new(
+                        row(option.models.iter().map(|x| {
+                            text(match x.model.clone() {
+                                Some(x) => x.model,
+                                _ => "New".to_string(),
+                            })
+                            .size(BODY_SIZE)
+                            .into()
+                        }))
+                        .spacing(10),
+                    )
+                    .direction(scrollable::Direction::Horizontal(Scrollbar::new()))
+                    .width(Length::Fill),
+                );
+            }
+
+            col = col.push(sub_heading("Options"));
+            col = col.push(
+                column(option.option.data.iter().enumerate().map(|(i, x)| {
+                    Self::view_gen_option(
+                        id.clone(),
+                        option.option.id.key().to_string(),
+                        i,
+                        x,
+                        false,
+                    )
+                }))
+                .spacing(5),
+            );
+
+            col
+        } else {
+            let mut col = column![
+                row![name, horizontal_space(), edit, expand].align_y(Vertical::Center),
+                horizontal_rule(1).style(style::rule::translucent::primary),
+            ]
+            .spacing(10);
+
+            if !option.models.is_empty() {
+                col = col.push(sub_heading("Models"));
+                col = col.push(
+                    scrollable::Scrollable::new(
+                        row(option.models.iter().map(|x| {
+                            text(match x.model.clone() {
+                                Some(x) => x.model,
+                                _ => "New".to_string(),
+                            })
+                            .size(BODY_SIZE)
+                            .into()
+                        }))
+                        .spacing(10),
+                    )
+                    .direction(scrollable::Direction::Horizontal(Scrollbar::new()))
+                    .width(Length::Fill),
+                );
+            }
+
+            col
         };
 
         container(col).into()

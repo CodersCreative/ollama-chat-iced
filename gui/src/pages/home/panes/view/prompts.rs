@@ -215,6 +215,7 @@ impl PromptsViewMessage {
                     .unwrap()
                     .clone();
                 let view = app.get_prompts_view(&id).unwrap();
+
                 if view.editing.contains_key(&x) {
                     view.editing.remove(&x);
                 } else {
@@ -494,7 +495,7 @@ impl PromptsView {
             col
         } else if expanded {
             let mut col = column![
-                row![title, horizontal_space(), expand].align_y(Vertical::Center),
+                row![title, horizontal_space(), edit, expand].align_y(Vertical::Center),
                 horizontal_rule(1).style(style::rule::translucent::primary),
                 command,
                 text(&prompt.content)

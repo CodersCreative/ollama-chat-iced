@@ -5,6 +5,8 @@ use ochat_types::{
     options::{GenOptions, relationships::GenModelRelationship},
     prompts::Prompt,
     providers::ollama::{OllamaModelsInfo, PullModelStreamResult},
+    settings::SettingsProvider,
+    surreal::RecordId,
 };
 
 use crate::{DATA, data::RequestType};
@@ -40,7 +42,39 @@ pub struct OptionsData(pub Vec<OptionData>);
 #[derive(Debug, Clone)]
 pub struct OptionData {
     pub option: GenOptions,
-    pub models: Vec<GenModelRelationship>,
+    pub models: Vec<OptionRelationshipData>,
+}
+
+#[derive(Debug, Clone)]
+pub struct OptionRelationshipData {
+    pub model: Option<SettingsProvider>,
+    pub option: String,
+    pub id: Option<RecordId>,
+}
+
+impl From<GenModelRelationship> for OptionRelationshipData {
+    fn from(value: GenModelRelationship) -> Self {
+        Self {
+            model: Some(SettingsProvider {
+                provider: value.provider,
+                model: value.model,
+            }),
+            option: value.option,
+            id: Some(value.id),
+        }
+    }
+}
+
+impl Into<GenModelRelationship> for OptionRelationshipData {
+    fn into(self) -> GenModelRelationship {
+        let model = self.model.unwrap();
+        GenModelRelationship {
+            provider: model.provider,
+            model: model.model,
+            option: self.option,
+            id: self.id.unwrap(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -105,7 +139,10 @@ impl OptionsData {
                 .await
                 .unwrap_or_default();
 
-            value.push(OptionData { option, models });
+            value.push(OptionData {
+                option,
+                models: models.into_iter().map(|x| x.into()).collect(),
+            });
         }
 
         Self(value)
