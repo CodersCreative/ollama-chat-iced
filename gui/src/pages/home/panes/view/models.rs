@@ -3,6 +3,7 @@ use crate::{
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     pages::home::panes::{data::ModelsData, view::HomePaneViewMessage},
     style,
+    subscriptions::SubMessage,
 };
 use iced::{
     Element, Length, Task,
@@ -13,7 +14,10 @@ use iced::{
         text, text_input,
     },
 };
-use ochat_types::providers::{Provider, ProviderType, ollama::OllamaModelsInfo};
+use ochat_types::{
+    providers::{Provider, ProviderType, ollama::OllamaModelsInfo},
+    settings::SettingsProvider,
+};
 
 #[derive(Debug, Clone)]
 pub struct ModelsView {
@@ -46,7 +50,6 @@ pub enum ModelsViewMessage {
     SetModels(ModelsData),
     SetProvider(Provider),
     Expand(String),
-    Pull(String, String),
 }
 
 impl ModelsViewMessage {
@@ -89,7 +92,6 @@ impl ModelsViewMessage {
 
                 Task::none()
             }
-            _ => Task::none(),
         }
     }
 }
@@ -98,6 +100,7 @@ impl ModelsView {
     pub fn view_model<'a>(
         id: u32,
         model: &'a OllamaModelsInfo,
+        provider: String,
         expanded: bool,
     ) -> Element<'a, Message> {
         let sub_heading = |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::text);
@@ -185,10 +188,10 @@ impl ModelsView {
                         ]
                         .spacing(10),
                     )
-                    .on_press(Message::HomePaneView(HomePaneViewMessage::Models(
-                        id,
-                        ModelsViewMessage::Pull(model.name.clone(), first[0].clone()),
-                    )))
+                    .on_press(Message::Subscription(SubMessage::Pull(SettingsProvider {
+                        provider: provider.clone(),
+                        model: format!("{}:{}", &model.name, &first[0]),
+                    })))
                     .style(style::button::start)
                     .width(Length::Fill);
                     let second = model.tags.get(i + 1);
@@ -209,10 +212,10 @@ impl ModelsView {
                         )
                         .width(Length::Fill)
                         .style(style::button::start)
-                        .on_press(Message::HomePaneView(HomePaneViewMessage::Models(
-                            id,
-                            ModelsViewMessage::Pull(model.name.clone(), second[0].clone()),
-                        )))
+                        .on_press(Message::Subscription(SubMessage::Pull(SettingsProvider {
+                            provider: provider.clone(),
+                            model: format!("{}:{}", &model.name, &second[0]),
+                        })))
                         .into(),
                         None => horizontal_space().into(),
                     };
@@ -263,6 +266,12 @@ impl ModelsView {
             SUB_HEADING_SIZE,
         );
 
+        let p = self
+            .provider
+            .clone()
+            .map(|x| x.id.key().to_string())
+            .unwrap_or_default();
+
         let models = scrollable::Scrollable::new(
             column(
                 if self.search.is_empty() || self.models.0.is_empty() {
@@ -271,7 +280,9 @@ impl ModelsView {
                     &self.models.0
                 }
                 .iter()
-                .map(|x| Self::view_model(id.clone(), x, self.expanded.contains(&x.name))),
+                .map(|x| {
+                    Self::view_model(id.clone(), x, p.clone(), self.expanded.contains(&x.name))
+                }),
             )
             .spacing(10),
         )

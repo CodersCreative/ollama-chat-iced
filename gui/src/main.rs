@@ -1,6 +1,7 @@
 pub mod data;
 pub mod pages;
 pub mod style;
+pub mod subscriptions;
 pub mod utils;
 pub mod windows;
 
@@ -30,6 +31,7 @@ use crate::{
         },
         setup::SetupPage,
     },
+    subscriptions::{SubMessage, Subscriptions},
     windows::{Window, message::WindowMessage},
 };
 
@@ -56,6 +58,7 @@ pub struct Application {
     pub windows: BTreeMap<window::Id, Window>,
     pub cache: AppCache,
     pub view_data: ViewData,
+    pub subscriptions: Subscriptions,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -99,6 +102,7 @@ pub enum Message {
     Quit,
     Window(WindowMessage),
     HomePaneView(HomePaneViewMessage),
+    Subscription(SubMessage),
     SetCache(AppCache),
 }
 
@@ -111,6 +115,7 @@ impl Application {
                 windows: BTreeMap::new(),
                 cache: AppCache::default(),
                 view_data: ViewData::default(),
+                subscriptions: Subscriptions::default(),
             },
             open.map(|id| Message::Window(WindowMessage::WindowOpened(id)))
                 .chain(Task::batch([Self::update_data_cache()])),
@@ -149,6 +154,7 @@ impl Application {
         match message {
             Message::None => Task::none(),
             Message::Window(message) => message.handle(self),
+            Message::Subscription(message) => message.handle(self),
             Message::HomePaneView(message) => message.handle(self),
             Message::SetCache(cache) => {
                 self.cache = cache;
@@ -180,7 +186,10 @@ impl Application {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        window::close_events().map(|id| Message::Window(WindowMessage::WindowClosed(id)))
+        Subscription::batch([
+            window::close_events().map(|id| Message::Window(WindowMessage::WindowClosed(id))),
+            self.subscriptions.get(self),
+        ])
     }
 
     pub fn get_home_page(&mut self, id: &window::Id) -> Option<&mut HomePage> {

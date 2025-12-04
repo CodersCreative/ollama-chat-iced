@@ -8,7 +8,7 @@ use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
-static REQWEST_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
+pub static REQWEST_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
 
 #[derive(Clone, Debug, Default)]
 pub struct Data {
@@ -47,15 +47,28 @@ impl Data {
         )
         .await?;
 
+        let models = Self::get_models(
+            instance.clone(),
+            providers.iter().map(|x| x.id.key().to_string()).collect(),
+        )
+        .await?;
+
+        Ok(Data {
+            instance_url: Some(instance),
+            providers,
+            models,
+        })
+    }
+
+    pub async fn get_models(
+        url: String,
+        providers: Vec<String>,
+    ) -> Result<Vec<SettingsProvider>, Box<dyn Error>> {
         let mut models: Vec<SettingsProvider> = Vec::new();
 
         for provider in providers.iter() {
             let provider_models: Result<Vec<Value>, String> = request_ochat_server(
-                &format!(
-                    "{}/{}",
-                    instance,
-                    format!("provider/{}/model/all/", provider.id.key())
-                ),
+                &format!("{}/{}", url, format!("provider/{}/model/all/", &provider)),
                 &(),
                 RequestType::Get,
             )
@@ -65,7 +78,7 @@ impl Data {
                 for model in provider_models {
                     models.push(
                         SettingsProviderBuilder::default()
-                            .provider(provider.id.key().to_string())
+                            .provider(provider.to_string())
                             .model(model["id"].as_str().unwrap().to_string())
                             .build()?,
                     );
@@ -73,11 +86,7 @@ impl Data {
             }
         }
 
-        Ok(Data {
-            instance_url: Some(instance),
-            providers,
-            models,
-        })
+        Ok(models)
     }
 
     pub fn to_request(&self) -> Request {
