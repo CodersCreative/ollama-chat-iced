@@ -7,7 +7,7 @@ use crate::{
         home::{
             HomePage,
             message::HomePickingType,
-            panes::view::{models::ModelsView, prompts::PromptsView},
+            panes::view::{models::ModelsView, options::OptionsView, prompts::PromptsView},
         },
     },
     windows::message::WindowMessage,
@@ -46,6 +46,13 @@ impl HomePaneType {
                     .prompts
                     .insert(count, PromptsView::default());
                 HomePaneTypeWithId::Prompts(count)
+            }
+            Self::Options => {
+                app.view_data
+                    .home
+                    .options
+                    .insert(count, OptionsView::default());
+                HomePaneTypeWithId::Options(count)
             }
             _ => HomePaneTypeWithId::Chat(count),
         }

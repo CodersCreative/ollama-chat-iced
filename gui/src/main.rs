@@ -20,9 +20,10 @@ use crate::{
         home::{
             HomePage,
             panes::{
-                data::{HomePaneSharedData, ModelsData, PromptsData},
+                data::{HomePaneSharedData, ModelsData, OptionsData, PromptsData},
                 view::{
-                    HomePaneViewData, HomePaneViewMessage, models::ModelsView, prompts::PromptsView,
+                    HomePaneViewData, HomePaneViewMessage, models::ModelsView,
+                    options::OptionsView, prompts::PromptsView,
                 },
             },
             sidebar::PreviewMk,
@@ -138,6 +139,7 @@ impl Application {
 
             cache.home_shared.models = ModelsData::get_ollama(None).await;
             cache.home_shared.prompts = PromptsData::get_prompts(None).await;
+            cache.home_shared.options = OptionsData::get_gen_models(None).await;
 
             Message::SetCache(cache)
         })
@@ -203,5 +205,9 @@ impl Application {
 
     pub fn get_prompts_view(&mut self, id: &u32) -> Option<&mut PromptsView> {
         self.view_data.home.prompts.get_mut(id)
+    }
+
+    pub fn get_options_view(&mut self, id: &u32) -> Option<&mut OptionsView> {
+        self.view_data.home.options.get_mut(id)
     }
 }

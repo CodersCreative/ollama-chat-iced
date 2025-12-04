@@ -38,10 +38,12 @@ pub async fn update_gen_models(
     id: Path<String>,
     Json(options): Json<GenModelRelationshipData>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
-    let _ = CONN.query(&format!(
-        "DELETE {0} WHERE provider = '{1}' and model = '{2}';",
-        GEN_MODELS_TABLE, options.provider, options.model
-    ));
+    let _ = CONN
+        .query(&format!(
+            "DELETE {0} WHERE provider = '{1}' and model = '{2}';",
+            GEN_MODELS_TABLE, options.provider, options.model
+        ))
+        .await?;
     Ok(Json(
         CONN.update((GEN_MODELS_TABLE, &*id))
             .content(options)

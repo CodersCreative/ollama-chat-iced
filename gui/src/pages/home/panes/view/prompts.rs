@@ -1,18 +1,3 @@
-use std::collections::HashMap;
-
-use iced::{
-    Element, Length, Task,
-    advanced::graphics::text::cosmic_text::ttf_parser::vorg::VerticalOriginMetrics,
-    alignment::Vertical,
-    application::Title,
-    widget::{
-        column, container, horizontal_rule, horizontal_space, row,
-        scrollable::{self, Scrollbar},
-        svg, text, text_editor, text_input,
-    },
-};
-use ochat_types::prompts::{Prompt, PromptData, PromptDataBuilder};
-
 use crate::{
     Application, DATA, InputMessage, Message,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
@@ -20,6 +5,17 @@ use crate::{
     style,
     utils::{get_path_assets, load_from_file},
 };
+use iced::{
+    Element, Length, Task,
+    alignment::Vertical,
+    widget::{
+        column, container, horizontal_rule, horizontal_space, row,
+        scrollable::{self, Scrollbar},
+        svg, text, text_editor, text_input,
+    },
+};
+use ochat_types::prompts::{Prompt, PromptData, PromptDataBuilder};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct PromptsView {
@@ -79,7 +75,6 @@ pub enum PromptsViewMessage {
     Edit(String),
     Delete(String),
     Add,
-    FinishEditing(usize),
     Upload,
     Uploaded(Result<Vec<String>, String>),
     AddPrompt(Prompt),
@@ -99,7 +94,7 @@ impl PromptsViewMessage {
                 Task::none()
             }
             Self::Search(_) => {
-                let search = app.get_models_view(&id).unwrap().search.clone();
+                let search = app.get_prompts_view(&id).unwrap().search.clone();
                 Task::future(async move {
                     Message::HomePaneView(HomePaneViewMessage::Prompts(
                         id,
@@ -322,7 +317,6 @@ impl PromptsViewMessage {
                     Message::None
                 })
             }
-            _ => Task::none(),
         }
     }
     async fn get_prompts_paths() -> Result<Vec<String>, String> {
@@ -439,7 +433,7 @@ impl PromptsView {
             .size(BODY_SIZE)
             .style(style::text::text);
 
-        let mut col = if let Some(edit_data) = edit_data {
+        let col = if let Some(edit_data) = edit_data {
             let sub_heading =
                 |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::primary);
 
@@ -487,7 +481,7 @@ impl PromptsView {
                 )),
             );
 
-            let mut col = column![
+            let col = column![
                 row![delete, title, horizontal_space(), edit, save].align_y(Vertical::Center),
                 horizontal_rule(1).style(style::rule::translucent::primary),
                 sub_heading("command"),

@@ -83,9 +83,9 @@ impl OptionsData {
         let options: Vec<GenOptions> = req
             .make_request(
                 &if let Some(search) = search {
-                    format!("options/search/{}", search)
+                    format!("option/search/{}", search)
                 } else {
-                    "options/all/".to_string()
+                    "option/all/".to_string()
                 },
                 &(),
                 RequestType::Get,
@@ -98,7 +98,7 @@ impl OptionsData {
         for option in options {
             let models: Vec<GenModelRelationship> = req
                 .make_request(
-                    &format!("options/{}/all/", option.id.key().to_string()),
+                    &format!("option/{}/all/", option.id.key().to_string()),
                     &(),
                     RequestType::Get,
                 )

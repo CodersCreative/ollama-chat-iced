@@ -1,3 +1,9 @@
+use crate::{
+    Application, DATA, InputMessage, Message,
+    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
+    pages::home::panes::{data::ModelsData, view::HomePaneViewMessage},
+    style,
+};
 use iced::{
     Element, Length, Task,
     alignment::{Horizontal, Vertical},
@@ -8,13 +14,6 @@ use iced::{
     },
 };
 use ochat_types::providers::{Provider, ProviderType, ollama::OllamaModelsInfo};
-
-use crate::{
-    Application, DATA, InputMessage, Message,
-    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
-    pages::home::panes::{data::ModelsData, view::HomePaneViewMessage},
-    style,
-};
 
 #[derive(Debug, Clone)]
 pub struct ModelsView {

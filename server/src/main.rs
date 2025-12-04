@@ -139,35 +139,35 @@ async fn main() {
                 .put(providers::update_provider)
                 .delete(providers::delete_provider),
         )
-        .route("/options/", post(options::add_gen_options))
-        .route("/options/all/", get(options::list_all_gen_options))
-        .route("/options/search/{search}", get(options::search_gen_options))
+        .route("/option/", post(options::add_gen_options))
+        .route("/option/all/", get(options::list_all_gen_options))
+        .route("/option/search/{search}", get(options::search_gen_options))
         .route(
-            "/options/{id}",
+            "/option/{id}",
             get(options::get_gen_options)
                 .put(options::update_gen_options)
                 .delete(options::delete_gen_options),
         )
         .route(
-            "/options/relationship/",
+            "/option/relationship/",
             post(options::relationships::add_gen_models),
         )
         .route(
-            "/options/relationship/all/",
+            "/option/relationship/all/",
             get(options::relationships::list_all_gen_models),
         )
         .route(
-            "/options/relationship/{id}",
+            "/option/relationship/{id}",
             get(options::relationships::get_gen_models)
                 .put(options::relationships::update_gen_models)
                 .delete(options::relationships::delete_gen_models),
         )
         .route(
-            "/options/{id}/model/all/",
+            "/option/{id}/model/all/",
             get(options::relationships::get_models_from_options),
         )
         .route(
-            "/options/{id}/all/",
+            "/option/{id}/all/",
             get(options::relationships::get_gen_models_from_options),
         )
         .route("/file/", post(files::create_file))
