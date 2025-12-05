@@ -1,12 +1,12 @@
 use crate::{
-    Application, Message,
+    Application, DATA, Message,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     style,
     subscriptions::{SubMessage, pull::Pull},
 };
 use iced::{
     Element, Length, Task,
-    alignment::{Horizontal, Vertical},
+    alignment::Vertical,
     widget::{
         column, container, horizontal_rule, horizontal_space, progress_bar, row,
         scrollable::{self, Scrollbar},
@@ -22,16 +22,15 @@ pub struct PullsView {}
 pub enum PullsViewMessage {}
 
 impl PullsViewMessage {
-    pub fn handle(self, app: &mut Application, id: u32) -> Task<Message> {
-        match self {
-            _ => Task::none(),
-        }
+    pub fn handle(self, _app: &mut Application, _id: u32) -> Task<Message> {
+        match self {}
     }
 }
 
 impl PullsView {
     pub fn view_pull<'a>(
         id: u32,
+        provider_name: String,
         model: &'a OllamaModelsInfo,
         pull: &'a Pull,
     ) -> Element<'a, Message> {
@@ -40,7 +39,7 @@ impl PullsView {
             .size(BODY_SIZE + 2)
             .style(style::text::text);
 
-        let provider = text(&pull.provider)
+        let provider = text(provider_name)
             .size(BODY_SIZE + 2)
             .style(style::text::translucent::text);
 
@@ -105,7 +104,6 @@ impl PullsView {
 
                 col.into()
             }
-            _ => todo!(),
         };
 
         container(
@@ -135,7 +133,7 @@ impl PullsView {
         .into()
     }
 
-    pub fn view<'a>(&'a self, app: &'a Application, id: u32) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, app: &'a Application, _id: u32) -> Element<'a, Message> {
         let pulls: Element<'a, Message> = if app.subscriptions.pulls.is_empty() {
             text("No models being pulled")
                 .style(style::text::text)
@@ -146,6 +144,14 @@ impl PullsView {
                 column(app.subscriptions.pulls.iter().map(|(k, x)| {
                     Self::view_pull(
                         k.clone(),
+                        DATA.read()
+                            .unwrap()
+                            .providers
+                            .iter()
+                            .find(|y| y.id.key().to_string() == x.provider)
+                            .unwrap()
+                            .name
+                            .clone(),
                         app.cache
                             .home_shared
                             .models

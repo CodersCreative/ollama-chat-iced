@@ -59,7 +59,7 @@ pub mod container {
         }
     }
 
-    pub fn window_back(theme: &Theme) -> Style {
+    pub fn window_back(_theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
             ..Default::default()

@@ -1,6 +1,6 @@
 use crate::{
     Application, DATA, InputMessage, Message,
-    font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE},
+    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     pages::home::panes::{
         data::{OptionData, OptionRelationshipData, OptionsData},
         view::HomePaneViewMessage,
@@ -13,7 +13,7 @@ use iced::{
     widget::{
         column, container, horizontal_rule, horizontal_space, pick_list, row,
         scrollable::{self, Scrollbar},
-        text, text_input, toggler, vertical_space,
+        text, text_input, toggler,
     },
 };
 use ochat_types::{
@@ -311,7 +311,6 @@ impl OptionsViewMessage {
                     Message::None
                 })
             }
-            _ => Task::none(),
         }
     }
 }

@@ -227,7 +227,7 @@ impl HomeSideBar {
         ]
     }
 
-    fn pane_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
+    fn pane_buttons<'a>(&'a self, _app: &'a Application, id: window::Id) -> Element<'a, Message> {
         let size = 24;
 
         let collapse = style::svg_button::text(
