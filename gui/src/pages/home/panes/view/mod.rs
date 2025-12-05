@@ -20,6 +20,7 @@ use crate::{
                     models::{ModelsView, ModelsViewMessage},
                     options::{OptionsView, OptionsViewMessage},
                     prompts::{PromptsView, PromptsViewMessage},
+                    pulls::{PullsView, PullsViewMessage},
                 },
             },
         },
@@ -28,10 +29,10 @@ use crate::{
     windows::message::WindowMessage,
 };
 
-pub mod downloads;
 pub mod models;
 pub mod options;
 pub mod prompts;
+pub mod pulls;
 pub mod settings;
 
 #[derive(Debug, Clone, Default)]
@@ -39,6 +40,7 @@ pub struct HomePaneViewData {
     pub models: HashMap<u32, ModelsView>,
     pub prompts: HashMap<u32, PromptsView>,
     pub options: HashMap<u32, OptionsView>,
+    pub pulls: HashMap<u32, PullsView>,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +48,7 @@ pub enum HomePaneViewMessage {
     Models(u32, ModelsViewMessage),
     Prompts(u32, PromptsViewMessage),
     Options(u32, OptionsViewMessage),
+    Pulls(u32, PullsViewMessage),
 }
 
 impl HomePaneViewMessage {
@@ -54,6 +57,7 @@ impl HomePaneViewMessage {
             Self::Models(id, x) => x.handle(app, id),
             Self::Prompts(id, x) => x.handle(app, id),
             Self::Options(id, x) => x.handle(app, id),
+            Self::Pulls(id, x) => x.handle(app, id),
         }
     }
 }
@@ -212,7 +216,7 @@ impl Display for HomePaneTypeWithId {
             "{}",
             match self {
                 Self::Chat(_) => "Chat",
-                Self::Downloads(_) => "Downloads",
+                Self::Pulls(_) => "Pulls",
                 Self::Models(_) => "Ollama Models",
                 Self::Prompts(_) => "Prompts",
                 Self::Options(_) => "Generation Options",
@@ -229,6 +233,7 @@ impl HomePaneTypeWithId {
             Self::Models(x) => app.view_data.home.models.get(x).unwrap().view(app, *x),
             Self::Prompts(x) => app.view_data.home.prompts.get(x).unwrap().view(app, *x),
             Self::Options(x) => app.view_data.home.options.get(x).unwrap().view(app, *x),
+            Self::Pulls(x) => app.view_data.home.pulls.get(x).unwrap().view(app, *x),
             _ => text("Hello, World!!!").into(),
         }
     }

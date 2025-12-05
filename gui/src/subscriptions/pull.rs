@@ -50,7 +50,7 @@ pub fn pull(
 ) -> iced::Subscription<(u32, PullModelStreamResult)> {
     Subscription::run_with_id(
         id,
-        pull_stream(model, provider).map(move |progress| (id, progress)),
+        pull_stream(provider, model).map(move |progress| (id, progress)),
     )
 }
 

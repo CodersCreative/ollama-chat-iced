@@ -195,11 +195,11 @@ impl HomeSideBar {
                 ))),
             )));
 
-        let new_downloads_pane = style::svg_button::text("downloads.svg", size).on_press(
+        let new_pulls_pane = style::svg_button::text("downloads.svg", size).on_press(
             Message::Window(WindowMessage::Page(
                 id,
                 PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                    HomePickingType::OpenPane(HomePaneType::Downloads),
+                    HomePickingType::OpenPane(HomePaneType::Pulls),
                 ))),
             )),
         );
@@ -221,7 +221,7 @@ impl HomeSideBar {
             new_prompts_pane,
             new_tools_pane,
             new_options_pane,
-            new_downloads_pane,
+            new_pulls_pane,
             new_settings_pane,
             quit,
         ]

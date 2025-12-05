@@ -7,7 +7,9 @@ use crate::{
         home::{
             HomePage,
             message::HomePickingType,
-            panes::view::{models::ModelsView, options::OptionsView, prompts::PromptsView},
+            panes::view::{
+                models::ModelsView, options::OptionsView, prompts::PromptsView, pulls::PullsView,
+            },
         },
     },
     windows::message::WindowMessage,
@@ -19,7 +21,7 @@ pub mod view;
 #[derive(Debug, Clone)]
 pub enum HomePaneType {
     Chat,
-    Downloads,
+    Pulls,
     Models,
     Prompts,
     Options,
@@ -54,6 +56,10 @@ impl HomePaneType {
                     .insert(count, OptionsView::default());
                 HomePaneTypeWithId::Options(count)
             }
+            Self::Pulls => {
+                app.view_data.home.pulls.insert(count, PullsView::default());
+                HomePaneTypeWithId::Pulls(count)
+            }
             _ => HomePaneTypeWithId::Chat(count),
         }
     }
@@ -62,7 +68,7 @@ impl HomePaneType {
 #[derive(Debug, Clone)]
 pub enum HomePaneTypeWithId {
     Chat(u32),
-    Downloads(u32),
+    Pulls(u32),
     Models(u32),
     Prompts(u32),
     Options(u32),
@@ -74,7 +80,7 @@ impl Into<HomePaneType> for &HomePaneTypeWithId {
     fn into(self) -> HomePaneType {
         match self {
             HomePaneTypeWithId::Chat(_) => HomePaneType::Chat,
-            HomePaneTypeWithId::Downloads(_) => HomePaneType::Downloads,
+            HomePaneTypeWithId::Pulls(_) => HomePaneType::Pulls,
             HomePaneTypeWithId::Models(_) => HomePaneType::Models,
             HomePaneTypeWithId::Prompts(_) => HomePaneType::Prompts,
             HomePaneTypeWithId::Options(_) => HomePaneType::Options,

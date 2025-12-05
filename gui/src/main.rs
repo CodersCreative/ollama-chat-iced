@@ -24,7 +24,7 @@ use crate::{
                 data::{HomePaneSharedData, ModelsData, OptionsData, PromptsData},
                 view::{
                     HomePaneViewData, HomePaneViewMessage, models::ModelsView,
-                    options::OptionsView, prompts::PromptsView,
+                    options::OptionsView, prompts::PromptsView, pulls::PullsView,
                 },
             },
             sidebar::PreviewMk,
@@ -210,6 +210,10 @@ impl Application {
 
     pub fn get_models_view(&mut self, id: &u32) -> Option<&mut ModelsView> {
         self.view_data.home.models.get_mut(id)
+    }
+
+    pub fn get_pulls_view(&mut self, id: &u32) -> Option<&mut PullsView> {
+        self.view_data.home.pulls.get_mut(id)
     }
 
     pub fn get_prompts_view(&mut self, id: &u32) -> Option<&mut PromptsView> {
