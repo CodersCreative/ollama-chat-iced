@@ -11,9 +11,9 @@ use iced::{
     Element, Length, Task,
     alignment::Vertical,
     widget::{
-        column, container, horizontal_rule, horizontal_space, pick_list, row,
+        column, container, pick_list, row, rule,
         scrollable::{self, Scrollbar},
-        text, text_input, toggler,
+        space, text, text_input, toggler,
     },
 };
 use ochat_types::{
@@ -364,7 +364,7 @@ impl OptionsView {
                 column![
                     row![
                         name.width(Length::Fixed(175.0)),
-                        horizontal_space(),
+                        space::horizontal(),
                         reset,
                         activated,
                         val
@@ -394,7 +394,7 @@ impl OptionsView {
 
             container(
                 column![
-                    row![name, horizontal_space(), val].align_y(Vertical::Center),
+                    row![name, space::horizontal(), val].align_y(Vertical::Center),
                     desc
                 ]
                 .spacing(10),
@@ -468,8 +468,8 @@ impl OptionsView {
             );
 
             column![
-                row![delete, name, horizontal_space(), edit, save].align_y(Vertical::Center),
-                horizontal_rule(1).style(style::rule::translucent::primary),
+                row![delete, name, space::horizontal(), edit, save].align_y(Vertical::Center),
+                rule::horizontal(1).style(style::rule::translucent::primary),
                 sub_heading("Models"),
                 row![
                     {
@@ -495,7 +495,7 @@ impl OptionsView {
                         .direction(scrollable::Direction::Horizontal(Scrollbar::new()))
                         .width(Length::Fill)
                     },
-                    horizontal_space(),
+                    space::horizontal(),
                     style::svg_button::primary("add.svg", BODY_SIZE).on_press(
                         Message::HomePaneView(HomePaneViewMessage::Options(
                             id,
@@ -518,8 +518,8 @@ impl OptionsView {
             .spacing(10)
         } else if expanded {
             let mut col = column![
-                row![name, horizontal_space(), edit, expand].align_y(Vertical::Center),
-                horizontal_rule(1).style(style::rule::translucent::primary),
+                row![name, space::horizontal(), edit, expand].align_y(Vertical::Center),
+                rule::horizontal(1).style(style::rule::translucent::primary),
             ]
             .spacing(10);
 
@@ -559,8 +559,8 @@ impl OptionsView {
             col
         } else {
             let mut col = column![
-                row![name, horizontal_space(), edit, expand].align_y(Vertical::Center),
-                horizontal_rule(1).style(style::rule::translucent::primary),
+                row![name, space::horizontal(), edit, expand].align_y(Vertical::Center),
+                rule::horizontal(1).style(style::rule::translucent::primary),
             ]
             .spacing(10);
 

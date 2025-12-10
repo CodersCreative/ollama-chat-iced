@@ -5,7 +5,11 @@ pub mod subscriptions;
 pub mod utils;
 pub mod windows;
 
-use iced::{Element, Font, Subscription, Task, Theme, exit, widget::text, window};
+use iced::{
+    Element, Font, Subscription, Task, Theme, clipboard, exit,
+    widget::{markdown, text},
+    window::{self},
+};
 use ochat_types::{
     chats::previews::Preview,
     settings::{Settings, SettingsData},
@@ -16,6 +20,7 @@ use std::{
 };
 
 use crate::{
+    font::get_iced_font,
     pages::{
         Pages,
         home::{
@@ -36,12 +41,21 @@ use crate::{
 };
 
 pub mod font {
-    pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
+    use iced::Font;
 
-    pub const HEADER_SIZE: u16 = 24;
-    pub const SUB_HEADING_SIZE: u16 = 16;
-    pub const BODY_SIZE: u16 = 12;
-    pub const SMALL_SIZE: u16 = 8;
+    pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
+    pub fn get_iced_font() -> Font {
+        Font {
+            family: iced::font::Family::Name("Roboto"),
+            style: iced::font::Style::Normal,
+            stretch: iced::font::Stretch::Normal,
+            weight: iced::font::Weight::Normal,
+        }
+    }
+    pub const HEADER_SIZE: u32 = 24;
+    pub const SUB_HEADING_SIZE: u32 = 16;
+    pub const BODY_SIZE: u32 = 12;
+    pub const SMALL_SIZE: u32 = 8;
 }
 
 static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| {
@@ -82,28 +96,25 @@ pub enum InputMessage {
 }
 
 fn main() -> iced::Result {
-    let font = Font {
-        family: iced::font::Family::Name("Roboto"),
-        style: iced::font::Style::Normal,
-        stretch: iced::font::Stretch::Normal,
-        weight: iced::font::Weight::Normal,
-    };
-    iced::daemon(Application::title, Application::update, Application::view)
+    iced::daemon(Application::new, Application::update, Application::view)
         .subscription(Application::subscription)
         .font(font::FONT)
-        .default_font(font)
-        .theme(|x, _| Application::theme(x))
-        .run_with(Application::new)
+        .title(Application::title)
+        .default_font(get_iced_font())
+        .theme(Application::window_theme)
+        .run()
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     None,
     Quit,
+    UriClicked(markdown::Uri),
     Window(WindowMessage),
     HomePaneView(HomePaneViewMessage),
     Subscription(SubMessage),
     SetCache(AppCache),
+    SaveToClipboard(String),
 }
 
 impl Application {
@@ -160,6 +171,11 @@ impl Application {
                 self.cache = cache;
                 Task::none()
             }
+            Message::UriClicked(x) => {
+                open::that_in_background(x.to_string());
+                Task::none()
+            }
+            Message::SaveToClipboard(x) => clipboard::write::<Message>(x.clone()),
             Message::Quit => exit(),
         }
     }
@@ -177,6 +193,15 @@ impl Application {
     }
 
     pub fn theme(&self) -> Theme {
+        Theme::ALL[if let Some(theme) = &self.cache.settings.theme {
+            theme.clone()
+        } else {
+            11
+        }]
+        .clone()
+    }
+
+    pub fn window_theme(&self, _window_id: window::Id) -> Theme {
         Theme::ALL[if let Some(theme) = &self.cache.settings.theme {
             theme.clone()
         } else {

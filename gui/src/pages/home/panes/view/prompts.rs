@@ -9,9 +9,9 @@ use iced::{
     Element, Length, Task,
     alignment::Vertical,
     widget::{
-        column, container, horizontal_rule, horizontal_space, row,
+        column, container, row, rule,
         scrollable::{self, Scrollbar},
-        svg, text, text_editor, text_input,
+        space, svg, text, text_editor, text_input,
     },
 };
 use ochat_types::prompts::{Prompt, PromptData, PromptDataBuilder};
@@ -483,8 +483,8 @@ impl PromptsView {
             );
 
             let col = column![
-                row![delete, title, horizontal_space(), edit, save].align_y(Vertical::Center),
-                horizontal_rule(1).style(style::rule::translucent::primary),
+                row![delete, title, space::horizontal(), edit, save].align_y(Vertical::Center),
+                rule::horizontal(1).style(style::rule::translucent::primary),
                 sub_heading("command"),
                 command,
                 sub_heading("content"),
@@ -495,8 +495,8 @@ impl PromptsView {
             col
         } else if expanded {
             let mut col = column![
-                row![title, horizontal_space(), edit, expand].align_y(Vertical::Center),
-                horizontal_rule(1).style(style::rule::translucent::primary),
+                row![title, space::horizontal(), edit, expand].align_y(Vertical::Center),
+                rule::horizontal(1).style(style::rule::translucent::primary),
                 command,
                 text(&prompt.content)
                     .size(BODY_SIZE)
@@ -511,8 +511,8 @@ impl PromptsView {
             col
         } else {
             column![
-                row![title, horizontal_space(), edit, expand].align_y(Vertical::Center),
-                horizontal_rule(1).style(style::rule::translucent::primary),
+                row![title, space::horizontal(), edit, expand].align_y(Vertical::Center),
+                rule::horizontal(1).style(style::rule::translucent::primary),
                 command
             ]
             .spacing(10)

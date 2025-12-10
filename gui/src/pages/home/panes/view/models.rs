@@ -9,9 +9,9 @@ use iced::{
     Element, Length, Task,
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, container, horizontal_rule, horizontal_space, pick_list, row,
+        button, column, container, pick_list, row, rule,
         scrollable::{self, Scrollbar},
-        text, text_input,
+        space, text, text_input,
     },
 };
 use ochat_types::{
@@ -126,8 +126,8 @@ impl ModelsView {
             .style(style::text::translucent::text);
 
         let mut col = column![
-            row![name, horizontal_space(), expand],
-            horizontal_rule(1).style(style::rule::translucent::primary),
+            row![name, space::horizontal(), expand],
+            rule::horizontal(1).style(style::rule::translucent::primary),
             author,
             desc
         ]
@@ -217,7 +217,7 @@ impl ModelsView {
                             model: format!("{}:{}", &model.name, &second[0]),
                         })))
                         .into(),
-                        None => horizontal_space().into(),
+                        None => space::horizontal().into(),
                     };
 
                     inner_col = inner_col.push(row![first, second].spacing(10));

@@ -229,12 +229,10 @@ pub mod text_editor {
     pub fn input(theme: &Theme, _status: Status) -> Style {
         Style {
             border: iced::Border::default().rounded(0),
-            //background: iced::Background::Color(theme.palette().primary.clone()),
             background: iced::Background::Color(iced::Color::TRANSPARENT),
             placeholder: change_alpha(theme.palette().text.clone(), 0.4),
             value: theme.palette().text.clone(),
             selection: theme.palette().primary.clone(),
-            icon: theme.palette().text.clone(),
         }
     }
 }
@@ -267,7 +265,7 @@ pub mod svg_input {
     use iced::{
         Element, Length, Renderer, Theme,
         alignment::Vertical,
-        widget::{column, container, horizontal_rule, row, svg, text_input},
+        widget::{column, container, row, rule::horizontal, svg, text_input},
     };
 
     macro_rules! svg_input {
@@ -275,7 +273,7 @@ pub mod svg_input {
             pub fn $iden<'a>(
                 svg_path: Option<String>,
                 input: text_input::TextInput<'a, Message, Theme, Renderer>,
-                size: u16,
+                size: u32,
             ) -> Element<'a, Message> {
                 container(column![
                     if let Some(path) = svg_path {
@@ -289,7 +287,7 @@ pub mod svg_input {
                     } else {
                         container(input.style(super::text_input::input).size(size))
                     },
-                    horizontal_rule(1).style(super::rule::translucent::$iden)
+                    horizontal(1).style(super::rule::translucent::$iden)
                 ])
                 .into()
             }
@@ -310,7 +308,7 @@ pub mod rule {
     pub fn side_bar_darker(theme: &Theme) -> Style {
         Style {
             color: darken_colour(theme.palette().background.clone(), 0.05),
-            width: 2,
+            snap: true,
             radius: Radius::new(5),
             fill_mode: iced::widget::rule::FillMode::Full,
         }
@@ -321,7 +319,7 @@ pub mod rule {
             pub fn $iden(theme: &Theme) -> Style {
                 Style {
                     color: theme.palette().$iden.clone(),
-                    width: 1,
+                    snap: true,
                     radius: Radius::new(5),
                     fill_mode: iced::widget::rule::FillMode::Full,
                 }
@@ -343,7 +341,7 @@ pub mod rule {
                 pub fn $iden(theme: &Theme) -> Style {
                     Style {
                         color: change_alpha(theme.palette().$iden.clone(), 0.4),
-                        width: 1,
+                        snap: true,
                         radius: Radius::new(5),
                         fill_mode: iced::widget::rule::FillMode::Full,
                     }
@@ -370,7 +368,7 @@ pub mod svg_button {
         ($iden:ident) => {
             pub fn $iden<'a>(
                 path: &'a str,
-                size: u16,
+                size: u32,
             ) -> button::Button<'a, Message, Theme, Renderer> {
                 button::Button::new(
                     svg(svg::Handle::from_path(get_path_assets(path.to_string())))
@@ -720,9 +718,20 @@ pub mod button {
 }
 
 pub mod markdown {
-    use iced::{Padding, Theme, advanced::text::Highlight, widget::markdown::Style};
+    use iced::{
+        Padding, Theme,
+        advanced::text::Highlight,
+        alignment::Horizontal,
+        widget::{
+            markdown::{self, Style},
+            row,
+        },
+    };
 
-    use crate::utils::darken_colour;
+    use crate::{
+        font::{FONT, get_iced_font},
+        utils::darken_colour,
+    };
 
     pub fn main(theme: &Theme) -> Style {
         Style {
@@ -733,6 +742,50 @@ pub mod markdown {
             inline_code_padding: Padding::new(10.0),
             inline_code_color: darken_colour(theme.palette().background.clone(), 0.01),
             link_color: theme.palette().primary.clone(),
+            font: get_iced_font(),
+            inline_code_font: get_iced_font(),
+            code_block_font: get_iced_font(),
+        }
+    }
+
+    use crate::Message;
+    use iced::Element;
+    use iced::widget::{button, container, hover, space::horizontal, text};
+
+    pub struct CustomViewer;
+
+    impl<'a> markdown::Viewer<'a, Message> for CustomViewer {
+        fn on_link_click(url: markdown::Uri) -> Message {
+            Message::UriClicked(url)
+        }
+
+        fn code_block(
+            &self,
+            settings: markdown::Settings,
+            language: Option<&'a str>,
+            code: &'a str,
+            lines: &'a [markdown::Text],
+        ) -> Element<'a, Message> {
+            let code_block = markdown::code_block(settings, lines, Message::UriClicked);
+
+            let mut header = match language {
+                Some(x) => row![text("Copy").size(12), horizontal()],
+                _ => row![horizontal()],
+            };
+
+            header = header.push(
+                button(text("Copy").size(12))
+                    .padding(2)
+                    .on_press_with(|| Message::SaveToClipboard(code.to_owned()))
+                    .style(button::text),
+            );
+
+            hover(
+                code_block,
+                container(header)
+                    .style(container::dark)
+                    .padding(settings.spacing / 2),
+            )
         }
     }
 }
@@ -765,7 +818,7 @@ pub mod pick_list {
                     .rounded(5)
                     .color(theme.palette().primary.clone()),
             },
-            Status::Opened => Style {
+            Status::Opened { is_hovered: _ } => Style {
                 text_color: theme.palette().text.clone(),
                 placeholder_color: change_alpha(theme.palette().text.clone(), 0.6),
                 handle_color: theme.palette().primary.clone(),
@@ -779,7 +832,7 @@ pub mod pick_list {
 }
 
 pub mod menu {
-    use iced::{Theme, overlay::menu::Style};
+    use iced::{Shadow, Theme, overlay::menu::Style};
 
     use crate::utils::{change_alpha, darken_colour};
 
@@ -794,6 +847,11 @@ pub mod menu {
                 .color(theme.palette().primary.clone()),
             text_color: theme.palette().text.clone(),
             selected_text_color: theme.palette().primary.clone(),
+            shadow: Shadow {
+                color: darken_colour(theme.palette().background.clone(), 0.05),
+                offset: iced::Vector { x: 10.0, y: 10.0 },
+                blur_radius: 10.0,
+            },
             selected_background: iced::Background::Color(change_alpha(
                 theme.palette().primary,
                 0.1,
@@ -801,43 +859,3 @@ pub mod menu {
         }
     }
 }
-
-//pub mod markdown{
-//    use iced::widget::{
-//        button, container, hover,
-//        text,
-//    };
-//    use iced::Element;
-//    use crate::Message;
-//    use crate::markdown;
-//
-//    pub struct CustomViewer;
-//
-//    impl<'a> markdown::Viewer<'a, Message> for CustomViewer {
-//        fn on_link_click(url: markdown::Url) -> Message {
-//            Message::URLClicked(url)
-//        }
-//
-//        fn code_block(
-//            &self,
-//            settings: markdown::Settings,
-//            _language: Option<&'a str>,
-//            code: &'a str,
-//            lines: &'a [markdown::Text],
-//        ) -> Element<'a, Message> {
-//            let code_block =
-//                markdown::code_block(settings, lines, Message::URLClicked);
-//
-//            let copy = button(text("Copy").size(12))
-//                .padding(2)
-//                .on_press_with(|| Message::SaveToClipboard(code.to_owned()))
-//                .style(button::text);
-//
-//            hover(
-//                code_block,
-//                container(copy).style(container::dark)
-//                    .padding(settings.spacing / 2),
-//            )
-//        }
-//    }
-//}

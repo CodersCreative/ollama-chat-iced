@@ -1,4 +1,8 @@
-use iced::{Task, Vector, widget::text_input, window};
+use iced::{
+    Task, Vector,
+    widget::{operation, text_input},
+    window,
+};
 
 use crate::{Application, Message, pages::PageMessage, windows::Window};
 
@@ -18,7 +22,7 @@ impl WindowMessage {
                     return Task::none();
                 };
 
-                window::get_position(*last_window)
+                window::position(*last_window)
                     .then(|last_position| {
                         let position =
                             last_position.map_or(window::Position::Default, |last_position| {
@@ -46,7 +50,7 @@ impl WindowMessage {
             }
             Self::WindowOpened(id) => {
                 let window = Window::new(app.view_data.page_stack.pop().unwrap_or_default());
-                let focus_input = text_input::focus(format!("input-{id}"));
+                let focus_input = operation::focus(format!("input-{id}"));
 
                 app.windows.insert(id, window);
 

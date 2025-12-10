@@ -8,8 +8,10 @@ use iced::{
     Element, Length, Task,
     alignment::Vertical,
     widget::{
-        column, container, horizontal_rule, horizontal_space, progress_bar, row,
+        column, container, progress_bar, row,
+        rule::horizontal as horizontal_rule,
         scrollable::{self, Scrollbar},
+        space::horizontal as horizontal_space,
         text,
     },
 };
@@ -83,8 +85,8 @@ impl PullsView {
                         col = col.push(
                             row![
                                 progress_bar(0.0..=100.0, progress)
-                                    .width(Length::Fill)
-                                    .height(Length::Fixed(SUB_HEADING_SIZE as f32)),
+                                    .length(Length::Fill)
+                                    .girth(Length::Fixed(SUB_HEADING_SIZE as f32)),
                                 text(format!("{:.2}%", progress))
                                     .style(style::text::primary)
                                     .width(75.0)

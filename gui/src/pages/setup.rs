@@ -10,10 +10,10 @@ use iced::{
     Element, Length, Padding, Task, Theme,
     alignment::Vertical,
     widget::{
-        Scrollable, center, checkbox, column, container, horizontal_rule, horizontal_space,
-        keyed_column, pick_list, row,
+        Scrollable, center, checkbox, column, container, keyed_column, pick_list, row,
+        rule::horizontal as horizontal_rule,
         scrollable::{Direction, Scrollbar},
-        text, text_input,
+        space, text, text_input,
     },
     window,
 };
@@ -433,7 +433,8 @@ impl SetupPage {
             }
         }
 
-        let use_panes = checkbox("Use Panes", app.cache.settings.use_panes.unwrap_or(true))
+        let use_panes = checkbox(app.cache.settings.use_panes.unwrap_or(true))
+            .label("Use Panes")
             .on_toggle(move |x| {
                 Message::Window(WindowMessage::Page(
                     id,
@@ -469,7 +470,7 @@ impl SetupPage {
                     sub_heading("Decorations"),
                     row![theme, use_panes].spacing(10).align_y(Vertical::Center),
                     horizontal_rule(1),
-                    row![horizontal_space(), next]
+                    row![space::horizontal(), next]
                         .spacing(10)
                         .align_y(Vertical::Center),
                 ]

@@ -1,6 +1,6 @@
 use iced::{
     Subscription,
-    futures::{SinkExt, Stream, StreamExt},
+    futures::{SinkExt, Stream, StreamExt, channel::mpsc},
     stream::try_channel,
 };
 use ochat_types::providers::ollama::{PullModelResponse, PullModelStreamResult};
@@ -48,37 +48,45 @@ pub fn pull(
     model: String,
     provider: String,
 ) -> iced::Subscription<(u32, PullModelStreamResult)> {
-    Subscription::run_with_id(
-        id,
-        pull_stream(provider, model).map(move |progress| (id, progress)),
-    )
+    Subscription::run_with((id, model, provider), move |(id, model, provider)| {
+        pull_stream(*id, provider.to_string(), model.to_string())
+    })
 }
 
-pub fn pull_stream(provider: String, model: String) -> impl Stream<Item = PullModelStreamResult> {
+pub fn pull_stream(
+    id: u32,
+    provider: String,
+    model: String,
+) -> impl Stream<Item = (u32, PullModelStreamResult)> {
     let url = DATA.read().unwrap().instance_url.clone().unwrap();
 
-    try_channel(1, move |mut output| async move {
-        let mut response = REQWEST_CLIENT
-            .post(&format!("{0}/provider/{1}/model/{2}", url, provider, model))
-            .send()
-            .await
-            .unwrap()
-            .bytes_stream();
+    try_channel(
+        1,
+        move |mut output: mpsc::Sender<(u32, PullModelStreamResult)>| async move {
+            let mut response = REQWEST_CLIENT
+                .post(&format!("{0}/provider/{1}/model/{2}", url, provider, model))
+                .send()
+                .await
+                .unwrap()
+                .bytes_stream();
 
-        while let Some(status) = response.next().await {
-            let _ = match serde_json::from_slice::<PullModelStreamResult>(&status.unwrap()) {
-                Ok(x) => {
-                    let _ = output.send(x).await;
-                }
-                Err(e) => {
-                    let _ = output.send(PullModelStreamResult::Err(e.to_string())).await;
-                }
-            };
-        }
+            while let Some(status) = response.next().await {
+                let _ = match serde_json::from_slice::<PullModelStreamResult>(&status.unwrap()) {
+                    Ok(x) => {
+                        let _ = output.send((id, x)).await;
+                    }
+                    Err(e) => {
+                        let _ = output
+                            .send((id, PullModelStreamResult::Err(e.to_string())))
+                            .await;
+                    }
+                };
+            }
 
-        let _ = output.send(PullModelStreamResult::Finished).await;
+            let _ = output.send((id, PullModelStreamResult::Finished)).await;
 
-        Ok(())
-    })
-    .map(|x: Result<PullModelStreamResult, String>| x.unwrap())
+            Ok(())
+        },
+    )
+    .map(|x: Result<(u32, PullModelStreamResult), String>| x.unwrap())
 }

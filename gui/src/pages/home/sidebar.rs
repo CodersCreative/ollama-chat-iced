@@ -15,10 +15,7 @@ use crate::{
 use iced::{
     Element, Length, Padding, Theme,
     alignment::{Horizontal, Vertical},
-    widget::{
-        Button, button, column, container, markdown, row, text, text_input, vertical_rule,
-        vertical_space,
-    },
+    widget::{Button, button, column, container, markdown, row, rule, space, text, text_input},
     window,
 };
 use ochat_types::{chats::previews::Preview, surreal::RecordId};
@@ -52,7 +49,7 @@ impl HomeSideBar {
             content = content.push(self.chat_buttons(app, id));
         }
 
-        content = content.push(vertical_rule(2).style(style::rule::side_bar_darker));
+        content = content.push(rule::vertical(2).style(style::rule::side_bar_darker));
 
         container(content)
             .style(style::container::side_bar)
@@ -65,14 +62,11 @@ impl HomeSideBar {
         preview: &'a PreviewMk,
         theme: &Theme,
     ) -> Element<'a, Message> {
-        let title = button(
-            markdown(
-                preview.markdown.iter(),
-                markdown::Settings::with_text_size(BODY_SIZE + 2),
-                style::markdown::main(theme),
-            )
-            .map(|_| Message::None),
-        )
+        let title = button(markdown::view_with(
+            preview.markdown.iter(),
+            theme,
+            &style::markdown::CustomViewer,
+        ))
         .on_press(Message::Window(WindowMessage::Page(
             id,
             PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
@@ -143,14 +137,14 @@ impl HomeSideBar {
         .spacing(5);
 
         container(
-            column![name, new_chat, search, previews, vertical_space()]
+            column![name, new_chat, search, previews, space::vertical()]
                 .spacing(10)
                 .padding(10),
         )
         .into()
     }
 
-    fn pane_buttons_vec<'a>(&'a self, id: window::Id, size: u16) -> Vec<Button<'a, Message>> {
+    fn pane_buttons_vec<'a>(&'a self, id: window::Id, size: u32) -> Vec<Button<'a, Message>> {
         let new_chat_pane = style::svg_button::text("add_chat.svg", size).on_press(
             Message::Window(WindowMessage::Page(
                 id,
@@ -247,7 +241,7 @@ impl HomeSideBar {
             WindowMessage::Page(id, PageMessage::Home(HomeMessage::NewChat)),
         ));
 
-        let mut col = column![collapse, new_chat, vertical_space()]
+        let mut col = column![collapse, new_chat, space::vertical()]
             .spacing(5)
             .padding(Padding::default().top(5).bottom(5));
 
