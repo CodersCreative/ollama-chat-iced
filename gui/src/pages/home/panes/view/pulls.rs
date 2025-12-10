@@ -68,6 +68,10 @@ impl PullsView {
             .on_press(Message::Subscription(SubMessage::StopPulling(id)));
 
         let body: Element<'a, Message> = match &pull.state {
+            PullModelStreamResult::Idle => text("Loading...")
+                .style(style::text::translucent::primary)
+                .size(BODY_SIZE + 2)
+                .into(),
             PullModelStreamResult::Finished => text("Download Finished!")
                 .style(style::text::primary)
                 .size(BODY_SIZE + 2)

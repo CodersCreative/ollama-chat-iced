@@ -20,6 +20,7 @@ pub struct TtsResponseSpec {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum TtsStreamResult {
+    Idle,
     Err(String),
     Generating(TtsResponse),
     Finished,

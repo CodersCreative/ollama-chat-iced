@@ -6,7 +6,7 @@ pub mod utils;
 pub mod windows;
 
 use iced::{
-    Element, Font, Subscription, Task, Theme, clipboard, exit,
+    Element, Subscription, Task, Theme, clipboard, exit,
     widget::{markdown, text},
     window::{self},
 };

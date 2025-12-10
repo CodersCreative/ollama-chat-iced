@@ -15,7 +15,7 @@ license = "MIT"
 base64-stream = "4.0.0"
 clipboard-rs = "0.3.1"
 derive_builder = "0.20.2"
-iced = { version = "0.14.0", features = ["tokio", "image", "markdown", "svg", "advanced"]}
+iced = { version = "0.14.0", features = ["tokio", "image", "markdown", "svg", "advanced", "sipper"]}
 image = "0.25.8"
 rand = "0.9.2"
 reqwest = {version = "0.12.24", features = ["json", "stream"]}

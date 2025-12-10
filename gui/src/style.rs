@@ -721,17 +721,13 @@ pub mod markdown {
     use iced::{
         Padding, Theme,
         advanced::text::Highlight,
-        alignment::Horizontal,
         widget::{
             markdown::{self, Style},
             row,
         },
     };
 
-    use crate::{
-        font::{FONT, get_iced_font},
-        utils::darken_colour,
-    };
+    use crate::{font::get_iced_font, utils::darken_colour};
 
     pub fn main(theme: &Theme) -> Style {
         Style {
@@ -769,7 +765,7 @@ pub mod markdown {
             let code_block = markdown::code_block(settings, lines, Message::UriClicked);
 
             let mut header = match language {
-                Some(x) => row![text("Copy").size(12), horizontal()],
+                Some(x) => row![text(x).size(12), horizontal()],
                 _ => row![horizontal()],
             };
 

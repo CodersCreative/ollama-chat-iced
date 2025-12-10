@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ChatStreamResult {
+    Idle,
     Err(String),
     Generating(ChatResponse),
     Finished(ChatResponse),

@@ -24,7 +24,20 @@ impl SubMessage {
                 app.subscriptions
                     .pulls
                     .insert(id, Pull::new(model.provider, model.model));
-                Task::none()
+
+                app.subscriptions
+                    .pulls
+                    .get_mut(&id)
+                    .unwrap()
+                    .start()
+                    .map(move |x| {
+                        let x = match x {
+                            pull::PullUpdate::Pulling(x) => x,
+                            pull::PullUpdate::Finished(Ok(_)) => PullModelStreamResult::Finished,
+                            pull::PullUpdate::Finished(Err(e)) => PullModelStreamResult::Err(e),
+                        };
+                        Message::Subscription(SubMessage::Pulling(id, x))
+                    })
             }
             Self::Pulling(id, PullModelStreamResult::Finished) => {
                 let _ = app.subscriptions.pulls.remove(&id);
@@ -48,11 +61,10 @@ impl SubMessage {
                 })
             }
             Self::Pulling(id, result) => {
-                app.subscriptions
-                    .pulls
-                    .get_mut(&id)
-                    .unwrap()
-                    .progress(result);
+                if let Some(x) = app.subscriptions.pulls.get_mut(&id) {
+                    x.progress(result);
+                }
+
                 Task::none()
             }
             Self::StopPulling(id) => {
@@ -71,11 +83,6 @@ pub struct Subscriptions {
 
 impl Subscriptions {
     pub fn get(&self, app: &Application) -> Subscription<Message> {
-        let actions: Vec<Subscription<Message>> = self
-            .pulls
-            .iter()
-            .map(|(i, x)| x.subscription(app, *i))
-            .collect();
-        Subscription::batch(actions)
+        Subscription::none()
     }
 }

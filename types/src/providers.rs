@@ -72,12 +72,13 @@ pub mod ollama {
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub enum PullModelStreamResult {
+        Idle,
         Err(String),
         Pulling(PullModelResponse),
         Finished,
     }
 
-    #[derive(Serialize, Deserialize, Clone, Debug)]
+    #[derive(Serialize, Deserialize, Clone, Debug, Default)]
     pub struct PullModelResponse {
         pub status: String,
         pub digest: Option<String>,

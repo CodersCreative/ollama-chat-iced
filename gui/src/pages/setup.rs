@@ -10,8 +10,7 @@ use iced::{
     Element, Length, Padding, Task, Theme,
     alignment::Vertical,
     widget::{
-        Scrollable, center, checkbox, column, container, keyed_column, pick_list, row,
-        rule::horizontal as horizontal_rule,
+        Scrollable, center, checkbox, column, container, keyed_column, pick_list, row, rule,
         scrollable::{Direction, Scrollbar},
         space, text, text_input,
     },
@@ -462,14 +461,14 @@ impl SetupPage {
             container(
                 column![
                     banner,
-                    horizontal_rule(1),
+                    rule::horizontal(1),
                     sub_heading("Instance Url"),
                     ochat,
                     providers,
                     model_column,
                     sub_heading("Decorations"),
                     row![theme, use_panes].spacing(10).align_y(Vertical::Center),
-                    horizontal_rule(1),
+                    rule::horizontal(1),
                     row![space::horizontal(), next]
                         .spacing(10)
                         .align_y(Vertical::Center),
