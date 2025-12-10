@@ -82,7 +82,7 @@ pub struct Subscriptions {
 }
 
 impl Subscriptions {
-    pub fn get(&self, app: &Application) -> Subscription<Message> {
+    pub fn get(&self, _app: &Application) -> Subscription<Message> {
         Subscription::none()
     }
 }

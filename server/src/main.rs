@@ -118,6 +118,19 @@ async fn main() {
             get(providers::ollama::models::search_ollama_models),
         )
         .route(
+            "/provider/hf/model/{user}/{id}",
+            get(providers::hf::text::models::fetch_model_details)
+                .post(providers::ollama::pull::run),
+        )
+        .route(
+            "/provider/hf/text/model/all/",
+            get(providers::hf::text::models::list_all_models),
+        )
+        .route(
+            "/provider/hf/text/model/search/{search}",
+            get(providers::hf::text::models::search_models),
+        )
+        .route(
             "/provider/{id}/model/{model}",
             post(providers::ollama::pull::run)
                 .get(providers::models::get_provider_model)

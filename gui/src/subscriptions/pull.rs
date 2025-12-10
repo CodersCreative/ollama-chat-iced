@@ -33,7 +33,7 @@ impl Pull {
             PullModelStreamResult::Err(_)
             | PullModelStreamResult::Finished
             | PullModelStreamResult::Idle => {
-                let (task, handle) = Task::sip(
+                let (task, _handle) = Task::sip(
                     pull_stream(self.provider.clone(), self.model.clone()),
                     PullUpdate::Pulling,
                     PullUpdate::Finished,

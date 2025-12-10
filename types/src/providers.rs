@@ -86,3 +86,45 @@ pub mod ollama {
         pub completed: Option<u64>,
     }
 }
+
+pub mod hf {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub struct HFModel {
+        pub id: String,
+        #[serde(alias = "lastModified")]
+        pub last_modified: chrono::DateTime<chrono::Local>,
+        pub downloads: u64,
+        pub likes: u64,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub struct HFModelDetails {
+        #[serde(default = "Default::default")]
+        pub id: String,
+        #[serde(default = "Default::default")]
+        pub description: String,
+        #[serde(alias = "lastModified")]
+        pub last_modified: chrono::DateTime<chrono::Local>,
+        pub downloads: u64,
+        pub likes: u64,
+        pub architecture: Option<String>,
+        #[serde(default = "Default::default")]
+        pub parameters: u64,
+        #[serde(default = "Default::default")]
+        pub variants: HFModelVariants,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub struct HFModelVariant {
+        pub model: String,
+        pub name: String,
+        pub size: Option<u64>,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, Default)]
+    pub struct HFModelVariants(pub HashMap<u64, Vec<HFModelVariant>>);
+}
