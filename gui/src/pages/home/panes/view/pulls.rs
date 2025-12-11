@@ -161,7 +161,7 @@ impl PullsView {
                         app.cache
                             .home_shared
                             .models
-                            .0
+                            .ollama
                             .iter()
                             .find(|y| y.name == x.model.split_once(":").unwrap().0)
                             .unwrap(),

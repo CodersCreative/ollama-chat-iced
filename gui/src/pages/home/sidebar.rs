@@ -64,7 +64,7 @@ impl HomeSideBar {
     ) -> Element<'a, Message> {
         let title = button(markdown::view_with(
             preview.markdown.iter(),
-            theme,
+            style::markdown::main(theme),
             &style::markdown::CustomViewer,
         ))
         .on_press(Message::Window(WindowMessage::Page(

@@ -90,7 +90,11 @@ impl Data {
     }
 
     pub fn to_request(&self) -> Request {
-        Request(self.instance_url.clone().unwrap())
+        Request(
+            self.instance_url
+                .clone()
+                .unwrap_or(String::from("http://localhost:1212")),
+        )
     }
 }
 

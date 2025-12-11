@@ -729,8 +729,8 @@ pub mod markdown {
 
     use crate::{font::get_iced_font, utils::darken_colour};
 
-    pub fn main(theme: &Theme) -> Style {
-        Style {
+    pub fn main(theme: &Theme) -> markdown::Settings {
+        markdown::Settings::with_style(Style {
             inline_code_highlight: Highlight {
                 background: iced::Background::Color(theme.palette().background.clone()),
                 border: iced::Border::default().rounded(10),
@@ -741,7 +741,7 @@ pub mod markdown {
             font: get_iced_font(),
             inline_code_font: get_iced_font(),
             code_block_font: get_iced_font(),
-        }
+        })
     }
 
     use crate::Message;
@@ -763,7 +763,6 @@ pub mod markdown {
             lines: &'a [markdown::Text],
         ) -> Element<'a, Message> {
             let code_block = markdown::code_block(settings, lines, Message::UriClicked);
-
             let mut header = match language {
                 Some(x) => row![text(x).size(12), horizontal()],
                 _ => row![horizontal()],
@@ -779,7 +778,7 @@ pub mod markdown {
             hover(
                 code_block,
                 container(header)
-                    .style(container::dark)
+                    .style(container::transparent)
                     .padding(settings.spacing / 2),
             )
         }

@@ -1,14 +1,10 @@
-use std::collections::{BTreeMap, HashMap};
-
 use super::API_URL;
-use crate::{CONN, errors::ServerError, providers::hf::text::HF_URL};
+use crate::{errors::ServerError, providers::hf::text::HF_URL};
 use axum::{Json, extract::Path};
-use ochat_types::providers::{
-    hf::{HFModel, HFModelDetails, HFModelVariant, HFModelVariants},
-    ollama::OllamaModelsInfo,
-};
+use ochat_types::providers::hf::{HFModel, HFModelDetails, HFModelVariant, HFModelVariants};
 use serde::Deserialize;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, ServerError> {
     let client = reqwest::Client::new();
@@ -17,7 +13,7 @@ pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, S
         ("search", search.as_str()),
         ("filter", "text-generation"),
         ("filter", "gguf"),
-        ("limit", "400"),
+        ("limit", "100"),
         ("full", "true"),
     ]);
 
@@ -58,7 +54,7 @@ pub async fn list_all_models() -> Result<Json<Vec<HFModel>>, ServerError> {
 }
 
 pub async fn fetch_model_details(
-    Path((mut user, id)): Path<(String, String)>,
+    Path((user, id)): Path<(String, String)>,
 ) -> Result<Json<HFModelDetails>, ServerError> {
     let id = format!("{user}/{id}");
     let client = reqwest::Client::new();

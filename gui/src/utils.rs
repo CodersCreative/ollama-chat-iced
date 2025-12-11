@@ -6,6 +6,7 @@ use rodio::{Decoder, OutputStream, Sink};
 use serde::de::DeserializeOwned;
 use std::{
     env,
+    fmt::Display,
     io::{self, Write},
 };
 use std::{
@@ -33,6 +34,26 @@ pub fn read_input() -> String {
         .read_line(&mut input)
         .expect("Failed to read line");
     return input;
+}
+
+pub fn print_param_count(params: &u64) -> String {
+    match params.ilog10() {
+        0..3 => format!("{}", params),
+        3..6 => format!("{}K", params / 1000),
+        6..9 => format!("{}M", params / 1_000_000),
+        9..12 => format!("{}G", params / 1_000_000_000),
+        _ => format!("{}T", params / 1_000_000_000_000),
+    }
+}
+
+pub fn print_data_size(size: &u64) -> String {
+    match size.ilog10() {
+        0..3 => format!("{} B", size),
+        3..6 => format!("{} KB", size / 1000),
+        6..9 => format!("{} MB", size / 1_000_000),
+        9..12 => format!("{} GB", size / 1_000_000_000),
+        _ => format!("{} TB", size / 1_000_000_000_000),
+    }
 }
 
 pub fn write_read(message: String) -> String {
@@ -86,7 +107,7 @@ pub fn get_path_src(path: String) -> String {
     get_path_dir(format!("src/{}", path))
 }
 
-pub fn get_path_assets(path: String) -> String {
+pub fn get_path_assets<T: Display>(path: T) -> String {
     get_path_dir(format!("assets/{}", path))
 }
 

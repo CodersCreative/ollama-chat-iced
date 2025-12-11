@@ -4,34 +4,92 @@ use crate::{
     pages::home::panes::{data::ModelsData, view::HomePaneViewMessage},
     style,
     subscriptions::SubMessage,
+    utils::{get_path_assets, print_data_size},
 };
 use iced::{
-    Element, Length, Task,
+    Element, Length, Task, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, container, pick_list, row, rule,
+        button, column, container, markdown, pick_list, row, rule,
         scrollable::{self, Scrollbar},
-        space, text, text_input,
+        space, svg, text, text_input,
     },
 };
 use ochat_types::{
-    providers::{Provider, ProviderType, ollama::OllamaModelsInfo},
+    providers::{
+        Provider, ProviderType,
+        hf::{HFModel, HFModelDetails},
+        ollama::OllamaModelsInfo,
+    },
     settings::SettingsProvider,
 };
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, Clone)]
 pub struct ModelsView {
     pub provider: Option<Provider>,
+    pub page: Page,
     pub search: String,
-    pub expanded: Vec<String>,
+    pub ollama_expanded: Vec<String>,
+    pub hf_expanded: HashMap<String, HFViewModelDetails>,
     pub models: ModelsData,
+}
+
+#[derive(Debug)]
+pub struct HFViewModelDetails {
+    pub description: markdown::Content,
+    pub base: HFModelDetails,
+}
+
+impl From<HFModelDetails> for HFViewModelDetails {
+    fn from(value: HFModelDetails) -> Self {
+        Self {
+            description: markdown::Content::parse(&value.description),
+
+            base: value,
+        }
+    }
+}
+
+impl Clone for HFViewModelDetails {
+    fn clone(&self) -> Self {
+        Self {
+            description: markdown::Content::parse(&self.base.description),
+            base: self.base.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Page {
+    Ollama,
+    HF,
+}
+
+impl Page {
+    pub const ALL: [Page; 2] = [Page::Ollama, Page::HF];
+}
+
+impl Display for Page {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Page::Ollama => "Ollama",
+                Page::HF => "Hugging Face",
+            }
+        )
+    }
 }
 
 impl Default for ModelsView {
     fn default() -> Self {
         Self {
             search: String::default(),
-            expanded: Vec::new(),
+            page: Page::Ollama,
+            ollama_expanded: Vec::new(),
+            hf_expanded: HashMap::new(),
             models: ModelsData::default(),
             provider: DATA
                 .read()
@@ -49,7 +107,10 @@ pub enum ModelsViewMessage {
     Search(InputMessage),
     SetModels(ModelsData),
     SetProvider(Provider),
-    Expand(String),
+    ChangePage(Page),
+    OllamaExpand(String),
+    HFExpand(String),
+    SetHFExpand(String, HFModelDetails),
 }
 
 impl ModelsViewMessage {
@@ -59,7 +120,8 @@ impl ModelsViewMessage {
                 let view = app.get_models_view(&id).unwrap();
 
                 if x.is_empty() {
-                    view.models.0.clear();
+                    view.models.ollama.clear();
+                    view.models.hf.clear();
                 }
 
                 view.search = x;
@@ -74,6 +136,10 @@ impl ModelsViewMessage {
                     ))
                 })
             }
+            Self::ChangePage(x) => {
+                app.get_models_view(&id).unwrap().page = x;
+                Task::none()
+            }
             Self::SetModels(x) => {
                 app.get_models_view(&id).unwrap().models = x;
                 Task::none()
@@ -82,22 +148,54 @@ impl ModelsViewMessage {
                 app.get_models_view(&id).unwrap().provider = Some(x);
                 Task::none()
             }
-            Self::Expand(x) => {
+            Self::OllamaExpand(x) => {
                 let view = app.get_models_view(&id).unwrap();
-                if view.expanded.contains(&x) {
-                    view.expanded.retain(|y| y != &x);
+                if view.ollama_expanded.contains(&x) {
+                    view.ollama_expanded.retain(|y| y != &x);
                 } else {
-                    view.expanded.push(x);
+                    view.ollama_expanded.push(x);
                 }
 
                 Task::none()
+            }
+            Self::SetHFExpand(x, details) => {
+                app.get_models_view(&id)
+                    .unwrap()
+                    .hf_expanded
+                    .insert(x, details.into());
+                Task::none()
+            }
+            Self::HFExpand(x) => {
+                let view = app.get_models_view(&id).unwrap();
+
+                if view.hf_expanded.contains_key(&x) {
+                    view.ollama_expanded.retain(|y| y != &x);
+                    Task::none()
+                } else {
+                    Task::future(async move {
+                        let req = DATA.read().unwrap().to_request();
+                        Message::HomePaneView(HomePaneViewMessage::Models(
+                            id,
+                            ModelsViewMessage::SetHFExpand(
+                                x.clone(),
+                                req.make_request(
+                                    &format!("provider/hf/model/{}", x),
+                                    &(),
+                                    crate::data::RequestType::Get,
+                                )
+                                .await
+                                .unwrap(),
+                            ),
+                        ))
+                    })
+                }
             }
         }
     }
 }
 
 impl ModelsView {
-    pub fn view_model<'a>(
+    pub fn view_ollama_model<'a>(
         id: u32,
         model: &'a OllamaModelsInfo,
         provider: String,
@@ -117,7 +215,7 @@ impl ModelsView {
         )
         .on_press(Message::HomePaneView(HomePaneViewMessage::Models(
             id,
-            ModelsViewMessage::Expand(model.name.clone()),
+            ModelsViewMessage::OllamaExpand(model.name.clone()),
         )));
 
         let author = text(&model.author).size(BODY_SIZE);
@@ -230,7 +328,96 @@ impl ModelsView {
         container(col).into()
     }
 
+    pub fn view_hf_model<'a>(
+        id: u32,
+        model: &'a HFModel,
+        theme: &Theme,
+        expanded: Option<&'a HFViewModelDetails>,
+    ) -> Element<'a, Message> {
+        let sub_heading = |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::text);
+        let stat = |icon: &'static str, txt: String| {
+            row![
+                svg(svg::Handle::from_path(get_path_assets(icon)))
+                    .style(style::svg::text)
+                    .width(Length::Fixed(BODY_SIZE as f32)),
+                text(txt).size(BODY_SIZE),
+            ]
+            .spacing(5)
+            .align_y(Vertical::Center)
+        };
+        let name = text(model.id.split_once('/').unwrap().1)
+            .size(HEADER_SIZE)
+            .style(style::text::primary);
+        let expand = style::svg_button::primary(
+            if expanded.is_some() {
+                "arrow_drop_up.svg"
+            } else {
+                "arrow_drop_down.svg"
+            },
+            HEADER_SIZE,
+        )
+        .on_press(Message::HomePaneView(HomePaneViewMessage::Models(
+            id,
+            ModelsViewMessage::HFExpand(model.id.clone()),
+        )));
+
+        let author = text(model.id.split_once('/').unwrap().0).size(BODY_SIZE);
+
+        let mut stats = row![
+            stat("downloads.svg", model.downloads.to_string()),
+            stat("thumbs_up.svg", model.likes.to_string()),
+            stat("schedule.svg", model.last_modified.to_string()),
+        ]
+        .spacing(10)
+        .align_y(Vertical::Center);
+
+        let mut col = column![
+            row![name, space::horizontal(), expand],
+            rule::horizontal(1).style(style::rule::translucent::primary),
+            author,
+        ]
+        .spacing(10);
+
+        let mut inner_col = column([]).spacing(5).padding(10);
+
+        if let Some(expanded) = expanded {
+            if let Some(arch) = &expanded.base.architecture {
+                stats = stats.push(stat("arch.svg", arch.clone()))
+            };
+
+            stats = stats.push(stat(
+                "params.svg",
+                print_data_size(&expanded.base.parameters),
+            ));
+
+            col = col.push(container(stats));
+
+            inner_col = inner_col.push(markdown::view_with(
+                expanded.description.items(),
+                style::markdown::main(theme),
+                &style::markdown::CustomViewer,
+            ));
+
+            inner_col = inner_col.push(sub_heading("Tags"));
+
+            col = col.push(container(inner_col).style(style::container::window_title_back))
+        } else {
+            col = col.push(container(stats));
+        };
+
+        container(col).into()
+    }
+
     pub fn view<'a>(&'a self, app: &'a Application, id: u32) -> Element<'a, Message> {
+        let page = pick_list(Page::ALL, Some(self.page.clone()), move |x| {
+            Message::HomePaneView(HomePaneViewMessage::Models(
+                id,
+                ModelsViewMessage::ChangePage(x),
+            ))
+        })
+        .style(style::pick_list::main)
+        .menu_style(style::menu::main);
+
         let provider = pick_list(
             DATA.read()
                 .unwrap()
@@ -272,24 +459,47 @@ impl ModelsView {
             .map(|x| x.id.key().to_string())
             .unwrap_or_default();
 
-        let models = scrollable::Scrollable::new(
-            column(
-                if self.search.is_empty() || self.models.0.is_empty() {
-                    &app.cache.home_shared.models.0
+        let models = scrollable::Scrollable::new(match self.page {
+            Page::Ollama => column(
+                if self.search.is_empty() || self.models.ollama.is_empty() {
+                    &app.cache.home_shared.models.ollama
                 } else {
-                    &self.models.0
+                    &self.models.ollama
                 }
                 .iter()
                 .map(|x| {
-                    Self::view_model(id.clone(), x, p.clone(), self.expanded.contains(&x.name))
+                    Self::view_ollama_model(
+                        id.clone(),
+                        x,
+                        p.clone(),
+                        self.ollama_expanded.contains(&x.name),
+                    )
                 }),
             )
             .spacing(10),
-        )
+            Page::HF => column(
+                if self.search.is_empty() || self.models.hf.is_empty() {
+                    &app.cache.home_shared.models.hf
+                } else {
+                    &self.models.hf
+                }
+                .iter()
+                .map(|x| {
+                    Self::view_hf_model(id.clone(), x, &app.theme(), self.hf_expanded.get(&x.id))
+                }),
+            )
+            .spacing(10),
+        })
         .direction(scrollable::Direction::Vertical(Scrollbar::new()))
         .width(Length::Fill)
         .height(Length::Fill);
 
-        container(column![row![search, provider,], models].spacing(10)).into()
+        let header = if self.page == Page::Ollama {
+            row![provider, search, page]
+        } else {
+            row![search, page,]
+        };
+
+        container(column![header, models].spacing(10)).into()
     }
 }

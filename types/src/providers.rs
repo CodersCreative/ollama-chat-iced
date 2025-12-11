@@ -88,6 +88,7 @@ pub mod ollama {
 }
 
 pub mod hf {
+    use crate::surreal::Datetime;
     use std::collections::HashMap;
 
     use super::*;
@@ -96,7 +97,7 @@ pub mod hf {
     pub struct HFModel {
         pub id: String,
         #[serde(alias = "lastModified")]
-        pub last_modified: chrono::DateTime<chrono::Local>,
+        pub last_modified: Datetime,
         pub downloads: u64,
         pub likes: u64,
     }
@@ -108,7 +109,7 @@ pub mod hf {
         #[serde(default = "Default::default")]
         pub description: String,
         #[serde(alias = "lastModified")]
-        pub last_modified: chrono::DateTime<chrono::Local>,
+        pub last_modified: Datetime,
         pub downloads: u64,
         pub likes: u64,
         pub architecture: Option<String>,
