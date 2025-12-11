@@ -8,8 +8,7 @@ use ochat_types::{
         ChatQueryDataBuilder, ChatQueryMessage, ChatQueryMessageBuilder, ChatStreamResult,
     },
     providers::{
-        Provider, ProviderData, ProviderDataBuilder, ProviderType,
-        ollama::{OllamaModelsInfo, PullModelStreamResult},
+        Provider, ProviderData, ProviderDataBuilder, ProviderType, ollama::OllamaModelsInfo,
     },
 };
 use rustyline::{DefaultEditor, error::ReadlineError};
@@ -257,6 +256,7 @@ async fn repl(req: &data::Request, provider: String, model: String) -> Result<()
                         Ok(response) => {
                             let _ = match serde_json::from_slice::<ChatStreamResult>(&response) {
                                 Ok(x) => match x {
+                                    ChatStreamResult::Idle => {}
                                     ChatStreamResult::Generating(x) => {
                                         let _ = stdout.write_all(x.content.as_bytes()).unwrap();
                                         let _ = stdout.flush().unwrap();

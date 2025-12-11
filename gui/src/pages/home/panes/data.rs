@@ -5,8 +5,8 @@ use ochat_types::{
     options::{GenOptions, relationships::GenModelRelationship},
     prompts::Prompt,
     providers::{
-        hf::HFModel,
-        ollama::{OllamaModelsInfo, PullModelStreamResult},
+        hf::{HFModel, HFPullModelStreamResult},
+        ollama::{OllamaModelsInfo, OllamaPullModelStreamResult},
     },
     settings::SettingsProvider,
     surreal::RecordId,
@@ -25,7 +25,10 @@ pub struct HomePaneSharedData {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct DownloadsData(pub Vec<DownloadData>);
+pub struct DownloadsData {
+    pub ollama: HashMap<u32, OllamaModelsInfo>,
+    pub hf: HashMap<u32, HFModel>,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct MessagesData(pub HashMap<String, Message>);
@@ -84,9 +87,15 @@ impl Into<GenModelRelationship> for OptionRelationshipData {
 }
 
 #[derive(Debug, Clone)]
-pub struct DownloadData {
+pub struct OllamaDownloadData {
     pub model: OllamaModelsInfo,
-    pub progress: PullModelStreamResult,
+    pub progress: OllamaPullModelStreamResult,
+}
+
+#[derive(Debug, Clone)]
+pub struct HFDownloadData {
+    pub model: HFModel,
+    pub progress: HFPullModelStreamResult,
 }
 
 impl ModelsData {

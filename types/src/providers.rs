@@ -71,15 +71,15 @@ pub mod ollama {
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
-    pub enum PullModelStreamResult {
+    pub enum OllamaPullModelStreamResult {
         Idle,
         Err(String),
-        Pulling(PullModelResponse),
+        Pulling(OllamaPullModelResponse),
         Finished,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-    pub struct PullModelResponse {
+    pub struct OllamaPullModelResponse {
         pub status: String,
         pub digest: Option<String>,
         pub total: Option<u64>,
@@ -92,6 +92,11 @@ pub mod hf {
     use std::collections::HashMap;
 
     use super::*;
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub struct DownloadedHFModels {
+        pub variants: Vec<HFModelVariant>,
+    }
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct HFModel {
@@ -126,6 +131,29 @@ pub mod hf {
         pub size: Option<u64>,
     }
 
+    impl HFModelVariant {
+        pub fn variant(&self) -> Option<&str> {
+            self.name
+                .trim_end_matches(".gguf")
+                .rsplit(['-', '.'])
+                .next()
+        }
+    }
+
     #[derive(Serialize, Deserialize, Clone, Debug, Default)]
     pub struct HFModelVariants(pub HashMap<u64, Vec<HFModelVariant>>);
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub enum HFPullModelStreamResult {
+        Idle,
+        Err(String),
+        Pulling(HFPullModelResponse),
+        Finished,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, Default)]
+    pub struct HFPullModelResponse {
+        pub total: Option<u64>,
+        pub completed: Option<u64>,
+    }
 }

@@ -484,10 +484,22 @@ pub mod button {
                 text_color: change_alpha(theme.palette().text.clone(), 0.5),
                 ..Default::default()
             },
-            _ => Style {
+            Status::Pressed => Style {
                 background: Some(iced::Background::Color(lighten_colour(
                     theme.palette().background.clone(),
                     0.05,
+                ))),
+                border: iced::Border::default()
+                    .rounded(20)
+                    .width(1)
+                    .color(lighten_colour(theme.palette().background.clone(), 0.1)),
+                text_color: change_alpha(theme.palette().text.clone(), 0.7),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(lighten_colour(
+                    theme.palette().background.clone(),
+                    0.02,
                 ))),
                 border: iced::Border::default()
                     .rounded(20)

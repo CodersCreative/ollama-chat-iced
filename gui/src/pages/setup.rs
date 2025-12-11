@@ -334,6 +334,19 @@ impl SetupPage {
             SUB_HEADING_SIZE,
         );
 
+        let models_path = text(
+            app.cache
+                .settings
+                .models_path
+                .clone()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap()
+                .to_string(),
+        )
+        .size(SUB_HEADING_SIZE)
+        .style(style::text::text);
+
         let providers = {
             let header = row![
                 text("Providers")
@@ -464,6 +477,8 @@ impl SetupPage {
                     rule::horizontal(1),
                     sub_heading("Instance Url"),
                     ochat,
+                    sub_heading("Models Download Path"),
+                    models_path,
                     providers,
                     model_column,
                     sub_heading("Decorations"),

@@ -4,14 +4,14 @@ use axum::extract::Path;
 use axum::response::IntoResponse;
 use axum_streams::StreamBodyAs;
 use futures::Stream;
-use ochat_types::providers::ollama::{PullModelResponse, PullModelStreamResult};
+use ochat_types::providers::ollama::{OllamaPullModelResponse, OllamaPullModelStreamResult};
 use serde_json::json;
 use tokio_stream::StreamExt;
 
 async fn run_pull_stream(
     provider: String,
     model: String,
-) -> impl Stream<Item = PullModelStreamResult> {
+) -> impl Stream<Item = OllamaPullModelStreamResult> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     let mut response = if let Some(provider) = CONN
@@ -43,18 +43,18 @@ async fn run_pull_stream(
         while let Some(response) = response.next().await {
             match response {
                 Ok(response) => {
-                    let _ = match serde_json::from_slice::<PullModelResponse>(&response) {
-                        Ok(x) => tx.send(PullModelStreamResult::Pulling(x)),
-                        Err(e) => tx.send(PullModelStreamResult::Err(e.to_string())),
+                    let _ = match serde_json::from_slice::<OllamaPullModelResponse>(&response) {
+                        Ok(x) => tx.send(OllamaPullModelStreamResult::Pulling(x)),
+                        Err(e) => tx.send(OllamaPullModelStreamResult::Err(e.to_string())),
                     };
                 }
                 Err(e) => {
-                    let _ = tx.send(PullModelStreamResult::Err(e.to_string()));
+                    let _ = tx.send(OllamaPullModelStreamResult::Err(e.to_string()));
                 }
             }
         }
 
-        let _ = tx.send(PullModelStreamResult::Finished);
+        let _ = tx.send(OllamaPullModelStreamResult::Finished);
     });
 
     return Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx));

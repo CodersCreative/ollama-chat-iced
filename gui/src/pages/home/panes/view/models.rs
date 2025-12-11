@@ -18,7 +18,7 @@ use iced::{
 use ochat_types::{
     providers::{
         Provider, ProviderType,
-        hf::{HFModel, HFModelDetails},
+        hf::{HFModel, HFModelDetails, HFModelVariant},
         ollama::OllamaModelsInfo,
     },
     settings::SettingsProvider,
@@ -77,7 +77,7 @@ impl Display for Page {
             "{}",
             match self {
                 Page::Ollama => "Ollama",
-                Page::HF => "Hugging Face",
+                Page::HF => "Huggingface",
             }
         )
     }
@@ -169,7 +169,7 @@ impl ModelsViewMessage {
                 let view = app.get_models_view(&id).unwrap();
 
                 if view.hf_expanded.contains_key(&x) {
-                    view.ollama_expanded.retain(|y| y != &x);
+                    view.hf_expanded.retain(|y, _| y != &x);
                     Task::none()
                 } else {
                     Task::future(async move {
@@ -272,49 +272,71 @@ impl ModelsView {
                 inner_col = inner_col.push(sub_heading("Tags"));
 
                 for i in (0..model.tags.len()).filter(|x| x % 2 == 0) {
-                    let first = model.tags.get(i).unwrap();
-                    let first = button(
+                    let first_tag = model.tags.get(i).unwrap();
+                    let mut first = button(
                         row![
-                            text(first[0].clone())
+                            text(first_tag[0].clone())
                                 .width(Length::Fill)
                                 .align_x(Horizontal::Center)
                                 .align_y(Vertical::Center),
-                            text(first[1].clone())
+                            text(first_tag[1].clone())
                                 .width(Length::Fill)
                                 .align_x(Horizontal::Center)
                                 .align_y(Vertical::Center)
                         ]
                         .spacing(10),
                     )
-                    .on_press(Message::Subscription(SubMessage::Pull(SettingsProvider {
-                        provider: provider.clone(),
-                        model: format!("{}:{}", &model.name, &first[0]),
-                    })))
                     .style(style::button::start)
                     .width(Length::Fill);
-                    let second = model.tags.get(i + 1);
 
-                    let second: Element<'a, Message> = match second {
-                        Some(second) => button(
-                            row![
-                                text(second[0].clone())
-                                    .width(Length::Fill)
-                                    .align_x(Horizontal::Center)
-                                    .align_y(Vertical::Center),
-                                text(second[1].clone())
-                                    .width(Length::Fill)
-                                    .align_x(Horizontal::Center)
-                                    .align_y(Vertical::Center)
-                            ]
-                            .spacing(10),
-                        )
-                        .width(Length::Fill)
-                        .style(style::button::start)
-                        .on_press(Message::Subscription(SubMessage::Pull(SettingsProvider {
-                            provider: provider.clone(),
-                            model: format!("{}:{}", &model.name, &second[0]),
-                        })))
-                        .into(),
+                    if !DATA.read().unwrap().models.contains(&SettingsProvider {
+                        provider: provider.clone(),
+                        model: format!("{}:{}", &model.name, &first_tag[0]),
+                    }) {
+                        first = first.on_press(Message::Subscription(SubMessage::OllamaPull(
+                            model.clone(),
+                            SettingsProvider {
+                                provider: provider.clone(),
+                                model: format!("{}:{}", &model.name, &first_tag[0]),
+                            },
+                        )));
+                    }
+
+                    let second_tag = model.tags.get(i + 1);
+
+                    let second: Element<'a, Message> = match second_tag {
+                        Some(second_tag) => {
+                            let mut btn = button(
+                                row![
+                                    text(second_tag[0].clone())
+                                        .width(Length::Fill)
+                                        .align_x(Horizontal::Center)
+                                        .align_y(Vertical::Center),
+                                    text(second_tag[1].clone())
+                                        .width(Length::Fill)
+                                        .align_x(Horizontal::Center)
+                                        .align_y(Vertical::Center)
+                                ]
+                                .spacing(10),
+                            )
+                            .width(Length::Fill)
+                            .style(style::button::start);
+
+                            if !DATA.read().unwrap().models.contains(&SettingsProvider {
+                                provider: provider.clone(),
+                                model: format!("{}:{}", &model.name, &second_tag[0]),
+                            }) {
+                                btn = btn.on_press(Message::Subscription(SubMessage::OllamaPull(
+                                    model.clone(),
+                                    SettingsProvider {
+                                        provider: provider.clone(),
+                                        model: format!("{}:{}", &model.name, &second_tag[0]),
+                                    },
+                                )));
+                            }
+
+                            btn.into()
+                        }
                         None => space::horizontal().into(),
                     };
 
@@ -378,7 +400,7 @@ impl ModelsView {
         ]
         .spacing(10);
 
-        let mut inner_col = column([]).spacing(5).padding(10);
+        let mut inner_col = column([]).spacing(10).padding(10);
 
         if let Some(expanded) = expanded {
             if let Some(arch) = &expanded.base.architecture {
@@ -392,13 +414,73 @@ impl ModelsView {
 
             col = col.push(container(stats));
 
+            inner_col = inner_col.push(sub_heading("Tags"));
+
+            let tags: Element<'a, Message> = if expanded.base.variants.0.is_empty() {
+                text("No compatible files have been found.")
+                    .style(style::text::text)
+                    .size(BODY_SIZE + 2)
+                    .into()
+            } else {
+                let mut variants: Vec<(&u64, &Vec<HFModelVariant>)> =
+                    expanded.base.variants.0.iter().collect();
+                variants.sort_by(|a, b| a.0.cmp(b.0));
+                column(variants.iter().map(|(k, variants)| {
+                    container(
+                        row![
+                            text(format!("{} bit", k))
+                                .style(style::text::primary)
+                                .size(SUB_HEADING_SIZE)
+                                .width(100),
+                            scrollable::Scrollable::new(
+                                row(variants.iter().map(|variant| {
+                                    button(
+                                        row![
+                                            text(variant.variant().unwrap_or_default())
+                                                .style(style::text::text)
+                                                .size(BODY_SIZE),
+                                            text(print_data_size(
+                                                &variant.size.clone().unwrap_or(0)
+                                            ))
+                                            .style(style::text::translucent::text)
+                                            .size(BODY_SIZE)
+                                        ]
+                                        .spacing(5)
+                                        .padding(5)
+                                        .align_y(Vertical::Center),
+                                    )
+                                    .style(style::button::start)
+                                    .on_press(Message::Subscription(SubMessage::HFPull(
+                                        model.clone(),
+                                        variant.name.clone(),
+                                    )))
+                                    .into()
+                                }))
+                                .spacing(10)
+                                .align_y(Vertical::Center)
+                            )
+                            .direction(scrollable::Direction::Horizontal(Scrollbar::new()))
+                            .width(Length::Fill),
+                        ]
+                        .align_y(Vertical::Center)
+                        .spacing(20),
+                    )
+                    .padding(20)
+                    .style(style::container::code)
+                    .into()
+                }))
+                .spacing(5)
+                .into()
+            };
+
+            inner_col = inner_col.push(tags);
+
+            inner_col = inner_col.push(sub_heading("Readme"));
             inner_col = inner_col.push(markdown::view_with(
                 expanded.description.items(),
                 style::markdown::main(theme),
                 &style::markdown::CustomViewer,
             ));
-
-            inner_col = inner_col.push(sub_heading("Tags"));
 
             col = col.push(container(inner_col).style(style::container::window_title_back))
         } else {

@@ -3,44 +3,45 @@ use iced::{
     futures::StreamExt,
     task::{Straw, sipper},
 };
-use ochat_types::providers::ollama::{PullModelResponse, PullModelStreamResult};
+use ochat_types::providers::ollama::{OllamaPullModelResponse, OllamaPullModelStreamResult};
 
 use crate::{DATA, data::REQWEST_CLIENT};
 
 #[derive(Debug, Clone)]
-pub struct Pull {
+pub struct OllamaPull {
     pub provider: String,
     pub model: String,
-    pub state: PullModelStreamResult,
+    pub state: OllamaPullModelStreamResult,
 }
 
-pub enum PullUpdate {
-    Pulling(PullModelStreamResult),
+pub enum OllamaPullUpdate {
+    Pulling(OllamaPullModelStreamResult),
     Finished(Result<(), String>),
 }
 
-impl Pull {
+impl OllamaPull {
     pub fn new(provider: String, model: String) -> Self {
         Self {
             provider,
             model,
-            state: PullModelStreamResult::Idle,
+            state: OllamaPullModelStreamResult::Idle,
         }
     }
 
-    pub fn start(&mut self) -> Task<PullUpdate> {
+    pub fn start(&mut self) -> Task<OllamaPullUpdate> {
         match self.state {
-            PullModelStreamResult::Err(_)
-            | PullModelStreamResult::Finished
-            | PullModelStreamResult::Idle => {
+            OllamaPullModelStreamResult::Err(_)
+            | OllamaPullModelStreamResult::Finished
+            | OllamaPullModelStreamResult::Idle => {
                 let (task, _handle) = Task::sip(
                     pull_stream(self.provider.clone(), self.model.clone()),
-                    PullUpdate::Pulling,
-                    PullUpdate::Finished,
+                    OllamaPullUpdate::Pulling,
+                    OllamaPullUpdate::Finished,
                 )
                 .abortable();
 
-                self.state = PullModelStreamResult::Pulling(PullModelResponse::default());
+                self.state =
+                    OllamaPullModelStreamResult::Pulling(OllamaPullModelResponse::default());
 
                 task
             }
@@ -48,7 +49,7 @@ impl Pull {
         }
     }
 
-    pub fn progress(&mut self, progress: PullModelStreamResult) {
+    pub fn progress(&mut self, progress: OllamaPullModelStreamResult) {
         self.state = progress;
     }
 }
@@ -56,7 +57,7 @@ impl Pull {
 pub fn pull_stream(
     provider: String,
     model: String,
-) -> impl Straw<(), PullModelStreamResult, String> {
+) -> impl Straw<(), OllamaPullModelStreamResult, String> {
     let url = DATA.read().unwrap().instance_url.clone().unwrap();
 
     sipper(async move |mut output| {
@@ -68,17 +69,19 @@ pub fn pull_stream(
             .bytes_stream();
 
         while let Some(status) = response.next().await {
-            let _ = match serde_json::from_slice::<PullModelStreamResult>(&status.unwrap()) {
+            let _ = match serde_json::from_slice::<OllamaPullModelStreamResult>(&status.unwrap()) {
                 Ok(x) => {
                     let _ = output.send(x).await;
                 }
                 Err(e) => {
-                    let _ = output.send(PullModelStreamResult::Err(e.to_string())).await;
+                    let _ = output
+                        .send(OllamaPullModelStreamResult::Err(e.to_string()))
+                        .await;
                 }
             };
         }
 
-        let _ = output.send(PullModelStreamResult::Finished).await;
+        let _ = output.send(OllamaPullModelStreamResult::Finished).await;
 
         Ok(())
     })

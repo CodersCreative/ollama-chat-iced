@@ -119,16 +119,23 @@ async fn main() {
         )
         .route(
             "/provider/hf/model/{user}/{id}",
-            get(providers::hf::text::models::fetch_model_details)
-                .post(providers::ollama::pull::run),
+            get(providers::hf::fetch_model_details),
+        )
+        .route(
+            "/provider/hf/model/{user}/{id}/{name}",
+            post(providers::hf::pull::run),
+        )
+        .route(
+            "/provider/hf/model/downloaded/",
+            get(providers::hf::get_downloaded_hf_models),
         )
         .route(
             "/provider/hf/text/model/all/",
-            get(providers::hf::text::models::list_all_models),
+            get(providers::hf::text::list_all_models),
         )
         .route(
             "/provider/hf/text/model/search/{search}",
-            get(providers::hf::text::models::search_models),
+            get(providers::hf::text::search_models),
         )
         .route(
             "/provider/{id}/model/{model}",
