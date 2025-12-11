@@ -17,11 +17,7 @@ pub async fn define_settings() -> Result<(), ServerError> {
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS previews_provider ON TABLE {0} TYPE option<object>;
-DEFINE FIELD IF NOT EXISTS default_provider ON TABLE {0} TYPE option<object>;
-DEFINE FIELD IF NOT EXISTS tools_provider ON TABLE {0} TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS models_path ON TABLE {0} TYPE string;
-DEFINE FIELD IF NOT EXISTS use_panes ON TABLE {0} TYPE bool;
-DEFINE FIELD IF NOT EXISTS theme ON TABLE {0} TYPE int;
 ",
             SETTINGS_TABLE,
         ))
@@ -64,11 +60,7 @@ pub async fn reset_settings() -> Result<Json<Option<Settings>>, ServerError> {
 
     let settings = SettingsData {
         previews_provider: default_provider.clone(),
-        tools_provider: default_provider.clone(),
-        default_provider,
         models_path: Some(PathBuf::from_str(&get_path_local("models/".to_string())).unwrap()),
-        use_panes: Some(true),
-        theme: Some(11),
     };
 
     let settings_list: Vec<Settings> = CONN.select(SETTINGS_TABLE).await?;
@@ -99,22 +91,6 @@ pub async fn update_settings(
 
     if let Some(x) = settings.previews_provider {
         current_settings.previews_provider = Some(x);
-    }
-
-    if let Some(x) = settings.default_provider {
-        current_settings.default_provider = Some(x);
-    }
-
-    if let Some(x) = settings.tools_provider {
-        current_settings.tools_provider = Some(x);
-    }
-
-    if let Some(x) = settings.use_panes {
-        current_settings.use_panes = x;
-    }
-
-    if let Some(x) = settings.theme {
-        current_settings.theme = x;
     }
 
     if let Some(x) = settings.models_path {

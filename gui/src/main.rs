@@ -20,6 +20,7 @@ use std::{
 };
 
 use crate::{
+    data::settings::ClientSettings,
     font::get_iced_font,
     pages::{
         Pages,
@@ -79,6 +80,7 @@ pub struct Application {
 pub struct AppCache {
     pub previews: Vec<PreviewMk>,
     pub settings: SettingsData,
+    pub client_settings: ClientSettings,
     pub home_shared: HomePaneSharedData,
 }
 
@@ -114,17 +116,25 @@ pub enum Message {
     HomePaneView(HomePaneViewMessage),
     Subscription(SubMessage),
     SetCache(AppCache),
+    SetCacheModels(ModelsData),
     SaveToClipboard(String),
 }
 
 impl Application {
     pub fn new() -> (Self, Task<Message>) {
         drop(DATA.read());
+        let mut cache = AppCache::default();
+        if let Ok(x) = ClientSettings::load() {
+            cache.client_settings = x;
+        }
+
+        println!("{:?}", cache);
+
         let (_, open) = window::open(window::Settings::default());
         (
             Self {
                 windows: BTreeMap::new(),
-                cache: AppCache::default(),
+                cache,
                 view_data: ViewData::default(),
                 subscriptions: Subscriptions::default(),
             },
@@ -134,31 +144,33 @@ impl Application {
     }
 
     pub fn update_data_cache() -> Task<Message> {
-        Task::future(async {
-            let req = DATA.read().unwrap().to_request();
-            let mut cache = AppCache::default();
+        Task::batch([
+            Task::future(async {
+                let req = DATA.read().unwrap().to_request();
+                let mut cache = AppCache::default();
 
-            cache.previews = req
-                .make_request::<Vec<Preview>, ()>("preview/all/", &(), data::RequestType::Get)
-                .await
-                .unwrap_or_default()
-                .into_iter()
-                .map(|x| x.into())
-                .collect();
+                cache.previews = req
+                    .make_request::<Vec<Preview>, ()>("preview/all/", &(), data::RequestType::Get)
+                    .await
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect();
 
-            if let Ok(settings) = req
-                .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
-                .await
-            {
-                cache.settings = settings.into();
-            }
+                if let Ok(settings) = req
+                    .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
+                    .await
+                {
+                    cache.settings = settings.into();
+                }
 
-            cache.home_shared.models = ModelsData::get_ollama(None).await;
-            cache.home_shared.prompts = PromptsData::get_prompts(None).await;
-            cache.home_shared.options = OptionsData::get_gen_models(None).await;
+                cache.home_shared.prompts = PromptsData::get_prompts(None).await;
+                cache.home_shared.options = OptionsData::get_gen_models(None).await;
 
-            Message::SetCache(cache)
-        })
+                Message::SetCache(cache)
+            }),
+            Task::future(async { Message::SetCacheModels(ModelsData::get_ollama(None).await) }),
+        ])
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -169,6 +181,10 @@ impl Application {
             Message::HomePaneView(message) => message.handle(self),
             Message::SetCache(cache) => {
                 self.cache = cache;
+                Task::none()
+            }
+            Message::SetCacheModels(models) => {
+                self.cache.home_shared.models = models;
                 Task::none()
             }
             Message::UriClicked(x) => {
@@ -193,21 +209,11 @@ impl Application {
     }
 
     pub fn theme(&self) -> Theme {
-        Theme::ALL[if let Some(theme) = &self.cache.settings.theme {
-            theme.clone()
-        } else {
-            11
-        }]
-        .clone()
+        Theme::ALL[self.cache.client_settings.theme].clone()
     }
 
     pub fn window_theme(&self, _window_id: window::Id) -> Theme {
-        Theme::ALL[if let Some(theme) = &self.cache.settings.theme {
-            theme.clone()
-        } else {
-            11
-        }]
-        .clone()
+        Theme::ALL[self.cache.client_settings.theme].clone()
     }
 
     pub fn subscription(&self) -> Subscription<Message> {

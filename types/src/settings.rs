@@ -9,15 +9,7 @@ pub struct SettingsData {
     #[builder(default = "None")]
     pub previews_provider: Option<SettingsProvider>,
     #[builder(default = "None")]
-    pub default_provider: Option<SettingsProvider>,
-    #[builder(default = "None")]
-    pub tools_provider: Option<SettingsProvider>,
-    #[builder(default = "None")]
     pub models_path: Option<PathBuf>,
-    #[builder(default = "None")]
-    pub use_panes: Option<bool>,
-    #[builder(default = "None")]
-    pub theme: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, PartialEq, Eq, PartialOrd, Ord)]
@@ -36,11 +28,7 @@ impl Into<SettingsData> for Settings {
     fn into(self) -> SettingsData {
         SettingsData {
             previews_provider: self.previews_provider,
-            default_provider: self.default_provider,
-            tools_provider: self.tools_provider,
-            use_panes: Some(self.use_panes),
             models_path: Some(self.models_path),
-            theme: Some(self.theme),
         }
     }
 }
@@ -66,11 +54,7 @@ fn get_models_path() -> PathBuf {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub previews_provider: Option<SettingsProvider>,
-    pub default_provider: Option<SettingsProvider>,
-    pub tools_provider: Option<SettingsProvider>,
     #[serde(default = "get_models_path")]
     pub models_path: PathBuf,
-    pub use_panes: bool,
-    pub theme: usize,
     pub id: RecordId,
 }

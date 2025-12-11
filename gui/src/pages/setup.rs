@@ -46,7 +46,6 @@ pub enum SetupMessage {
     UpdateProviderKey(usize, String),
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
-    UpdateToolsModel(SettingsProvider),
     InstanceUrl(InputMessage),
     UpdateUsePanes(bool),
     UpdateTheme(Theme),
@@ -162,8 +161,11 @@ impl SetupMessage {
             }
             Self::UpdateProviderKey(index, api_key) => UpdateProviderInputProperty!(index, api_key),
             Self::UpdatePreviewModel(model) => UpdateModel!(model, previews_provider),
-            Self::UpdateDefaultModel(model) => UpdateModel!(model, default_provider),
-            Self::UpdateToolsModel(model) => UpdateModel!(model, tools_provider),
+            Self::UpdateDefaultModel(model) => {
+                app.cache.client_settings.default_provider = Some(model);
+                app.cache.client_settings.save();
+                Task::none()
+            }
             Self::InstanceUrl(InputMessage::Update(url)) => {
                 app.get_setup_page(&id).unwrap().instance_url = url;
                 Task::none()
@@ -187,16 +189,19 @@ impl SetupMessage {
                 Task::none()
             }
             Self::UpdateTheme(theme) => {
-                app.cache.settings.theme = Theme::ALL.iter().position(|x| x == &theme);
-                Task::future(save_settings(app.cache.settings.clone()))
+                app.cache.client_settings.theme =
+                    Theme::ALL.iter().position(|x| x == &theme).unwrap_or(11);
+                app.cache.client_settings.save();
+                Task::none()
             }
             Self::NextPage => {
                 app.windows.get_mut(&id).unwrap().page = Pages::Home(HomePage::new());
                 Task::none()
             }
             Self::UpdateUsePanes(x) => {
-                app.cache.settings.use_panes = Some(x);
-                Task::future(save_settings(app.cache.settings.clone()))
+                app.cache.client_settings.use_panes = x;
+                app.cache.client_settings.save();
+                Task::none()
             }
         }
     }
@@ -413,7 +418,7 @@ impl SetupPage {
 
                 let default_model = pick_list(
                     x.models.clone(),
-                    app.cache.settings.default_provider.clone(),
+                    app.cache.client_settings.default_provider.clone(),
                     move |x| {
                         Message::Window(WindowMessage::Page(
                             id,
@@ -426,26 +431,10 @@ impl SetupPage {
 
                 model_column = model_column.push(sub_heading("Default Model"));
                 model_column = model_column.push(default_model);
-
-                let tools_model = pick_list(
-                    x.models.clone(),
-                    app.cache.settings.tools_provider.clone(),
-                    move |x| {
-                        Message::Window(WindowMessage::Page(
-                            id,
-                            PageMessage::Setup(SetupMessage::UpdateToolsModel(x)),
-                        ))
-                    },
-                )
-                .style(style::pick_list::main)
-                .menu_style(style::menu::main);
-
-                model_column = model_column.push(sub_heading("Tools Model"));
-                model_column = model_column.push(tools_model);
             }
         }
 
-        let use_panes = checkbox(app.cache.settings.use_panes.unwrap_or(true))
+        let use_panes = checkbox(app.cache.client_settings.use_panes)
             .label("Use Panes")
             .on_toggle(move |x| {
                 Message::Window(WindowMessage::Page(

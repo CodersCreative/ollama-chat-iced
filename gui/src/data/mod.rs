@@ -1,5 +1,3 @@
-use std::{error::Error, sync::LazyLock};
-
 use ochat_types::{
     providers::Provider,
     settings::{SettingsProvider, SettingsProviderBuilder},
@@ -7,6 +5,8 @@ use ochat_types::{
 use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
+use std::{error::Error, sync::LazyLock};
+pub mod settings;
 
 pub static REQWEST_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
 

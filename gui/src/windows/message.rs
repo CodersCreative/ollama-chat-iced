@@ -1,6 +1,10 @@
 use iced::{Task, Vector, widget::operation, window};
 
-use crate::{Application, Message, pages::PageMessage, windows::Window};
+use crate::{
+    Application, Message,
+    pages::{PageMessage, Pages, home::HomePage},
+    windows::Window,
+};
 
 #[derive(Debug, Clone)]
 pub enum WindowMessage {
@@ -45,7 +49,13 @@ impl WindowMessage {
                 }
             }
             Self::WindowOpened(id) => {
-                let window = Window::new(app.view_data.page_stack.pop().unwrap_or_default());
+                let window = Window::new(if let Some(x) = app.view_data.page_stack.pop() {
+                    x
+                } else if app.cache.client_settings.default_provider.is_none() {
+                    Pages::default()
+                } else {
+                    Pages::Home(HomePage::new())
+                });
                 let focus_input = operation::focus(format!("input-{id}"));
 
                 app.windows.insert(id, window);
