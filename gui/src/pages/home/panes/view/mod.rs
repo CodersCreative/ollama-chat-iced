@@ -21,6 +21,7 @@ use crate::{
                     options::{OptionsView, OptionsViewMessage},
                     prompts::{PromptsView, PromptsViewMessage},
                     pulls::{PullsView, PullsViewMessage},
+                    settings::{SettingsView, SettingsViewMessage},
                 },
             },
         },
@@ -38,6 +39,7 @@ pub mod settings;
 #[derive(Debug, Clone, Default)]
 pub struct HomePaneViewData {
     pub models: HashMap<u32, ModelsView>,
+    pub settings: HashMap<u32, SettingsView>,
     pub prompts: HashMap<u32, PromptsView>,
     pub options: HashMap<u32, OptionsView>,
     pub pulls: HashMap<u32, PullsView>,
@@ -49,6 +51,7 @@ pub enum HomePaneViewMessage {
     Prompts(u32, PromptsViewMessage),
     Options(u32, OptionsViewMessage),
     Pulls(u32, PullsViewMessage),
+    Settings(u32, SettingsViewMessage),
 }
 
 impl HomePaneViewMessage {
@@ -58,6 +61,7 @@ impl HomePaneViewMessage {
             Self::Prompts(id, x) => x.handle(app, id),
             Self::Options(id, x) => x.handle(app, id),
             Self::Pulls(id, x) => x.handle(app, id),
+            Self::Settings(id, x) => x.handle(app, id),
         }
     }
 }
@@ -234,6 +238,7 @@ impl HomePaneTypeWithId {
             Self::Prompts(x) => app.view_data.home.prompts.get(x).unwrap().view(app, *x),
             Self::Options(x) => app.view_data.home.options.get(x).unwrap().view(app, *x),
             Self::Pulls(x) => app.view_data.home.pulls.get(x).unwrap().view(app, *x),
+            Self::Settings(x) => app.view_data.home.settings.get(x).unwrap().view(app, *x),
             _ => text("Hello, World!!!").into(),
         }
     }

@@ -10,7 +10,7 @@ use iced::{
     Element, Length, Task, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, container, markdown, pick_list, row, rule,
+        button, column, container, grid, markdown, pick_list, row, rule,
         scrollable::{self, Scrollbar},
         space, svg, text, text_input,
     },
@@ -271,77 +271,41 @@ impl ModelsView {
             if !model.tags.is_empty() {
                 inner_col = inner_col.push(sub_heading("Tags"));
 
-                for i in (0..model.tags.len()).filter(|x| x % 2 == 0) {
-                    let first_tag = model.tags.get(i).unwrap();
-                    let mut first = button(
-                        row![
-                            text(first_tag[0].clone())
-                                .width(Length::Fill)
-                                .align_x(Horizontal::Center)
-                                .align_y(Vertical::Center),
-                            text(first_tag[1].clone())
-                                .width(Length::Fill)
-                                .align_x(Horizontal::Center)
-                                .align_y(Vertical::Center)
-                        ]
-                        .spacing(10),
-                    )
-                    .style(style::button::start)
-                    .width(Length::Fill);
+                inner_col = inner_col.push(
+                    grid(model.tags.iter().map(|x| {
+                        let mut btn = button(
+                            row![
+                                text(x[0].clone())
+                                    .width(Length::Fill)
+                                    .align_x(Horizontal::Center)
+                                    .align_y(Vertical::Center),
+                                text(x[1].clone())
+                                    .width(Length::Fill)
+                                    .align_x(Horizontal::Center)
+                                    .align_y(Vertical::Center)
+                            ]
+                            .spacing(10),
+                        )
+                        .style(style::button::start)
+                        .width(Length::Fill);
 
-                    if !DATA.read().unwrap().models.contains(&SettingsProvider {
-                        provider: provider.clone(),
-                        model: format!("{}:{}", &model.name, &first_tag[0]),
-                    }) {
-                        first = first.on_press(Message::Subscription(SubMessage::OllamaPull(
-                            model.clone(),
-                            SettingsProvider {
-                                provider: provider.clone(),
-                                model: format!("{}:{}", &model.name, &first_tag[0]),
-                            },
-                        )));
-                    }
-
-                    let second_tag = model.tags.get(i + 1);
-
-                    let second: Element<'a, Message> = match second_tag {
-                        Some(second_tag) => {
-                            let mut btn = button(
-                                row![
-                                    text(second_tag[0].clone())
-                                        .width(Length::Fill)
-                                        .align_x(Horizontal::Center)
-                                        .align_y(Vertical::Center),
-                                    text(second_tag[1].clone())
-                                        .width(Length::Fill)
-                                        .align_x(Horizontal::Center)
-                                        .align_y(Vertical::Center)
-                                ]
-                                .spacing(10),
-                            )
-                            .width(Length::Fill)
-                            .style(style::button::start);
-
-                            if !DATA.read().unwrap().models.contains(&SettingsProvider {
-                                provider: provider.clone(),
-                                model: format!("{}:{}", &model.name, &second_tag[0]),
-                            }) {
-                                btn = btn.on_press(Message::Subscription(SubMessage::OllamaPull(
-                                    model.clone(),
-                                    SettingsProvider {
-                                        provider: provider.clone(),
-                                        model: format!("{}:{}", &model.name, &second_tag[0]),
-                                    },
-                                )));
-                            }
-
-                            btn.into()
+                        if !DATA.read().unwrap().models.contains(&SettingsProvider {
+                            provider: provider.clone(),
+                            model: format!("{}:{}", &model.name, &x[0]),
+                        }) {
+                            btn = btn.on_press(Message::Subscription(SubMessage::OllamaPull(
+                                model.clone(),
+                                SettingsProvider {
+                                    provider: provider.clone(),
+                                    model: format!("{}:{}", &model.name, &x[0]),
+                                },
+                            )));
                         }
-                        None => space::horizontal().into(),
-                    };
-
-                    inner_col = inner_col.push(row![first, second].spacing(10));
-                }
+                        btn.into()
+                    }))
+                    .spacing(10)
+                    .height(Length::Shrink),
+                );
             }
 
             col = col.push(container(inner_col).style(style::container::window_title_back))
@@ -432,35 +396,29 @@ impl ModelsView {
                                 .style(style::text::primary)
                                 .size(SUB_HEADING_SIZE)
                                 .width(100),
-                            scrollable::Scrollable::new(
-                                row(variants.iter().map(|variant| {
-                                    button(
-                                        row![
-                                            text(variant.variant().unwrap_or_default())
-                                                .style(style::text::text)
-                                                .size(BODY_SIZE),
-                                            text(print_data_size(
-                                                &variant.size.clone().unwrap_or(0)
-                                            ))
+                            grid(variants.iter().map(|variant| {
+                                button(
+                                    row![
+                                        text(variant.variant().unwrap_or_default())
+                                            .style(style::text::text)
+                                            .size(BODY_SIZE),
+                                        text(print_data_size(&variant.size.clone().unwrap_or(0)))
                                             .style(style::text::translucent::text)
                                             .size(BODY_SIZE)
-                                        ]
-                                        .spacing(5)
-                                        .padding(5)
-                                        .align_y(Vertical::Center),
-                                    )
-                                    .style(style::button::start)
-                                    .on_press(Message::Subscription(SubMessage::HFPull(
-                                        model.clone(),
-                                        variant.name.clone(),
-                                    )))
-                                    .into()
-                                }))
-                                .spacing(10)
-                                .align_y(Vertical::Center)
-                            )
-                            .direction(scrollable::Direction::Horizontal(Scrollbar::new()))
-                            .width(Length::Fill),
+                                    ]
+                                    .spacing(5)
+                                    .padding(5)
+                                    .align_y(Vertical::Center),
+                                )
+                                .style(style::button::start)
+                                .on_press(Message::Subscription(SubMessage::HFPull(
+                                    model.clone(),
+                                    variant.name.clone(),
+                                )))
+                                .into()
+                            }))
+                            .height(Length::Shrink)
+                            .spacing(10),
                         ]
                         .align_y(Vertical::Center)
                         .spacing(20),

@@ -31,6 +31,7 @@ use crate::{
                 view::{
                     HomePaneViewData, HomePaneViewMessage, models::ModelsView,
                     options::OptionsView, prompts::PromptsView, pulls::PullsView,
+                    settings::SettingsView,
                 },
             },
             sidebar::PreviewMk,
@@ -124,11 +125,10 @@ impl Application {
     pub fn new() -> (Self, Task<Message>) {
         drop(DATA.read());
         let mut cache = AppCache::default();
+
         if let Ok(x) = ClientSettings::load() {
             cache.client_settings = x;
         }
-
-        println!("{:?}", cache);
 
         let (_, open) = window::open(window::Settings::default());
         (
@@ -241,6 +241,10 @@ impl Application {
 
     pub fn get_models_view(&mut self, id: &u32) -> Option<&mut ModelsView> {
         self.view_data.home.models.get_mut(id)
+    }
+
+    pub fn get_settings_view(&mut self, id: &u32) -> Option<&mut SettingsView> {
+        self.view_data.home.settings.get_mut(id)
     }
 
     pub fn get_pulls_view(&mut self, id: &u32) -> Option<&mut PullsView> {

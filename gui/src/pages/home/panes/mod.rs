@@ -9,6 +9,7 @@ use crate::{
             message::HomePickingType,
             panes::view::{
                 models::ModelsView, options::OptionsView, prompts::PromptsView, pulls::PullsView,
+                settings::SettingsView,
             },
         },
     },
@@ -48,6 +49,13 @@ impl HomePaneType {
                     .prompts
                     .insert(count, PromptsView::default());
                 HomePaneTypeWithId::Prompts(count)
+            }
+            Self::Settings => {
+                app.view_data
+                    .home
+                    .settings
+                    .insert(count, SettingsView::default());
+                HomePaneTypeWithId::Settings(count)
             }
             Self::Options => {
                 app.view_data
