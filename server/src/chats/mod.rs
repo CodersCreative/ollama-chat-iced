@@ -19,7 +19,7 @@ pub async fn define_chats() -> Result<(), ServerError> {
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS root ON TABLE {0} TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE datetime;
+DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
 ",
             CHAT_TABLE,
         ))

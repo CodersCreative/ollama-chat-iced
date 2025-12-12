@@ -352,7 +352,7 @@ impl ModelsView {
         let mut stats = row![
             stat("downloads.svg", model.downloads.to_string()),
             stat("thumbs_up.svg", model.likes.to_string()),
-            stat("schedule.svg", model.last_modified.to_string()),
+            stat("schedule.svg", model.last_modified.0.to_string()),
         ]
         .spacing(10)
         .align_y(Vertical::Center);

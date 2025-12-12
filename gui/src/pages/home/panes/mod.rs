@@ -1,15 +1,24 @@
-use iced::{Task, widget::pane_grid, window};
+use iced::{
+    Task,
+    widget::{pane_grid, text_editor},
+    window,
+};
+use ochat_types::chats::Chat;
 
 use crate::{
-    Application, Message,
+    Application, DATA, Message,
+    data::RequestType,
     pages::{
-        Pages,
+        PageMessage, Pages,
         home::{
             HomePage,
-            message::HomePickingType,
-            panes::view::{
-                models::ModelsView, options::OptionsView, prompts::PromptsView, pulls::PullsView,
-                settings::SettingsView,
+            message::{HomeMessage, HomePickingType},
+            panes::{
+                data::{MessageMk, MessagesData},
+                view::{
+                    chat::ChatsView, models::ModelsView, options::OptionsView,
+                    prompts::PromptsView, pulls::PullsView, settings::SettingsView,
+                },
             },
         },
     },
@@ -19,8 +28,9 @@ use crate::{
 pub mod data;
 pub mod view;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HomePaneType {
+    Loading,
     Chat,
     Pulls,
     Models,
@@ -67,7 +77,7 @@ impl HomePaneType {
                 app.view_data.home.pulls.insert(count, PullsView::default());
                 HomePaneTypeWithId::Pulls(count)
             }
-            _ => HomePaneTypeWithId::Chat(count),
+            _ => HomePaneTypeWithId::Loading,
         }
     }
 }
@@ -81,11 +91,13 @@ pub enum HomePaneTypeWithId {
     Options(u32),
     Settings(u32),
     Tools(u32),
+    Loading,
 }
 
 impl Into<HomePaneType> for &HomePaneTypeWithId {
     fn into(self) -> HomePaneType {
         match self {
+            HomePaneTypeWithId::Loading => HomePaneType::Loading,
             HomePaneTypeWithId::Chat(_) => HomePaneType::Chat,
             HomePaneTypeWithId::Pulls(_) => HomePaneType::Pulls,
             HomePaneTypeWithId::Models(_) => HomePaneType::Models,
@@ -133,6 +145,7 @@ pub enum PaneMessage {
     Split(pane_grid::Axis, pane_grid::Pane, HomePaneType),
     Replace(pane_grid::Pane, HomePaneType),
     ReplaceChat(pane_grid::Pane, String),
+    ChatLoaded(pane_grid::Pane, Chat, Vec<MessageMk>),
     Pick(HomePickingType),
     UnPick,
 }
@@ -214,7 +227,18 @@ impl PaneMessage {
                 page.panes.pick = None;
                 page.panes.focus = Some(pane);
 
-                Task::none()
+                if pane_type == HomePaneType::Chat {
+                    if let Some(x) = app.cache.previews.first().map(|x| x.id.key().to_string()) {
+                        Task::done(Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(pane, x))),
+                        )))
+                    } else {
+                        Task::none()
+                    }
+                } else {
+                    Task::none()
+                }
             }
             Self::NewWindow(pane) => {
                 let page = app.get_home_page(&id).unwrap();
@@ -241,15 +265,84 @@ impl PaneMessage {
                 let page = app.get_home_page(&id).unwrap();
                 let result = page.panes.panes.split(axis, pane, value);
 
-                if let Some((p, _)) = result {
-                    page.panes.focus = Some(p);
-                }
+                let pane = if let Some((p, _)) = result {
+                    page.panes.focus = Some(p.clone());
+                    p
+                } else {
+                    page.panes.pick = None;
+                    return Task::none();
+                };
 
                 page.panes.pick = None;
 
+                if pane_type == HomePaneType::Chat {
+                    if let Some(x) = app.cache.previews.first().map(|x| x.id.key().to_string()) {
+                        Task::done(Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(pane, x))),
+                        )))
+                    } else {
+                        Task::none()
+                    }
+                } else {
+                    Task::none()
+                }
+            }
+            PaneMessage::ReplaceChat(pane, chat_id) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+
+                let chat: Chat = req
+                    .make_request(&format!("chat/{}", chat_id), &(), RequestType::Get)
+                    .await
+                    .unwrap();
+
+                let msgs = if let Some(x) = chat.root.clone() {
+                    MessagesData::load_chat_from_root(x, None).await
+                } else {
+                    Vec::new()
+                };
+
+                Message::Window(WindowMessage::Page(
+                    id,
+                    PageMessage::Home(HomeMessage::Pane(PaneMessage::ChatLoaded(pane, chat, msgs))),
+                ))
+            }),
+            PaneMessage::ChatLoaded(pane, chat, messages) => {
+                let messages = app.cache.home_shared.messages.push(messages);
+
+                app.view_data.counter += 1;
+                let count = app.view_data.counter;
+
+                app.view_data.home.chats.insert(
+                    count,
+                    ChatsView {
+                        input: text_editor::Content::default(),
+                        models: if let Some(model) =
+                            app.cache.client_settings.default_provider.clone()
+                        {
+                            vec![model]
+                        } else if let Some(x) =
+                            DATA.read().unwrap().models.first().map(|x| x.clone())
+                        {
+                            vec![x]
+                        } else {
+                            Vec::new()
+                        },
+                        messages,
+                        chat,
+                    },
+                );
+
+                let value = HomePaneTypeWithId::Chat(count);
+                let page = app.get_home_page(&id).unwrap();
+
+                // TODO remove pane from view_data
+                let _ = page.panes.panes.panes.insert(pane.clone(), value);
+
+                page.panes.pick = None;
+                page.panes.focus = Some(pane);
                 Task::none()
             }
-            PaneMessage::ReplaceChat(_pane, _chat_id) => Task::none(),
         }
     }
 }

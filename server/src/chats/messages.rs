@@ -34,6 +34,7 @@ impl From<MessageData> for StoredMessageData {
     }
 }
 
+// Change time to use surreal datetime
 pub async fn define_messages() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
@@ -42,7 +43,7 @@ DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS content ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS thinking ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS role ON TABLE {0} TYPE string;
-DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE datetime;
+DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
 ",
             MESSAGE_TABLE
         ))

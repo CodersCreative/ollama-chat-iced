@@ -1,7 +1,12 @@
 use std::collections::HashMap;
 
+use iced::widget::markdown;
 use ochat_types::{
-    chats::messages::Message,
+    chats::{
+        Chat,
+        messages::{Message, Role},
+    },
+    files::B64File,
     options::{GenOptions, relationships::GenModelRelationship},
     prompts::Prompt,
     providers::{
@@ -31,7 +36,119 @@ pub struct DownloadsData {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct MessagesData(pub HashMap<String, Message>);
+pub struct MessagesData(pub HashMap<String, MessageMk>);
+
+#[derive(Debug)]
+pub struct MessageMk {
+    pub content: markdown::Content,
+    pub thinking: Option<markdown::Content>,
+    pub files: Vec<B64File>,
+    pub base: Message,
+}
+
+impl Clone for MessageMk {
+    fn clone(&self) -> Self {
+        Self {
+            content: markdown::Content::parse(&self.base.content),
+            files: self.files.clone(),
+            thinking: self
+                .base
+                .thinking
+                .clone()
+                .map(|x| markdown::Content::parse(&x)),
+            base: self.base.clone(),
+        }
+    }
+}
+
+impl MessageMk {
+    pub async fn get(message: Message) -> Self {
+        let files = message.files.clone();
+        let mut message = Self {
+            content: markdown::Content::parse(&message.content),
+            files: Vec::new(),
+            thinking: message
+                .thinking
+                .clone()
+                .map(|x| markdown::Content::parse(&x)),
+            base: message,
+        };
+
+        let req = DATA.read().unwrap().to_request();
+
+        for file in files {
+            if let Ok(Some(file)) = req
+                .make_request::<Option<B64File>, ()>(
+                    &format!("file/{}", file),
+                    &(),
+                    RequestType::Get,
+                )
+                .await
+            {
+                message.files.push(file);
+            }
+        }
+
+        message
+    }
+}
+
+impl MessagesData {
+    pub fn push(&mut self, other: Vec<MessageMk>) -> Vec<String> {
+        let mut ids = Vec::new();
+        for v in other.into_iter() {
+            ids.push(v.base.id.key().to_string());
+            self.0.insert(v.base.id.key().to_string(), v);
+        }
+
+        ids
+    }
+
+    pub async fn load_chat(chat_id: String, path: Option<Vec<i8>>) -> Vec<MessageMk> {
+        let req = DATA.read().unwrap().to_request();
+
+        let chat: Chat = req
+            .make_request(&format!("chat/{}", chat_id), &(), RequestType::Get)
+            .await
+            .unwrap();
+
+        if let Some(x) = chat.root {
+            Self::load_chat_from_root(x, path).await
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub async fn load_chat_from_root(root_msg: String, path: Option<Vec<i8>>) -> Vec<MessageMk> {
+        let req = DATA.read().unwrap().to_request();
+
+        let messages: Vec<Message> = if let Some(path) = path {
+            req.make_request(
+                &format!("message/parent/{}", root_msg),
+                &path,
+                RequestType::Get,
+            )
+            .await
+            .unwrap_or_default()
+        } else {
+            req.make_request(
+                &format!("message/parent/{}/default/", root_msg),
+                &(),
+                RequestType::Get,
+            )
+            .await
+            .unwrap_or_default()
+        };
+
+        let mut message_mks = Vec::new();
+
+        for msg in messages.into_iter() {
+            message_mks.push(MessageMk::get(msg).await);
+        }
+
+        message_mks
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct ModelsData {

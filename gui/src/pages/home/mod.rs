@@ -21,7 +21,7 @@ impl HomePage {
     pub fn new() -> Self {
         Self {
             side_bar: HomeSideBar::default(),
-            panes: HomePanes::new(HomePaneTypeWithId::Chat(0)),
+            panes: HomePanes::new(HomePaneTypeWithId::Loading),
         }
     }
 

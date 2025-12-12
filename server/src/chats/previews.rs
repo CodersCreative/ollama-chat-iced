@@ -22,7 +22,7 @@ pub async fn define_previews() -> Result<(), ServerError> {
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS text ON TABLE {0} TYPE string;
-DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE datetime;
+DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
 
 DEFINE ANALYZER previews_analyzer TOKENIZERS class, blank FILTERS lowercase, ascii;
 DEFINE INDEX text_index ON TABLE {0} COLUMNS text SEARCH ANALYZER previews_analyzer BM25;

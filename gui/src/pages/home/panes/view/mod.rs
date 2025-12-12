@@ -1,12 +1,3 @@
-use std::{collections::HashMap, fmt::Display};
-
-use iced::{
-    Element, Task,
-    alignment::{Horizontal, Vertical},
-    widget::{center, container, pane_grid, row, text},
-    window,
-};
-
 use crate::{
     Application, Message,
     font::{BODY_SIZE, HEADER_SIZE},
@@ -17,6 +8,7 @@ use crate::{
             panes::{
                 HomePaneTypeWithId, HomePanes, PaneMessage,
                 view::{
+                    chat::{ChatsView, ChatsViewMessage},
                     models::{ModelsView, ModelsViewMessage},
                     options::{OptionsView, OptionsViewMessage},
                     prompts::{PromptsView, PromptsViewMessage},
@@ -29,7 +21,15 @@ use crate::{
     style,
     windows::message::WindowMessage,
 };
+use iced::{
+    Element, Padding, Task,
+    alignment::{Horizontal, Vertical},
+    widget::{center, container, pane_grid, row, text},
+    window,
+};
+use std::{collections::HashMap, fmt::Display};
 
+pub mod chat;
 pub mod models;
 pub mod options;
 pub mod prompts;
@@ -43,6 +43,7 @@ pub struct HomePaneViewData {
     pub prompts: HashMap<u32, PromptsView>,
     pub options: HashMap<u32, OptionsView>,
     pub pulls: HashMap<u32, PullsView>,
+    pub chats: HashMap<u32, ChatsView>,
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +53,7 @@ pub enum HomePaneViewMessage {
     Options(u32, OptionsViewMessage),
     Pulls(u32, PullsViewMessage),
     Settings(u32, SettingsViewMessage),
+    Chats(u32, ChatsViewMessage),
 }
 
 impl HomePaneViewMessage {
@@ -62,6 +64,7 @@ impl HomePaneViewMessage {
             Self::Options(id, x) => x.handle(app, id),
             Self::Pulls(id, x) => x.handle(app, id),
             Self::Settings(id, x) => x.handle(app, id),
+            Self::Chats(id, x) => x.handle(app, id),
         }
     }
 }
@@ -226,6 +229,7 @@ impl Display for HomePaneTypeWithId {
                 Self::Options(_) => "Generation Options",
                 Self::Settings(_) => "Settings",
                 Self::Tools(_) => "Tools",
+                Self::Loading => "Loading",
             }
         )
     }
@@ -239,6 +243,18 @@ impl HomePaneTypeWithId {
             Self::Options(x) => app.view_data.home.options.get(x).unwrap().view(app, *x),
             Self::Pulls(x) => app.view_data.home.pulls.get(x).unwrap().view(app, *x),
             Self::Settings(x) => app.view_data.home.settings.get(x).unwrap().view(app, *x),
+            Self::Chat(x) => app.view_data.home.chats.get(x).unwrap().view(app, *x),
+            Self::Loading => center(
+                container(
+                    text("Loading...")
+                        .style(style::text::primary)
+                        .size(HEADER_SIZE),
+                )
+                .max_width(800)
+                .padding(Padding::new(20.0))
+                .style(style::container::neutral_back),
+            )
+            .into(),
             _ => text("Hello, World!!!").into(),
         }
     }

@@ -55,12 +55,6 @@ impl Display for RecordIdKey {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Datetime(pub DateTime<Utc>);
 
-impl Display for Datetime {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl Default for Datetime {
     fn default() -> Self {
         Self(Utc::now())

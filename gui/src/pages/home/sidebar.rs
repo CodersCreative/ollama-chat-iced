@@ -15,7 +15,9 @@ use crate::{
 use iced::{
     Element, Length, Padding, Theme,
     alignment::{Horizontal, Vertical},
-    widget::{Button, button, column, container, markdown, row, rule, space, text, text_input},
+    widget::{
+        Button, button, column, container, hover, markdown, row, rule, space, text, text_input,
+    },
     window,
 };
 use ochat_types::{chats::previews::Preview, surreal::RecordId};
@@ -76,14 +78,18 @@ impl HomeSideBar {
         .style(style::button::transparent_back_white_text)
         .width(Length::Fill);
 
-        let close = style::svg_button::text("close.svg", BODY_SIZE + 2).on_press(Message::Window(
-            WindowMessage::Page(
+        let close = style::svg_button::text("close.svg", SUB_HEADING_SIZE)
+            .height(Length::Fill)
+            .on_press(Message::Window(WindowMessage::Page(
                 id,
                 PageMessage::Home(HomeMessage::DeleteChat(preview.id.key().to_string())),
-            ),
-        ));
+            )));
 
-        container(row![title, close].align_y(Vertical::Center)).into()
+        container(hover(
+            title,
+            row![space::horizontal(), close].align_y(Vertical::Center),
+        ))
+        .into()
     }
 
     fn chat_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
