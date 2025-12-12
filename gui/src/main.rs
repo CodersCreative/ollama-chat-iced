@@ -29,7 +29,7 @@ use crate::{
             panes::{
                 data::{HomePaneSharedData, ModelsData, OptionsData, PromptsData},
                 view::{
-                    HomePaneViewData, HomePaneViewMessage, models::ModelsView,
+                    HomePaneViewData, HomePaneViewMessage, chat::ChatsView, models::ModelsView,
                     options::OptionsView, prompts::PromptsView, pulls::PullsView,
                     settings::SettingsView,
                 },
@@ -318,6 +318,10 @@ impl Application {
 
     pub fn get_models_view(&mut self, id: &u32) -> Option<&mut ModelsView> {
         self.view_data.home.models.get_mut(id)
+    }
+
+    pub fn get_chats_view(&mut self, id: &u32) -> Option<&mut ChatsView> {
+        self.view_data.home.chats.get_mut(id)
     }
 
     pub fn get_settings_view(&mut self, id: &u32) -> Option<&mut SettingsView> {

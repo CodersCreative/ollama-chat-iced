@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use iced::widget::markdown;
 use ochat_types::{
-    chats::{
-        Chat,
-        messages::{Message, Role},
-    },
+    chats::{Chat, messages::Message},
     files::B64File,
     options::{GenOptions, relationships::GenModelRelationship},
     prompts::Prompt,

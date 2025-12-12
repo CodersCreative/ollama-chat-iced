@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use iced::{
     Task,
     widget::{pane_grid, text_editor},
@@ -14,7 +16,7 @@ use crate::{
             HomePage,
             message::{HomeMessage, HomePickingType},
             panes::{
-                data::{MessageMk, MessagesData},
+                data::{MessageMk, MessagesData, PromptsData},
                 view::{
                     chat::ChatsView, models::ModelsView, options::OptionsView,
                     prompts::PromptsView, pulls::PullsView, settings::SettingsView,
@@ -330,6 +332,10 @@ impl PaneMessage {
                         },
                         messages,
                         chat,
+                        edits: HashMap::new(),
+                        expanded_messages: Vec::new(),
+                        prompts: PromptsData::default(),
+                        selected_prompt: None,
                     },
                 );
 

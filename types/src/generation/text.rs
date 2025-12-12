@@ -1,4 +1,4 @@
-use crate::chats::messages::Role;
+use crate::chats::messages::{Message, Role};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -9,7 +9,8 @@ pub enum ChatStreamResult {
     Idle,
     Err(String),
     Generating(ChatResponse),
-    Finished(ChatResponse),
+    Generated(ChatResponse),
+    Finished,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
@@ -21,6 +22,16 @@ pub struct ChatQueryMessage {
     #[serde(default = "Role::default")]
     #[builder(default = "Role::User")]
     pub role: Role,
+}
+
+impl From<Message> for ChatQueryMessage {
+    fn from(value: Message) -> Self {
+        Self {
+            text: value.content,
+            files: value.files,
+            role: value.role,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -37,6 +48,17 @@ pub struct ChatResponse {
     pub thinking: Option<String>,
     #[serde(default = "Vec::new")]
     pub func_calls: Vec<FunctionCall>,
+}
+
+impl Default for ChatResponse {
+    fn default() -> Self {
+        Self {
+            role: Role::AI,
+            content: String::new(),
+            thinking: None,
+            func_calls: Vec::new(),
+        }
+    }
 }
 
 impl Into<ChatQueryMessage> for ChatResponse {

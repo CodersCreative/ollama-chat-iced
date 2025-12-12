@@ -24,8 +24,6 @@ pub struct Chat {
 }
 
 pub mod messages {
-    use crate::generation::text::ChatQueryMessage;
-
     use super::relationships::Reason;
     use super::*;
 
@@ -63,6 +61,20 @@ pub mod messages {
         pub model: String,
     }
 
+    impl Into<MessageData> for Message {
+        fn into(self) -> MessageData {
+            MessageData {
+                content: self.content,
+                model: self.model,
+                thinking: self.thinking,
+                files: self.files,
+                reason: None,
+                time: Some(self.time),
+                role: self.role,
+            }
+        }
+    }
+
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Message {
         pub content: String,
@@ -73,16 +85,6 @@ pub mod messages {
         pub role: Role,
         pub time: Datetime,
         pub id: RecordId,
-    }
-
-    impl Into<ChatQueryMessage> for Message {
-        fn into(self) -> ChatQueryMessage {
-            ChatQueryMessage {
-                text: self.content,
-                files: self.files,
-                role: self.role,
-            }
-        }
     }
 }
 

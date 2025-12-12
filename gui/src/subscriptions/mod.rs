@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
-use iced::{Subscription, Task};
+use iced::{Subscription, Task, widget::markdown};
 use ochat_types::{
+    chats::messages::MessageData,
+    generation::text::{ChatQueryData, ChatStreamResult},
     providers::{
         hf::{HFModel, HFPullModelStreamResult},
         ollama::{OllamaModelsInfo, OllamaPullModelStreamResult},
@@ -11,9 +13,10 @@ use ochat_types::{
 
 use crate::{
     Application, DATA, Message,
-    data::Data,
+    data::{Data, RequestType},
     subscriptions::{
         hf_pull::{HFPull, HFPullUpdate},
+        message::{MessageGen, MessageGenUpdate},
         ollama_pull::{OllamaPull, OllamaPullUpdate},
     },
 };
@@ -24,6 +27,9 @@ pub mod ollama_pull;
 
 #[derive(Debug, Clone)]
 pub enum SubMessage {
+    GenMessage(String, ChatQueryData),
+    GeneratingMessage(u32, ChatStreamResult),
+    StopGenMessage(u32),
     OllamaPull(OllamaModelsInfo, SettingsProvider),
     OllamaPulling(u32, OllamaPullModelStreamResult),
     OllamaStopPulling(u32),
@@ -35,6 +41,124 @@ pub enum SubMessage {
 impl SubMessage {
     pub fn handle(self, app: &mut Application) -> Task<Message> {
         match self {
+            Self::GenMessage(x, query) => {
+                let id = app.subscriptions.counter.clone();
+                app.subscriptions.counter += 1;
+                app.subscriptions
+                    .message_gens
+                    .insert(id, MessageGen::new(x, query));
+
+                app.subscriptions
+                    .message_gens
+                    .get_mut(&id)
+                    .unwrap()
+                    .start()
+                    .map(move |x| {
+                        let x = match x {
+                            MessageGenUpdate::Generating(x) => x,
+                            MessageGenUpdate::Finished(Ok(_)) => ChatStreamResult::Finished,
+                            MessageGenUpdate::Finished(Err(e)) => ChatStreamResult::Err(e),
+                        };
+                        Message::Subscription(SubMessage::GeneratingMessage(id, x))
+                    })
+            }
+            Self::GeneratingMessage(id, ChatStreamResult::Finished) => {
+                let _ = app.subscriptions.ollama_pulls.remove(&id);
+                let (url, providers) = {
+                    let data = DATA.read().unwrap();
+                    (
+                        data.instance_url.clone().unwrap(),
+                        data.providers
+                            .iter()
+                            .map(|x| x.id.key().to_string())
+                            .collect(),
+                    )
+                };
+
+                Task::future(async {
+                    if let Ok(x) = Data::get_models(url, providers).await {
+                        DATA.write().unwrap().models = x;
+                    }
+
+                    Message::None
+                })
+            }
+            Self::GeneratingMessage(id, ChatStreamResult::Generated(result)) => {
+                let key = if let Some(x) = app.subscriptions.message_gens.get_mut(&id) {
+                    x.progress(ChatStreamResult::Generated(result.clone()));
+                    x.id.clone()
+                } else {
+                    return Task::none();
+                };
+
+                let (id, msg) = if let Some(msg) = app.cache.home_shared.messages.0.get_mut(&key) {
+                    msg.content = markdown::Content::parse(&result.content);
+                    msg.thinking = result
+                        .thinking
+                        .as_ref()
+                        .map(|x| markdown::Content::parse(&x));
+                    msg.base.content = result.content;
+                    msg.base.thinking = result.thinking;
+                    (
+                        msg.base.id.key().to_string(),
+                        Into::<MessageData>::into(msg.base.clone()),
+                    )
+                } else {
+                    return Task::none();
+                };
+
+                Task::future(async move {
+                    let req = DATA.read().unwrap().to_request();
+
+                    let _ = req
+                        .make_request::<ochat_types::chats::messages::Message, MessageData>(
+                            &format!("message/{}", id),
+                            &msg,
+                            RequestType::Put,
+                        )
+                        .await;
+
+                    Message::None
+                })
+            }
+            Self::GeneratingMessage(id, ChatStreamResult::Generating(result)) => {
+                let key = if let Some(x) = app.subscriptions.message_gens.get_mut(&id) {
+                    x.progress(ChatStreamResult::Generating(result.clone()));
+                    x.id.clone()
+                } else {
+                    return Task::none();
+                };
+                if let Some(msg) = app.cache.home_shared.messages.0.get_mut(&key) {
+                    msg.base.content.push_str(&result.content);
+
+                    if let (Some(thinking), Some(add)) = (&mut msg.base.thinking, &result.thinking)
+                    {
+                        thinking.push_str(&add);
+                    } else {
+                        msg.base.thinking = result.thinking;
+                    }
+
+                    msg.content = markdown::Content::parse(&msg.base.content);
+                    msg.thinking = msg
+                        .base
+                        .thinking
+                        .as_ref()
+                        .map(|x| markdown::Content::parse(&x));
+                }
+
+                Task::none()
+            }
+            Self::GeneratingMessage(id, result) => {
+                if let Some(x) = app.subscriptions.message_gens.get_mut(&id) {
+                    x.progress(result);
+                }
+
+                Task::none()
+            }
+            Self::StopGenMessage(id) => {
+                app.subscriptions.message_gens.remove(&id);
+                Task::none()
+            }
             Self::OllamaPull(data, model) => {
                 let id = app.subscriptions.counter.clone();
                 app.cache.home_shared.downloads.ollama.insert(id, data);
@@ -158,6 +282,7 @@ pub struct Subscriptions {
     pub counter: u32,
     pub ollama_pulls: HashMap<u32, OllamaPull>,
     pub hf_pulls: HashMap<u32, HFPull>,
+    pub message_gens: HashMap<u32, MessageGen>,
 }
 
 impl Subscriptions {

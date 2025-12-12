@@ -55,12 +55,14 @@ async fn run_text_stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamRe
 
         let (content, thinking) = split_text_into_thinking(content.clone());
 
-        let _ = tx.send(ChatStreamResult::Finished(ChatResponse {
+        let _ = tx.send(ChatStreamResult::Generated(ChatResponse {
             role: Role::AI,
             content,
             thinking,
             func_calls: Vec::new(),
         }));
+
+        let _ = tx.send(ChatStreamResult::Finished);
     });
 
     return Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx));

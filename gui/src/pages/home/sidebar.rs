@@ -1,6 +1,6 @@
 use crate::{
     Application, InputMessage, Message,
-    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
+    font::{HEADER_SIZE, SUB_HEADING_SIZE},
     pages::{
         PageMessage,
         home::{
