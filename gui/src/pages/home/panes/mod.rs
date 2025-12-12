@@ -5,10 +5,10 @@ use iced::{
     widget::{pane_grid, text_editor},
     window,
 };
-use ochat_types::chats::Chat;
+use ochat_types::chats::{Chat, ChatData, previews::Preview};
 
 use crate::{
-    Application, DATA, Message,
+    Application, CacheMessage, DATA, Message,
     data::RequestType,
     pages::{
         PageMessage, Pages,
@@ -22,6 +22,7 @@ use crate::{
                     prompts::PromptsView, pulls::PullsView, settings::SettingsView,
                 },
             },
+            sidebar::PreviewMk,
         },
     },
     windows::message::WindowMessage,
@@ -153,6 +154,76 @@ pub enum PaneMessage {
 }
 
 impl PaneMessage {
+    pub fn handle_new_chat(
+        app: &mut Application,
+        id: window::Id,
+        pane: pane_grid::Pane,
+    ) -> Task<Message> {
+        if let Some(x) = app.cache.previews.first().map(|x| x.id.key().to_string()) {
+            Task::done(Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(pane, x))),
+            )))
+        } else {
+            Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+
+                if let Ok(chats) = req
+                    .make_request::<Vec<Chat>, ()>("chat/all/", &(), RequestType::Get)
+                    .await
+                {
+                    if chats.len() > 0 {
+                        return Message::Batch(vec![
+                            req.make_request::<Preview, ()>(
+                                &format!("preview/{}", chats.first().unwrap().id.key().to_string()),
+                                &(),
+                                RequestType::Put,
+                            )
+                            .await
+                            .map(|x| Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))))
+                            .unwrap_or(Message::None),
+                            Message::Window(WindowMessage::Page(
+                                id,
+                                PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(
+                                    pane,
+                                    chats.first().unwrap().id.key().to_string(),
+                                ))),
+                            )),
+                        ]);
+                    }
+                }
+
+                if let Ok(chat) = req
+                    .make_request::<Chat, ChatData>(
+                        "chat/",
+                        &ChatData::default(),
+                        RequestType::Post,
+                    )
+                    .await
+                {
+                    Message::Batch(vec![
+                        req.make_request::<Preview, ()>(
+                            &format!("preview/{}", chat.id.key().to_string()),
+                            &(),
+                            RequestType::Put,
+                        )
+                        .await
+                        .map(|x| Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))))
+                        .unwrap_or(Message::None),
+                        Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(
+                                pane,
+                                chat.id.key().to_string(),
+                            ))),
+                        )),
+                    ])
+                } else {
+                    Message::None
+                }
+            })
+        }
+    }
     pub fn handle(self, app: &mut Application, id: window::Id) -> Task<Message> {
         match self {
             Self::Pick(x) => {
@@ -230,14 +301,7 @@ impl PaneMessage {
                 page.panes.focus = Some(pane);
 
                 if pane_type == HomePaneType::Chat {
-                    if let Some(x) = app.cache.previews.first().map(|x| x.id.key().to_string()) {
-                        Task::done(Message::Window(WindowMessage::Page(
-                            id,
-                            PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(pane, x))),
-                        )))
-                    } else {
-                        Task::none()
-                    }
+                    Self::handle_new_chat(app, id, pane)
                 } else {
                     Task::none()
                 }
@@ -278,14 +342,7 @@ impl PaneMessage {
                 page.panes.pick = None;
 
                 if pane_type == HomePaneType::Chat {
-                    if let Some(x) = app.cache.previews.first().map(|x| x.id.key().to_string()) {
-                        Task::done(Message::Window(WindowMessage::Page(
-                            id,
-                            PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(pane, x))),
-                        )))
-                    } else {
-                        Task::none()
-                    }
+                    Self::handle_new_chat(app, id, pane)
                 } else {
                     Task::none()
                 }

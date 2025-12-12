@@ -19,7 +19,7 @@ pub(crate) fn provider_into_config(provider: &Provider) -> Client<OpenAIConfig> 
 
 async fn get_local_ollama_data() -> Option<ProviderData> {
     let url = "http://localhost:11434/v1".to_string();
-    if reqwest::Client::new().head(&url).send().await.is_ok() {
+    if reqwest::Client::new().get(&url).send().await.is_ok() {
         Some(ProviderData {
             name: String::from("Local Ollama"),
             url,

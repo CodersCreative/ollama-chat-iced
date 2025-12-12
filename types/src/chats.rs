@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::surreal::{Datetime, RecordId};
 
-#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct ChatData {
     #[serde(default = "Vec::new")]
     #[builder(default = "Vec::new()")]
@@ -36,7 +36,7 @@ pub mod messages {
         System,
     }
 
-    #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
+    #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
     pub struct MessageData {
         pub content: String,
         #[builder(default = "None")]

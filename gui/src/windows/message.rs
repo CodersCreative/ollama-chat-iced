@@ -2,7 +2,11 @@ use iced::{Task, Vector, widget::operation, window};
 
 use crate::{
     Application, Message,
-    pages::{PageMessage, Pages, home::HomePage, setup::SetupPage},
+    pages::{
+        PageMessage, Pages,
+        home::{HomePage, panes::PaneMessage},
+        setup::SetupPage,
+    },
     windows::Window,
 };
 
@@ -49,6 +53,7 @@ impl WindowMessage {
                 }
             }
             Self::WindowOpened(id) => {
+                let mut is_chat = false;
                 let window = Window::new(if let Some(x) = app.view_data.page_stack.pop() {
                     x
                 } else if app.cache.client_settings.default_provider.is_none() {
@@ -56,13 +61,25 @@ impl WindowMessage {
                     setup.instance_url = app.cache.client_settings.instance_url.clone();
                     Pages::Setup(setup)
                 } else {
+                    is_chat = true;
                     Pages::Home(HomePage::new())
                 });
                 let focus_input = operation::focus(format!("input-{id}"));
 
                 app.windows.insert(id, window);
 
-                focus_input
+                Task::batch([
+                    focus_input,
+                    if is_chat {
+                        let Pages::Home(pane) = &app.windows.get(&id).unwrap().page else {
+                            panic!()
+                        };
+                        let pane = pane.panes.panes.panes.first_key_value().unwrap().0.clone();
+                        PaneMessage::handle_new_chat(app, id, pane)
+                    } else {
+                        Task::none()
+                    },
+                ])
             }
         }
     }

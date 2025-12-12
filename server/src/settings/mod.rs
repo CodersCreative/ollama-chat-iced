@@ -27,7 +27,7 @@ DEFINE FIELD IF NOT EXISTS models_path ON TABLE {0} TYPE string;
 
 pub async fn reset_settings() -> Result<Json<Option<Settings>>, ServerError> {
     let default_provider: Option<SettingsProvider> = {
-        let mut providers = list_all_providers().await?.0;
+        let mut providers = list_all_providers().await.unwrap_or_default().0;
         let provider = if let Some(x) = providers
             .iter()
             .find(|x| x.provider_type == ProviderType::Ollama)

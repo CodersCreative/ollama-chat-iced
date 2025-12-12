@@ -42,7 +42,7 @@ pub async fn list_all_provider_models(id: Path<String>) -> Result<Json<Vec<Model
             }
         }
     } else {
-        panic!()
+        return Ok(Json(Vec::new()));
     };
 
     Ok(Json(response))

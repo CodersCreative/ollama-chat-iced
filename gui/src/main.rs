@@ -27,7 +27,7 @@ use crate::{
         home::{
             HomePage,
             panes::{
-                data::{HomePaneSharedData, ModelsData, OptionsData, PromptsData},
+                data::{HomePaneSharedData, MessageMk, ModelsData, OptionsData, PromptsData},
                 view::{
                     HomePaneViewData, HomePaneViewMessage, chat::ChatsView, models::ModelsView,
                     options::OptionsView, prompts::PromptsView, pulls::PullsView,
@@ -111,10 +111,13 @@ pub enum Message {
     Subscription(SubMessage),
     Cache(CacheMessage),
     SaveToClipboard(String),
+    Batch(Vec<Self>),
 }
 
 #[derive(Debug, Clone)]
 pub enum CacheMessage {
+    AddPreview(PreviewMk),
+    AddMessage(MessageMk),
     SetModels(ModelsData),
     SetPrompts(PromptsData),
     SetOptions(OptionsData),
@@ -128,6 +131,17 @@ pub enum CacheMessage {
 impl CacheMessage {
     pub fn handle(self, app: &mut Application) -> Task<Message> {
         match self {
+            Self::AddPreview(x) => {
+                app.cache.previews.retain(|y| y.id != x.id);
+                app.cache.previews.push(x);
+            }
+            Self::AddMessage(x) => {
+                app.cache
+                    .home_shared
+                    .messages
+                    .0
+                    .insert(x.base.id.key().to_string(), x);
+            }
             Self::SetModels(x) => {
                 app.cache.home_shared.models = x;
             }
@@ -268,6 +282,7 @@ impl Application {
                 open::that_in_background(x.to_string());
                 Task::none()
             }
+            Message::Batch(messages) => Task::batch(messages.into_iter().map(|x| Task::done(x))),
             Message::SaveToClipboard(x) => clipboard::write::<Message>(x.clone()),
             Message::Quit => exit(),
         }

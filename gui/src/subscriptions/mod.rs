@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use iced::{Subscription, Task, widget::markdown};
 use ochat_types::{
-    chats::messages::MessageData,
+    chats::{messages::MessageData, previews::Preview},
     generation::text::{ChatQueryData, ChatStreamResult},
     providers::{
         hf::{HFModel, HFPullModelStreamResult},
@@ -12,8 +12,9 @@ use ochat_types::{
 };
 
 use crate::{
-    Application, DATA, Message,
+    Application, CacheMessage, DATA, Message,
     data::{Data, RequestType},
+    pages::home::sidebar::PreviewMk,
     subscriptions::{
         hf_pull::{HFPull, HFPullUpdate},
         message::{MessageGen, MessageGenUpdate},
@@ -63,7 +64,7 @@ impl SubMessage {
                     })
             }
             Self::GeneratingMessage(id, ChatStreamResult::Finished) => {
-                let _ = app.subscriptions.ollama_pulls.remove(&id);
+                let message_id = app.subscriptions.message_gens.remove(&id).unwrap().id;
                 let (url, providers) = {
                     let data = DATA.read().unwrap();
                     (
@@ -74,13 +75,33 @@ impl SubMessage {
                             .collect(),
                     )
                 };
+                let chat_id = app
+                    .view_data
+                    .home
+                    .chats
+                    .iter()
+                    .find(|x| x.1.messages.contains(&message_id))
+                    .map(|x| x.1.chat.id.key().to_string());
 
                 Task::future(async {
                     if let Ok(x) = Data::get_models(url, providers).await {
                         DATA.write().unwrap().models = x;
                     }
 
-                    Message::None
+                    let req = DATA.read().unwrap().to_request();
+
+                    if let Some(id) = chat_id {
+                        req.make_request::<Preview, ()>(
+                            &format!("preview/{}", id),
+                            &(),
+                            RequestType::Put,
+                        )
+                        .await
+                        .map(|x| Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))))
+                        .unwrap_or(Message::None)
+                    } else {
+                        Message::None
+                    }
                 })
             }
             Self::GeneratingMessage(id, ChatStreamResult::Generated(result)) => {

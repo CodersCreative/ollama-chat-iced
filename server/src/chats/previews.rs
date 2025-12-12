@@ -5,6 +5,7 @@ use ochat_types::{
         previews::{Preview, PreviewData},
     },
     generation::text::{ChatQueryData, ChatQueryMessage},
+    surreal::Datetime,
 };
 
 use crate::{
@@ -34,14 +35,37 @@ DEFINE INDEX text_index ON TABLE {0} COLUMNS text SEARCH ANALYZER previews_analy
 }
 
 pub async fn update_preview(id: Path<String>) -> Result<Json<Option<Preview>>, ServerError> {
-    let (messages, time) = if let Ok(Some((Some(x), y))) = get_chat(Path(id.clone()))
-        .await
-        .map(|x| x.0.map(|x| (x.root, x.time)))
-    {
-        (get_default_message_list_from_parent(Path(x)).await?.0, y)
-    } else {
-        panic!()
+    let (messages, time) = match get_chat(Path(id.clone())).await.map(|x| x.0) {
+        Ok(Some(chat)) if chat.root.is_some() => (
+            get_default_message_list_from_parent(Path(chat.root.unwrap()))
+                .await?
+                .0,
+            chat.time,
+        ),
+        Ok(Some(chat)) => (Vec::new(), chat.time),
+        Ok(None) => (Vec::new(), Datetime::default()),
+        _ => panic!(),
     };
+
+    if messages.is_empty() {
+        println!("Yah");
+
+        let preview = PreviewData {
+            text: String::from("New Chat"),
+            time: time.clone(),
+        };
+        return Ok(Json(
+            if CONN
+                .select::<Option<Preview>>((PREVIEW_TABLE, &*id))
+                .await?
+                .is_some()
+            {
+                CONN.update((PREVIEW_TABLE, &*id)).content(preview).await?
+            } else {
+                CONN.create((PREVIEW_TABLE, &*id)).content(preview).await?
+            },
+        ));
+    }
 
     let mut messages: Vec<ChatQueryMessage> = messages.into_iter().map(|x| x.into()).collect();
 

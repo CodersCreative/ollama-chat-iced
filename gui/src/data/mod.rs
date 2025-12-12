@@ -17,6 +17,7 @@ pub struct Data {
     pub models: Vec<SettingsProvider>,
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct Request(String);
 
 impl Request {
