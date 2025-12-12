@@ -1,6 +1,6 @@
 use crate::{
-    Application, DATA, InputMessage, Message,
-    data::{Data, RequestType},
+    Application, CacheMessage, DATA, InputMessage, Message,
+    data::RequestType,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     pages::{PageMessage, Pages, home::HomePage},
     style,
@@ -47,8 +47,6 @@ pub enum SetupMessage {
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
     InstanceUrl(InputMessage),
-    UpdateUsePanes(bool),
-    UpdateTheme(Theme),
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
     AddProvider(usize),
@@ -172,13 +170,9 @@ impl SetupMessage {
             }
             Self::InstanceUrl(_) => {
                 let instance = app.get_setup_page(&id).unwrap().instance_url.clone();
-                Task::future(async {
-                    if let Ok(x) = Data::get(Some(instance)).await {
-                        *DATA.write().unwrap() = x;
-                    }
-                    Message::None
-                })
-                .chain(Application::update_data_cache())
+                Task::done(Message::Cache(crate::CacheMessage::SetInstanceUrl(
+                    instance,
+                )))
             }
             Self::RemoveProviderInput(index) => {
                 let _ = app
@@ -188,19 +182,8 @@ impl SetupMessage {
                     .remove(index);
                 Task::none()
             }
-            Self::UpdateTheme(theme) => {
-                app.cache.client_settings.theme =
-                    Theme::ALL.iter().position(|x| x == &theme).unwrap_or(11);
-                app.cache.client_settings.save();
-                Task::none()
-            }
             Self::NextPage => {
                 app.windows.get_mut(&id).unwrap().page = Pages::Home(HomePage::new());
-                Task::none()
-            }
-            Self::UpdateUsePanes(x) => {
-                app.cache.client_settings.use_panes = x;
-                app.cache.client_settings.save();
                 Task::none()
             }
         }
@@ -436,18 +419,10 @@ impl SetupPage {
 
         let use_panes = checkbox(app.cache.client_settings.use_panes)
             .label("Use Panes")
-            .on_toggle(move |x| {
-                Message::Window(WindowMessage::Page(
-                    id,
-                    PageMessage::Setup(SetupMessage::UpdateUsePanes(x)),
-                ))
-            });
+            .on_toggle(move |x| Message::Cache(CacheMessage::SetUsePanes(x)));
 
         let theme = pick_list(Theme::ALL, Some(app.theme()), move |x| {
-            Message::Window(WindowMessage::Page(
-                id,
-                PageMessage::Setup(SetupMessage::UpdateTheme(x)),
-            ))
+            Message::Cache(CacheMessage::SetTheme(x))
         })
         .style(style::pick_list::main)
         .menu_style(style::menu::main);

@@ -2,7 +2,7 @@ use iced::{Task, Vector, widget::operation, window};
 
 use crate::{
     Application, Message,
-    pages::{PageMessage, Pages, home::HomePage},
+    pages::{PageMessage, Pages, home::HomePage, setup::SetupPage},
     windows::Window,
 };
 
@@ -52,7 +52,9 @@ impl WindowMessage {
                 let window = Window::new(if let Some(x) = app.view_data.page_stack.pop() {
                     x
                 } else if app.cache.client_settings.default_provider.is_none() {
-                    Pages::default()
+                    let mut setup = SetupPage::default();
+                    setup.instance_url = app.cache.client_settings.instance_url.clone();
+                    Pages::Setup(setup)
                 } else {
                     Pages::Home(HomePage::new())
                 });

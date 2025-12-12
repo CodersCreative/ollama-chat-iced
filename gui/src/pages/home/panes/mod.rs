@@ -51,10 +51,9 @@ impl HomePaneType {
                 HomePaneTypeWithId::Prompts(count)
             }
             Self::Settings => {
-                app.view_data
-                    .home
-                    .settings
-                    .insert(count, SettingsView::default());
+                let mut settings = SettingsView::default();
+                settings.instance_url = app.cache.client_settings.instance_url.clone();
+                app.view_data.home.settings.insert(count, settings);
                 HomePaneTypeWithId::Settings(count)
             }
             Self::Options => {

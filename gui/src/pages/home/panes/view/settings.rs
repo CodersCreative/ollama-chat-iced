@@ -3,8 +3,8 @@ use iced::{
     alignment::Vertical,
     border, padding,
     widget::{
-        Scrollable, button, center, checkbox, column, container, float, grid, hover, keyed_column,
-        pick_list, right_center, row, rule,
+        Scrollable, button, checkbox, column, container, float, grid, hover, keyed_column,
+        pick_list, right_center, row,
         scrollable::{Direction, Scrollbar},
         space, stack, text, text_input,
     },
@@ -18,8 +18,8 @@ use serde_json::Value;
 
 use crate::{
     Application, DATA, InputMessage, Message,
-    data::{Data, RequestType},
-    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
+    data::RequestType,
+    font::{BODY_SIZE, SUB_HEADING_SIZE},
     pages::home::panes::view::HomePaneViewMessage,
     style::{self},
 };
@@ -47,8 +47,6 @@ pub enum SettingsViewMessage {
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
     InstanceUrl(InputMessage),
-    UpdateUsePanes(bool),
-    UpdateTheme(Theme),
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
     AddProvider(usize),
@@ -171,13 +169,9 @@ impl SettingsViewMessage {
             }
             Self::InstanceUrl(_) => {
                 let instance = app.get_settings_view(&id).unwrap().instance_url.clone();
-                Task::future(async {
-                    if let Ok(x) = Data::get(Some(instance)).await {
-                        *DATA.write().unwrap() = x;
-                    }
-                    Message::None
-                })
-                .chain(Application::update_data_cache())
+                Task::done(Message::Cache(crate::CacheMessage::SetInstanceUrl(
+                    instance,
+                )))
             }
             Self::RemoveProviderInput(index) => {
                 let _ = app
@@ -185,17 +179,6 @@ impl SettingsViewMessage {
                     .unwrap()
                     .provider_inputs
                     .remove(index);
-                Task::none()
-            }
-            Self::UpdateTheme(theme) => {
-                app.cache.client_settings.theme =
-                    Theme::ALL.iter().position(|x| x == &theme).unwrap_or(11);
-                app.cache.client_settings.save();
-                Task::none()
-            }
-            Self::UpdateUsePanes(x) => {
-                app.cache.client_settings.use_panes = x;
-                app.cache.client_settings.save();
                 Task::none()
             }
         }
@@ -275,19 +258,16 @@ impl SettingsView {
             .size(SUB_HEADING_SIZE)
             .style(style::text_input::input);
 
-        let api = text_input(
-            "Enter your api key (if Ollama it is not used)...",
-            &input.api_key,
-        )
-        .on_input(move |x| {
-            Message::HomePaneView(HomePaneViewMessage::Settings(
-                id,
-                SettingsViewMessage::UpdateProviderKey(index, x),
-            ))
-        })
-        .size(SUB_HEADING_SIZE)
-        .secure(true)
-        .style(style::text_input::input);
+        let api = text_input("Enter your api key...", &input.api_key)
+            .on_input(move |x| {
+                Message::HomePaneView(HomePaneViewMessage::Settings(
+                    id,
+                    SettingsViewMessage::UpdateProviderKey(index, x),
+                ))
+            })
+            .size(SUB_HEADING_SIZE)
+            .secure(true)
+            .style(style::text_input::input);
 
         let provider_type = pick_list(
             [
@@ -312,7 +292,7 @@ impl SettingsView {
             .into()
     }
 
-    pub fn themes<'a>(id: u32, current: Theme) -> Element<'a, Message> {
+    pub fn themes<'a>(current: Theme) -> Element<'a, Message> {
         let swatch = |color| {
             container(space::horizontal())
                 .width(10)
@@ -336,10 +316,7 @@ impl SettingsView {
                     .wrapping(text::Wrapping::None)
                     .center(),
             )
-            .on_press(Message::HomePaneView(HomePaneViewMessage::Settings(
-                id.clone(),
-                SettingsViewMessage::UpdateTheme(theme.clone()),
-            )))
+            .on_press(Message::Cache(crate::CacheMessage::SetTheme(theme.clone())))
             .padding([10, 0])
             .style(move |_theme, status| {
                 let mut style = button::background(theme, status);
@@ -488,12 +465,7 @@ impl SettingsView {
 
         let use_panes = checkbox(app.cache.client_settings.use_panes)
             .label("Use Panes")
-            .on_toggle(move |x| {
-                Message::HomePaneView(HomePaneViewMessage::Settings(
-                    id,
-                    SettingsViewMessage::UpdateUsePanes(x),
-                ))
-            });
+            .on_toggle(move |x| Message::Cache(crate::CacheMessage::SetUsePanes(x)));
 
         container(
             column![
@@ -506,7 +478,7 @@ impl SettingsView {
                 sub_heading("Decorations"),
                 use_panes,
                 sub_heading("Themes"),
-                container(Self::themes(id, app.theme()))
+                container(Self::themes(app.theme()))
                     .padding(10)
                     .style(style::container::window_title_back)
             ]

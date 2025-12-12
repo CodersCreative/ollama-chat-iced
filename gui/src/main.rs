@@ -20,7 +20,7 @@ use std::{
 };
 
 use crate::{
-    data::settings::ClientSettings,
+    data::{Data, settings::ClientSettings},
     font::get_iced_font,
     pages::{
         Pages,
@@ -60,14 +60,7 @@ pub mod font {
     pub const SMALL_SIZE: u32 = 8;
 }
 
-static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| {
-    RwLock::new(
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(data::Data::get(None))
-            .unwrap_or_default(),
-    )
-});
+static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| RwLock::new(data::Data::default()));
 
 #[derive(Debug, Clone)]
 pub struct Application {
@@ -116,18 +109,93 @@ pub enum Message {
     Window(WindowMessage),
     HomePaneView(HomePaneViewMessage),
     Subscription(SubMessage),
-    SetCache(AppCache),
-    SetCacheModels(ModelsData),
+    Cache(CacheMessage),
     SaveToClipboard(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum CacheMessage {
+    SetModels(ModelsData),
+    SetPrompts(PromptsData),
+    SetOptions(OptionsData),
+    SetPreviews(Vec<PreviewMk>),
+    SetSettings(SettingsData),
+    SetTheme(Theme),
+    SetInstanceUrl(String),
+    SetUsePanes(bool),
+}
+
+impl CacheMessage {
+    pub fn handle(self, app: &mut Application) -> Task<Message> {
+        match self {
+            Self::SetModels(x) => {
+                app.cache.home_shared.models = x;
+            }
+            Self::SetPrompts(x) => {
+                app.cache.home_shared.prompts = x;
+            }
+            Self::SetOptions(x) => {
+                app.cache.home_shared.options = x;
+            }
+            Self::SetPreviews(x) => {
+                app.cache.previews = x;
+            }
+            Self::SetSettings(x) => {
+                app.cache.settings = x;
+            }
+            Self::SetTheme(theme) => {
+                app.cache.client_settings.theme =
+                    Theme::ALL.iter().position(|x| x == &theme).unwrap_or(11);
+                app.cache.client_settings.save();
+            }
+            Self::SetUsePanes(x) => {
+                app.cache.client_settings.use_panes = x;
+                app.cache.client_settings.save();
+            }
+            Self::SetInstanceUrl(x) => {
+                app.cache.client_settings.instance_url = x.clone();
+                app.cache.client_settings.save();
+
+                return Task::future(async {
+                    if let Ok(x) = Data::get(Some(x)).await {
+                        *DATA.write().unwrap() = x;
+                    }
+                    Message::None
+                })
+                .chain(Application::update_data_cache());
+            }
+        }
+
+        Task::none()
+    }
 }
 
 impl Application {
     pub fn new() -> (Self, Task<Message>) {
-        drop(DATA.read());
+        let get_default_data = || -> Data {
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(Data::get(None))
+                .unwrap_or_default()
+        };
+
         let mut cache = AppCache::default();
 
         if let Ok(x) = ClientSettings::load() {
+            if &x.instance_url != "http://localhost:1212" && !x.instance_url.is_empty() {
+                *DATA.write().unwrap() = tokio::runtime::Runtime::new()
+                    .unwrap()
+                    .block_on(Data::get(Some(x.instance_url.clone())))
+                    .unwrap_or(get_default_data());
+            } else {
+                *DATA.write().unwrap() = tokio::runtime::Runtime::new()
+                    .unwrap()
+                    .block_on(Data::get(None))
+                    .unwrap_or_default();
+            }
             cache.client_settings = x;
+        } else {
+            *DATA.write().unwrap() = get_default_data();
         }
 
         let (_, open) = window::open(window::Settings::default());
@@ -147,29 +215,45 @@ impl Application {
         Task::batch([
             Task::future(async {
                 let req = DATA.read().unwrap().to_request();
-                let mut cache = AppCache::default();
-
-                cache.previews = req
-                    .make_request::<Vec<Preview>, ()>("preview/all/", &(), data::RequestType::Get)
+                Message::Cache(CacheMessage::SetPreviews(
+                    req.make_request::<Vec<Preview>, ()>(
+                        "preview/all/",
+                        &(),
+                        data::RequestType::Get,
+                    )
                     .await
                     .unwrap_or_default()
                     .into_iter()
                     .map(|x| x.into())
-                    .collect();
-
-                if let Ok(settings) = req
-                    .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
-                    .await
-                {
-                    cache.settings = settings.into();
-                }
-
-                cache.home_shared.prompts = PromptsData::get_prompts(None).await;
-                cache.home_shared.options = OptionsData::get_gen_models(None).await;
-
-                Message::SetCache(cache)
+                    .collect(),
+                ))
             }),
-            Task::future(async { Message::SetCacheModels(ModelsData::get_ollama(None).await) }),
+            Task::future(async {
+                let req = DATA.read().unwrap().to_request();
+                Message::Cache(CacheMessage::SetSettings(
+                    if let Ok(settings) = req
+                        .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
+                        .await
+                    {
+                        settings.into()
+                    } else {
+                        SettingsData::default()
+                    },
+                ))
+            }),
+            Task::future(async {
+                Message::Cache(CacheMessage::SetPrompts(
+                    PromptsData::get_prompts(None).await,
+                ))
+            }),
+            Task::future(async {
+                Message::Cache(CacheMessage::SetOptions(
+                    OptionsData::get_gen_models(None).await,
+                ))
+            }),
+            Task::future(async {
+                Message::Cache(CacheMessage::SetModels(ModelsData::get_ollama(None).await))
+            }),
         ])
     }
 
@@ -179,14 +263,7 @@ impl Application {
             Message::Window(message) => message.handle(self),
             Message::Subscription(message) => message.handle(self),
             Message::HomePaneView(message) => message.handle(self),
-            Message::SetCache(cache) => {
-                self.cache = cache;
-                Task::none()
-            }
-            Message::SetCacheModels(models) => {
-                self.cache.home_shared.models = models;
-                Task::none()
-            }
+            Message::Cache(message) => message.handle(self),
             Message::UriClicked(x) => {
                 open::that_in_background(x.to_string());
                 Task::none()

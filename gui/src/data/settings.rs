@@ -9,6 +9,7 @@ pub const SETTINGS_PATH: &str = "settings.json";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ClientSettings {
+    pub instance_url: String,
     pub default_provider: Option<SettingsProvider>,
     pub use_panes: bool,
     pub theme: usize,
@@ -16,6 +17,7 @@ pub struct ClientSettings {
 impl Default for ClientSettings {
     fn default() -> Self {
         ClientSettings {
+            instance_url: String::from("http://localhost:1212"),
             default_provider: None,
             use_panes: true,
             theme: 11,
