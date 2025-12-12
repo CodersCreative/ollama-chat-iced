@@ -141,7 +141,29 @@ impl PaneMessage {
     pub fn handle(self, app: &mut Application, id: window::Id) -> Task<Message> {
         match self {
             Self::Pick(x) => {
-                app.get_home_page(&id).unwrap().panes.pick = Some(x);
+                match x {
+                    HomePickingType::OpenPane(x) if !app.cache.client_settings.use_panes => {
+                        return Task::done(Message::Window(WindowMessage::Page(
+                            id,
+                            crate::pages::PageMessage::Home(super::message::HomeMessage::Pane(
+                                PaneMessage::Replace(
+                                    app.get_home_page(&id)
+                                        .unwrap()
+                                        .panes
+                                        .panes
+                                        .panes
+                                        .first_key_value()
+                                        .unwrap()
+                                        .0
+                                        .clone(),
+                                    x,
+                                ),
+                            )),
+                        )));
+                    }
+                    _ => app.get_home_page(&id).unwrap().panes.pick = Some(x),
+                }
+
                 Task::none()
             }
             Self::UnPick => {
