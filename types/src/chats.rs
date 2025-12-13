@@ -24,6 +24,8 @@ pub struct Chat {
 }
 
 pub mod messages {
+    use std::fmt::Display;
+
     use super::relationships::Reason;
     use super::*;
 
@@ -34,6 +36,21 @@ pub mod messages {
         AI,
         Function,
         System,
+    }
+
+    impl Display for Role {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(
+                f,
+                "{}",
+                match self {
+                    Self::User => "User",
+                    Self::AI => "AI",
+                    Self::Function => "Function Call",
+                    Self::System => "System",
+                }
+            )
+        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]

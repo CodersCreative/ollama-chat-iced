@@ -45,7 +45,7 @@ pub async fn update_gen_models(
         ))
         .await?;
     Ok(Json(
-        CONN.update((GEN_MODELS_TABLE, &*id))
+        CONN.update((GEN_MODELS_TABLE, id.trim()))
             .content(options)
             .await?,
     ))
@@ -54,7 +54,7 @@ pub async fn update_gen_models(
 pub async fn get_gen_models(
     id: Path<String>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
-    Ok(Json(CONN.select((GEN_MODELS_TABLE, &*id)).await?))
+    Ok(Json(CONN.select((GEN_MODELS_TABLE, id.trim())).await?))
 }
 
 pub async fn get_default_gen_options_from_model(
@@ -63,7 +63,9 @@ pub async fn get_default_gen_options_from_model(
     Ok(Json(
         CONN.query(&format!(
             "SELECT * FROM {0} WHERE provider = '{1}' and model = '{2}';",
-            GEN_MODELS_TABLE, &*id, &*model
+            GEN_MODELS_TABLE,
+            id.trim(),
+            model.trim()
         ))
         .await?
         .take(0)?,
@@ -76,7 +78,8 @@ pub async fn get_models_from_options(
     Ok(Json(
         CONN.query(&format!(
             "SELECT * FROM {0} WHERE option = '{1}';",
-            GEN_MODELS_TABLE, &*id
+            GEN_MODELS_TABLE,
+            id.trim()
         ))
         .await?
         .take(0)?,
@@ -89,7 +92,8 @@ pub async fn get_gen_models_from_options(
     Ok(Json(
         CONN.query(&format!(
             "SELECT * FROM {0} WHERE option = '{1}';",
-            GEN_MODELS_TABLE, &*id
+            GEN_MODELS_TABLE,
+            id.trim()
         ))
         .await?
         .take(0)?,
@@ -99,7 +103,7 @@ pub async fn get_gen_models_from_options(
 pub async fn delete_gen_models(
     id: Path<String>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
-    Ok(Json(CONN.delete((GEN_OPTIONS_TABLE, &*id)).await?))
+    Ok(Json(CONN.delete((GEN_OPTIONS_TABLE, id.trim())).await?))
 }
 
 pub async fn list_all_gen_models() -> Result<Json<Vec<GenOptions>>, ServerError> {

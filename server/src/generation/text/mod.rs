@@ -80,7 +80,7 @@ pub async fn get_chat_completion_request(
     }
 
     CreateChatCompletionRequestArgs::default()
-        .model(query.model.clone())
+        .model(query.model.trim().to_string())
         .messages(messages)
         .build()
         .map_err(|e| e.into())
@@ -91,7 +91,7 @@ pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, 
     let request = get_chat_completion_request(&data).await?;
 
     let response = if let Some(provider) = CONN
-        .select::<Option<Provider>>((PROVIDER_TABLE, &*data.provider))
+        .select::<Option<Provider>>((PROVIDER_TABLE, data.provider.trim()))
         .await?
     {
         let provider = provider_into_config(&provider);

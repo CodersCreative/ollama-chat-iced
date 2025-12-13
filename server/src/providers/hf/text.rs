@@ -9,7 +9,7 @@ pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, S
     let client = reqwest::Client::new();
 
     let request = client.get(format!("{API_URL}/models")).query(&[
-        ("search", search.as_str()),
+        ("search", search.trim()),
         ("filter", "text-generation"),
         ("filter", "gguf"),
         ("limit", "100"),

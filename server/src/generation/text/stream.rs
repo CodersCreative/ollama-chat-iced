@@ -1,3 +1,5 @@
+use std::{thread, time::Duration};
+
 use axum::Json;
 use axum::response::IntoResponse;
 use axum_streams::StreamBodyAs;
@@ -19,7 +21,7 @@ async fn run_text_stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamRe
     let request = get_chat_completion_request(&data).await.unwrap();
 
     let mut response = if let Some(provider) = CONN
-        .select((PROVIDER_TABLE, &*data.provider))
+        .select((PROVIDER_TABLE, data.provider.trim()))
         .await
         .unwrap()
     {
@@ -61,6 +63,8 @@ async fn run_text_stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamRe
             thinking,
             func_calls: Vec::new(),
         }));
+
+        thread::sleep(Duration::from_millis(500));
 
         let _ = tx.send(ChatStreamResult::Finished);
     });

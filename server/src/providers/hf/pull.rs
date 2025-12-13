@@ -21,16 +21,16 @@ async fn run_pull_stream(
         let _ = fs::create_dir(&dir).await.unwrap();
     }
 
-    let mut model_path = dir.join(&user);
+    let mut model_path = dir.join(user.trim());
 
     if !fs::try_exists(&model_path).await.unwrap_or(true) {
         let _ = fs::create_dir(&model_path).await.unwrap();
-        model_path = model_path.join(&model);
+        model_path = model_path.join(model.trim());
     }
 
     if !fs::try_exists(&model_path).await.unwrap_or(true) {
         let _ = fs::create_dir(&model_path).await.unwrap();
-        model_path = model_path.join(&name);
+        model_path = model_path.join(name.trim());
     }
 
     let temp_path = model_path.clone().with_extension("tmp");
@@ -38,7 +38,10 @@ async fn run_pull_stream(
 
     let mut download = reqwest::get(format!(
         "{}/{}/{}/resolve/main/{}?download=true",
-        HF_URL, user, model, name
+        HF_URL,
+        user.trim(),
+        model.trim(),
+        name.trim()
     ))
     .await
     .unwrap();

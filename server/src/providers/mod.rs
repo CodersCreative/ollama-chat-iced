@@ -12,8 +12,8 @@ pub const PROVIDER_TABLE: &str = "providers";
 pub(crate) fn provider_into_config(provider: &Provider) -> Client<OpenAIConfig> {
     Client::with_config(
         OpenAIConfig::new()
-            .with_api_base(&provider.url)
-            .with_api_key(&provider.api_key),
+            .with_api_base(provider.url.trim())
+            .with_api_key(provider.api_key.trim()),
     )
 }
 
@@ -66,7 +66,7 @@ pub async fn add_provider(
 }
 
 pub async fn read_provider(id: Path<String>) -> Result<Json<Option<Provider>>, ServerError> {
-    let provider = CONN.select((PROVIDER_TABLE, &*id)).await?;
+    let provider = CONN.select((PROVIDER_TABLE, id.trim())).await?;
     Ok(Json(provider))
 }
 
@@ -75,7 +75,7 @@ pub async fn update_provider(
     Json(provider): Json<ProviderData>,
 ) -> Result<Json<Option<Provider>>, ServerError> {
     let provider: Option<Provider> = CONN
-        .update((PROVIDER_TABLE, &*id))
+        .update((PROVIDER_TABLE, id.trim()))
         .content(provider)
         .await?;
 
@@ -83,7 +83,7 @@ pub async fn update_provider(
 }
 
 pub async fn delete_provider(id: Path<String>) -> Result<Json<Option<Provider>>, ServerError> {
-    let provider: Option<Provider> = CONN.delete((PROVIDER_TABLE, &*id)).await?;
+    let provider: Option<Provider> = CONN.delete((PROVIDER_TABLE, id.trim())).await?;
 
     Ok(Json(provider))
 }

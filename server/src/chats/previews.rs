@@ -48,21 +48,23 @@ pub async fn update_preview(id: Path<String>) -> Result<Json<Option<Preview>>, S
     };
 
     if messages.is_empty() {
-        println!("Yah");
-
         let preview = PreviewData {
             text: String::from("New Chat"),
             time: time.clone(),
         };
         return Ok(Json(
             if CONN
-                .select::<Option<Preview>>((PREVIEW_TABLE, &*id))
+                .select::<Option<Preview>>((PREVIEW_TABLE, id.trim()))
                 .await?
                 .is_some()
             {
-                CONN.update((PREVIEW_TABLE, &*id)).content(preview).await?
+                CONN.update((PREVIEW_TABLE, id.trim()))
+                    .content(preview)
+                    .await?
             } else {
-                CONN.create((PREVIEW_TABLE, &*id)).content(preview).await?
+                CONN.create((PREVIEW_TABLE, id.trim()))
+                    .content(preview)
+                    .await?
             },
         ));
     }
@@ -114,19 +116,23 @@ Generate a **concise, 3 to 5 word title** for the previous messages.
 
     Ok(Json(
         if CONN
-            .select::<Option<Preview>>((PREVIEW_TABLE, &*id))
+            .select::<Option<Preview>>((PREVIEW_TABLE, id.trim()))
             .await?
             .is_some()
         {
-            CONN.update((PREVIEW_TABLE, &*id)).content(preview).await?
+            CONN.update((PREVIEW_TABLE, id.trim()))
+                .content(preview)
+                .await?
         } else {
-            CONN.create((PREVIEW_TABLE, &*id)).content(preview).await?
+            CONN.create((PREVIEW_TABLE, id.trim()))
+                .content(preview)
+                .await?
         },
     ))
 }
 
 pub async fn get_preview(id: Path<String>) -> Result<Json<Option<Preview>>, ServerError> {
-    let preview = CONN.select((PREVIEW_TABLE, &*id)).await?;
+    let preview = CONN.select((PREVIEW_TABLE, id.trim())).await?;
     if preview.is_some() {
         Ok(Json(preview))
     } else {
@@ -140,7 +146,8 @@ pub async fn search_previews(search: Path<String>) -> Result<Json<Vec<Preview>>,
             "            
 SELECT *, search::score(1) AS score FROM {0} WHERE title @1@ {1} ORDER BY score DESC LIMIT 25;
 ",
-            PREVIEW_TABLE, &*search
+            PREVIEW_TABLE,
+            search.trim()
         ))
         .await?
         .take(0)?,

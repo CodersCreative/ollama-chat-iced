@@ -4,9 +4,7 @@ use iced::{
     futures::StreamExt,
     task::{Straw, sipper},
 };
-use ochat_types::generation::text::{
-    ChatQueryData, ChatQueryDataBuilder, ChatResponse, ChatStreamResult,
-};
+use ochat_types::generation::text::{ChatQueryData, ChatResponse, ChatStreamResult};
 
 #[derive(Debug, Clone)]
 pub struct MessageGen {
@@ -58,14 +56,7 @@ pub fn gen_stream(query: ChatQueryData) -> impl Straw<(), ChatStreamResult, Stri
     sipper(async move |mut output| {
         let mut response = REQWEST_CLIENT
             .post(&format!("{}/generation/text/stream/", url))
-            .json(
-                &ChatQueryDataBuilder::default()
-                    .model(query.model)
-                    .provider(query.provider)
-                    .messages(query.messages)
-                    .build()
-                    .unwrap(),
-            )
+            .json(&query)
             .send()
             .await
             .unwrap()

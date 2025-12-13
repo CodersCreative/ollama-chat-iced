@@ -38,12 +38,14 @@ pub async fn update_prompt(
     Json(prompts): Json<PromptData>,
 ) -> Result<Json<Option<Prompt>>, ServerError> {
     Ok(Json(
-        CONN.update((PROMPTS_TABLE, &*id)).content(prompts).await?,
+        CONN.update((PROMPTS_TABLE, id.trim()))
+            .content(prompts)
+            .await?,
     ))
 }
 
 pub async fn get_prompt(id: Path<String>) -> Result<Json<Option<Prompt>>, ServerError> {
-    Ok(Json(CONN.select((PROMPTS_TABLE, &*id)).await?))
+    Ok(Json(CONN.select((PROMPTS_TABLE, id.trim())).await?))
 }
 
 pub async fn search_prompts(search: Path<String>) -> Result<Json<Vec<Prompt>>, ServerError> {
@@ -52,14 +54,14 @@ pub async fn search_prompts(search: Path<String>) -> Result<Json<Vec<Prompt>>, S
             "            
 SELECT *, search::score(1) + search::score(2) + search::score(3) AS score FROM {0} WHERE title @1@ {1} or command @2@ {1} or content @3@ {1} ORDER BY score DESC;
 ",
-            PROMPTS_TABLE, &*search
+            PROMPTS_TABLE, search.trim()
         ))
         .await?
         .take(0)?))
 }
 
 pub async fn delete_prompt(id: Path<String>) -> Result<Json<Option<Prompt>>, ServerError> {
-    Ok(Json(CONN.delete((PROMPTS_TABLE, &*id)).await?))
+    Ok(Json(CONN.delete((PROMPTS_TABLE, id.trim())).await?))
 }
 
 pub async fn list_all_prompts() -> Result<Json<Vec<Prompt>>, ServerError> {

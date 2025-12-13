@@ -84,7 +84,7 @@ pub async fn create_message_with_parent(
     if let Some(chat) = &chat {
         let _ = super::relationships::create_message_relationship(Json(
             MessageRelationshipDataBuilder::default()
-                .parent(parent.to_string())
+                .parent(parent.trim().to_string())
                 .child(chat.id.key().to_string())
                 .reason(reason)
                 .build()
@@ -106,7 +106,7 @@ pub async fn create_message_with_parent(
 }
 
 pub async fn read_message(id: Path<String>) -> Result<Json<Option<Message>>, ServerError> {
-    Ok(Json(CONN.select((MESSAGE_TABLE, &*id)).await?))
+    Ok(Json(CONN.select((MESSAGE_TABLE, id.trim())).await?))
 }
 
 pub async fn update_message(
@@ -115,7 +115,10 @@ pub async fn update_message(
 ) -> Result<Json<Option<Message>>, ServerError> {
     let files = chat.files.clone();
     let data = StoredMessageData::from(chat);
-    let chat: Option<Message> = CONN.update((MESSAGE_TABLE, &*id)).content(data).await?;
+    let chat: Option<Message> = CONN
+        .update((MESSAGE_TABLE, id.trim()))
+        .content(data)
+        .await?;
 
     if let Some(chat) = &chat {
         let _ = CONN.query(&format!(
@@ -137,7 +140,7 @@ pub async fn update_message(
 }
 
 pub async fn delete_message(id: Path<String>) -> Result<Json<Option<Message>>, ServerError> {
-    Ok(Json(CONN.delete((MESSAGE_TABLE, &*id)).await?))
+    Ok(Json(CONN.delete((MESSAGE_TABLE, id.trim())).await?))
 }
 
 pub async fn get_message_list_from_parent(
@@ -166,7 +169,9 @@ pub async fn get_message_list_from_parent(
                 "
                 SELECT * FROM {0} WHERE parent = '{1}' and index = {2} ORDER BY index ASC LIMIT 1; 
             ",
-                RELATIONSHIP_TABLE, &parent, index
+                RELATIONSHIP_TABLE,
+                parent.trim(),
+                index
             ))
             .await?
             .take(0)?;
@@ -199,7 +204,7 @@ pub async fn get_default_message_list_from_parent(
         Some(x) => vec![x],
         _ => return Ok(Json(Vec::new())),
     };
-    let mut parent: String = id.to_string();
+    let mut parent: String = id.trim().to_string();
 
     loop {
         let query: Vec<MessageRelationship> = CONN
@@ -207,7 +212,8 @@ pub async fn get_default_message_list_from_parent(
                 "
                 SELECT * FROM {0} WHERE parent = '{1}' ORDER BY index ASC LIMIT 1; 
             ",
-                RELATIONSHIP_TABLE, &parent
+                RELATIONSHIP_TABLE,
+                parent.trim()
             ))
             .await?
             .take(0)?;
@@ -235,7 +241,8 @@ pub async fn list_all_messages_from_parent(
             "
                 SELECT * FROM {0} WHERE parent = '{1}' ORDER BY index ASC LIMIT 1; 
             ",
-            RELATIONSHIP_TABLE, &*parent
+            RELATIONSHIP_TABLE,
+            parent.trim()
         ))
         .await?
         .take(0)?;

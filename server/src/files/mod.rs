@@ -60,7 +60,7 @@ pub async fn create_file(
 }
 
 pub async fn get_file(id: Path<String>) -> Result<Json<Option<B64File>>, ServerError> {
-    let file: Option<DBFile> = CONN.select((FILE_TABLE, &*id)).await?;
+    let file: Option<DBFile> = CONN.select((FILE_TABLE, id.trim())).await?;
     Ok(Json(match file {
         Some(x) => Some(x.try_into()?),
         _ => None,
@@ -71,16 +71,21 @@ pub async fn update_file(
     id: Path<String>,
     Json(file): Json<B64FileData>,
 ) -> Result<Json<Option<DBFile>>, ServerError> {
-    if let Some(prev) = CONN.select::<Option<DBFile>>((FILE_TABLE, &*id)).await? {
+    if let Some(prev) = CONN
+        .select::<Option<DBFile>>((FILE_TABLE, id.trim()))
+        .await?
+    {
         let _ = fs::remove_file(&prev.path)?;
     }
 
     let file = DBFileData::try_from(file)?;
-    Ok(Json(CONN.update((FILE_TABLE, &*id)).content(file).await?))
+    Ok(Json(
+        CONN.update((FILE_TABLE, id.trim())).content(file).await?,
+    ))
 }
 
 pub async fn delete_file(id: Path<String>) -> Result<Json<Option<DBFile>>, ServerError> {
-    let file: Option<DBFile> = CONN.delete((FILE_TABLE, &*id)).await?;
+    let file: Option<DBFile> = CONN.delete((FILE_TABLE, id.trim())).await?;
 
     if let Some(file) = &file {
         let _ = fs::remove_file(&file.path)?;

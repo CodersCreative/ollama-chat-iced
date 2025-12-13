@@ -28,7 +28,8 @@ pub async fn get_count_of_children(Path(parent): Path<String>) -> Result<Json<u8
             "
                 SELECT count() FROM {0} WHERE parent = '{1}' GROUP ALL;
             ",
-            RELATIONSHIP_TABLE, parent,
+            RELATIONSHIP_TABLE,
+            parent.trim(),
         ))
         .await?
         .take(0)?;
@@ -65,7 +66,7 @@ pub async fn create_message_relationship(
 pub async fn get_message_relationship(
     id: Path<String>,
 ) -> Result<Json<Option<MessageRelationship>>, ServerError> {
-    Ok(Json(CONN.select((RELATIONSHIP_TABLE, &*id)).await?))
+    Ok(Json(CONN.select((RELATIONSHIP_TABLE, id.trim())).await?))
 }
 
 pub async fn update_message_relationship(
@@ -73,12 +74,13 @@ pub async fn update_message_relationship(
     Json(mut relationship): Json<MessageRelationshipData>,
 ) -> Result<Json<Option<MessageRelationship>>, ServerError> {
     if relationship.index.is_none() {
-        let previous: Option<MessageRelationship> = CONN.select((RELATIONSHIP_TABLE, &*id)).await?;
+        let previous: Option<MessageRelationship> =
+            CONN.select((RELATIONSHIP_TABLE, id.trim())).await?;
         relationship.index = Some(previous.unwrap().index)
     }
 
     Ok(Json(
-        CONN.update((RELATIONSHIP_TABLE, &*id))
+        CONN.update((RELATIONSHIP_TABLE, id.trim()))
             .content(relationship)
             .await?,
     ))
@@ -87,7 +89,7 @@ pub async fn update_message_relationship(
 pub async fn delete_message_relationship(
     id: Path<String>,
 ) -> Result<Json<Option<MessageRelationship>>, ServerError> {
-    Ok(Json(CONN.delete((RELATIONSHIP_TABLE, &*id)).await?))
+    Ok(Json(CONN.delete((RELATIONSHIP_TABLE, id.trim())).await?))
 }
 
 pub async fn list_all_message_relationships_from_parent(
@@ -98,7 +100,8 @@ pub async fn list_all_message_relationships_from_parent(
             "
                 SELECT * FROM {0} WHERE parent = '{1}';
             ",
-            RELATIONSHIP_TABLE, &*parent,
+            RELATIONSHIP_TABLE,
+            parent.trim(),
         ))
         .await?
         .take(0)?,

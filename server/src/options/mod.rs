@@ -35,14 +35,14 @@ pub async fn update_gen_options(
     Json(options): Json<GenOptionsData>,
 ) -> Result<Json<Option<GenOptions>>, ServerError> {
     Ok(Json(
-        CONN.update((GEN_OPTIONS_TABLE, &*id))
+        CONN.update((GEN_OPTIONS_TABLE, id.trim()))
             .content(options)
             .await?,
     ))
 }
 
 pub async fn get_gen_options(id: Path<String>) -> Result<Json<Option<GenOptions>>, ServerError> {
-    Ok(Json(CONN.select((GEN_OPTIONS_TABLE, &*id)).await?))
+    Ok(Json(CONN.select((GEN_OPTIONS_TABLE, id.trim())).await?))
 }
 
 pub async fn search_gen_options(
@@ -53,7 +53,8 @@ pub async fn search_gen_options(
             "            
 SELECT *, search::score(1) AS score FROM {0} WHERE name @1@ {1} ORDER BY score DESC LIMIT 25;
 ",
-            GEN_OPTIONS_TABLE, &*search
+            GEN_OPTIONS_TABLE,
+            search.trim()
         ))
         .await?
         .take(0)?,
@@ -61,7 +62,7 @@ SELECT *, search::score(1) AS score FROM {0} WHERE name @1@ {1} ORDER BY score D
 }
 
 pub async fn delete_gen_options(id: Path<String>) -> Result<Json<Option<GenOptions>>, ServerError> {
-    Ok(Json(CONN.delete((GEN_OPTIONS_TABLE, &*id)).await?))
+    Ok(Json(CONN.delete((GEN_OPTIONS_TABLE, id.trim())).await?))
 }
 
 pub async fn list_all_gen_options() -> Result<Json<Vec<GenOptions>>, ServerError> {

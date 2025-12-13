@@ -37,6 +37,19 @@ pub mod container {
         }
     }
 
+    pub fn input_back_opaque(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(darken_colour(
+                theme.palette().background.clone(),
+                0.01,
+            ))),
+            border: iced::Border::default()
+                .width(1)
+                .color(theme.palette().primary)
+                .rounded(20),
+            ..Default::default()
+        }
+    }
     pub fn chat_back(theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(darken_colour(

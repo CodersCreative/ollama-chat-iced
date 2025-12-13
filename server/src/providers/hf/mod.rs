@@ -61,9 +61,9 @@ pub async fn get_downloaded_hf_models() -> Result<Json<DownloadedHFModels>, Serv
 pub async fn fetch_model_details(
     Path((user, id)): Path<(String, String)>,
 ) -> Result<Json<HFModelDetails>, ServerError> {
-    let id = format!("{user}/{id}");
+    let id = format!("{}/{}", user.trim(), id.trim());
     let client = reqwest::Client::new();
-    let request = client.get(format!("{}/models/{}", API_URL, &id));
+    let request = client.get(format!("{}/models/{}", API_URL, id.trim()));
     let response: Value = request.send().await?.error_for_status()?.json().await?;
     let params: u64 = response
         .get("gguf")
@@ -74,7 +74,7 @@ pub async fn fetch_model_details(
         .unwrap_or_default();
     let mut model: HFModelDetails = serde_json::from_value(response).unwrap();
     model.parameters = params;
-    model.description = reqwest::get(format!("{}/{}/raw/main/README.md", HF_URL, &id))
+    model.description = reqwest::get(format!("{}/{}/raw/main/README.md", HF_URL, id.trim()))
         .await?
         .text()
         .await?;
@@ -88,7 +88,7 @@ async fn get_variants(
     id: String,
     client: &reqwest::Client,
 ) -> Result<HFModelVariants, ServerError> {
-    let request = client.get(format!("{}/models/{}/tree/main", API_URL, id));
+    let request = client.get(format!("{}/models/{}/tree/main", API_URL, id.trim()));
 
     #[derive(Debug, Deserialize)]
     struct Entry {

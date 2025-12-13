@@ -64,7 +64,11 @@ impl SubMessage {
                     })
             }
             Self::GeneratingMessage(id, ChatStreamResult::Finished) => {
-                let message_id = app.subscriptions.message_gens.remove(&id).unwrap().id;
+                let message_id = if let Some(x) = app.subscriptions.message_gens.remove(&id) {
+                    x.id
+                } else {
+                    return Task::none();
+                };
                 let (url, providers) = {
                     let data = DATA.read().unwrap();
                     (
