@@ -222,14 +222,17 @@ impl OptionsViewMessage {
                     let req = DATA.read().unwrap().to_request();
                     let option: GenOptionsData = option.into();
 
-                    let _ = req
+                    match req
                         .make_request::<GenOptions, GenOptionsData>(
                             &format!("option/{}", option_id),
                             &option,
                             crate::data::RequestType::Put,
                         )
-                        .await;
-                    Message::None
+                        .await
+                    {
+                        Ok(_) => Message::None,
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::Expand(x) => {
@@ -288,7 +291,7 @@ impl OptionsViewMessage {
                             models: Vec::new(),
                         }),
                     )),
-                    _ => Message::None,
+                    Err(e) => Message::Err(e),
                 }
             }),
             Self::Delete(x) => {
@@ -301,15 +304,17 @@ impl OptionsViewMessage {
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
 
-                    let _ = req
+                    match req
                         .make_request::<GenOptions, ()>(
                             &format!("option/{}", x),
                             &(),
                             crate::data::RequestType::Delete,
                         )
-                        .await;
-
-                    Message::None
+                        .await
+                    {
+                        Ok(_) => Message::None,
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
         }

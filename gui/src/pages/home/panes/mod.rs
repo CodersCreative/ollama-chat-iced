@@ -172,14 +172,22 @@ impl PaneMessage {
                 {
                     if chats.len() > 0 {
                         return Message::Batch(vec![
-                            req.make_request::<Preview, ()>(
-                                &format!("preview/{}", chats.first().unwrap().id.key().to_string()),
-                                &(),
-                                RequestType::Put,
-                            )
-                            .await
-                            .map(|x| Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))))
-                            .unwrap_or(Message::None),
+                            match req
+                                .make_request::<Preview, ()>(
+                                    &format!(
+                                        "preview/{}",
+                                        chats.first().unwrap().id.key().to_string()
+                                    ),
+                                    &(),
+                                    RequestType::Put,
+                                )
+                                .await
+                                .map(|x| {
+                                    Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x)))
+                                }) {
+                                Ok(x) => x,
+                                Err(e) => Message::Err(e),
+                            },
                             Message::Window(WindowMessage::Page(
                                 id,
                                 PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(
@@ -191,7 +199,7 @@ impl PaneMessage {
                     }
                 }
 
-                if let Ok(chat) = req
+                match req
                     .make_request::<Chat, ChatData>(
                         "chat/",
                         &ChatData::default(),
@@ -199,15 +207,18 @@ impl PaneMessage {
                     )
                     .await
                 {
-                    Message::Batch(vec![
-                        req.make_request::<Preview, ()>(
-                            &format!("preview/{}", chat.id.key().to_string()),
-                            &(),
-                            RequestType::Put,
-                        )
-                        .await
-                        .map(|x| Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))))
-                        .unwrap_or(Message::None),
+                    Ok(chat) => Message::Batch(vec![
+                        match req
+                            .make_request::<Preview, ()>(
+                                &format!("preview/{}", chat.id.key().to_string()),
+                                &(),
+                                RequestType::Put,
+                            )
+                            .await
+                        {
+                            Ok(x) => Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))),
+                            Err(e) => Message::Err(e),
+                        },
                         Message::Window(WindowMessage::Page(
                             id,
                             PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(
@@ -215,9 +226,8 @@ impl PaneMessage {
                                 chat.id.key().to_string(),
                             ))),
                         )),
-                    ])
-                } else {
-                    Message::None
+                    ]),
+                    Err(e) => Message::Err(e),
                 }
             })
         }
@@ -362,10 +372,13 @@ impl PaneMessage {
             PaneMessage::ReplaceChat(pane, chat_id) => Task::future(async move {
                 let req = DATA.read().unwrap().to_request();
 
-                let chat: Chat = req
+                let chat: Chat = match req
                     .make_request(&format!("chat/{}", chat_id), &(), RequestType::Get)
                     .await
-                    .unwrap();
+                {
+                    Ok(x) => x,
+                    Err(e) => return Message::Err(e),
+                };
 
                 let msgs = if let Some(x) = chat.root.clone() {
                     match MessagesData::load_chat_from_root(x, None).await {

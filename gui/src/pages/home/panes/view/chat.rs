@@ -1,21 +1,37 @@
 use std::{collections::HashMap, sync::Arc};
 
 use iced::{
-    alignment::{Horizontal, Vertical}, clipboard, widget::{
-        button, center, column, container, image, markdown, mouse_area, pick_list, row, scrollable, space, stack, text, text_editor
-    }, Element, Length, Padding, Task, Theme
+    Element, Length, Padding, Task, Theme,
+    alignment::{Horizontal, Vertical},
+    clipboard,
+    widget::{
+        button, center, column, container, image, markdown, mouse_area, pick_list, row, scrollable,
+        space, stack, text, text_editor,
+    },
 };
 use ochat_types::{
     chats::{
-        messages::{MessageData, MessageDataBuilder, Role}, Chat
-    }, files::FileType, generation::text::{ChatQueryData, ChatQueryMessage}, settings::SettingsProvider
+        Chat,
+        messages::{MessageData, MessageDataBuilder, Role},
+    },
+    files::FileType,
+    generation::text::{ChatQueryData, ChatQueryMessage},
+    settings::SettingsProvider,
 };
 
 use crate::{
-    data::{start::{self, Section}, RequestType}, font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE}, pages::home::panes::{
+    Application, DATA, Message,
+    data::{
+        RequestType,
+        start::{self, Section},
+    },
+    font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE},
+    pages::home::panes::{
         data::{MessageMk, PromptsData},
         view::HomePaneViewMessage,
-    }, style, subscriptions::SubMessage, Application, Message, DATA
+    },
+    style,
+    subscriptions::SubMessage,
 };
 
 #[derive(Debug, Clone)]
@@ -28,7 +44,7 @@ pub struct ChatsView {
     pub selected_prompt: Option<String>,
     pub messages: Vec<String>,
     pub chat: Chat,
-    pub start : usize,
+    pub start: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -78,12 +94,12 @@ impl ChatsViewMessage {
                     Task::none()
                 } else {
                     Task::future(async move {
-                        match PromptsData::get(Some(search)).await{
+                        match PromptsData::get(Some(search)).await {
                             Ok(x) => Message::HomePaneView(HomePaneViewMessage::Chats(
                                 id,
                                 ChatsViewMessage::SetPrompts(x),
                             )),
-                            Err(e) => Message::Err(e)
+                            Err(e) => Message::Err(e),
                         }
                     })
                 }
@@ -207,7 +223,7 @@ impl ChatsViewMessage {
 
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
-                    if let Ok(x) = req
+                    match req
                         .make_request::<ochat_types::chats::messages::Message, MessageData>(
                             &if let Some(parent) = &parent {
                                 format!("message/parent/{}", parent)
@@ -219,21 +235,25 @@ impl ChatsViewMessage {
                         )
                         .await
                     {
-                        if parent.is_none() {
-                            let _ = req
+                        Ok(x) => {
+                            if parent.is_none() {
+                                match req
                                 .make_request::<ochat_types::chats::messages::Message, MessageData>(
                                     &format!("chat/{}/root/{}", chat_id, x.id.key().to_string()),
                                     &user_message,
                                     RequestType::Put,
                                 )
-                                .await;
+                                .await {
+                                Ok(_) => {},
+                                Err(e) => return Message::Err(e)
+                            }
+                            }
+                            Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::UserMessageUploaded(MessageMk::get(x).await),
+                            ))
                         }
-                        Message::HomePaneView(HomePaneViewMessage::Chats(
-                            id,
-                            ChatsViewMessage::UserMessageUploaded(MessageMk::get(x).await),
-                        ))
-                    } else {
-                        Message::None
+                        Err(e) => Message::Err(e),
                     }
                 })
             }
@@ -297,7 +317,7 @@ impl ChatsViewMessage {
                             .role(Role::AI)
                             .build()
                             .unwrap();
-                        if let Ok(message) = req
+                        match req
                             .make_request::<ochat_types::chats::messages::Message, MessageData>(
                                 &format!("message/parent/{}", user_message),
                                 &message,
@@ -305,11 +325,11 @@ impl ChatsViewMessage {
                             )
                             .await
                         {
-                            Message::HomePaneView(HomePaneViewMessage::Chats(
-                            id,
-                            ChatsViewMessage::AIMessageUploaded(MessageMk::get(message).await, Some(ChatQueryData { provider: x.provider.trim().to_string(), model: x.model, messages }))))                            
-                        } else {
-                            Message::None
+                            Ok(message) => Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::AIMessageUploaded(MessageMk::get(message).await, Some(ChatQueryData { provider: x.provider.trim().to_string(), model: x.model, messages }))
+                            )),
+                            Err(e) => Message::Err(e)
                         }
                     })
                 }))
@@ -332,12 +352,14 @@ impl ChatsViewMessage {
                         view.1.messages.push(message.base.id.key().to_string());
                     }
                 }
+
                 let id = message.base.id.key().to_string();
                 app.cache
                     .home_shared
                     .messages
                     .0
                     .insert(id.clone(), message.clone());
+
                 if let Some(query) = query {
                     Task::done(Message::Subscription(SubMessage::GenMessage(id, query)))
                 } else {
@@ -390,25 +412,28 @@ impl ChatsViewMessage {
                     .edits
                     .remove(&message_id)
                     .unwrap();
-                let message =
-                    if let Some(message) = app.cache.home_shared.messages.0.get_mut(&message_id) {
+                let message = match app.cache.home_shared.messages.0.get_mut(&message_id) {
+                    Some(message) => {
                         message.base.content = edit.text();
                         message.content = markdown::Content::parse(&edit.text());
                         message.base.clone()
-                    } else {
-                        panic!()
-                    }; // TODO
+                    }
+                    _ => return Task::done(Message::Err(String::from("Unable to find message."))),
+                };
+
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
-                    let _ = req
+                    match req
                         .make_request::<ochat_types::chats::messages::Message, MessageData>(
                             &format!("message/{}", message_id),
                             &message.into(),
                             RequestType::Put,
                         )
-                        .await;
-
-                    Message::None
+                        .await
+                    {
+                        Ok(_) => Message::None,
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::Regenerate(message_id) => {
@@ -439,6 +464,7 @@ impl ChatsViewMessage {
                     .first()
                     .unwrap()
                     .clone();
+
                 Task::future(async move {
                     let message = MessageDataBuilder::default()
                         .content(String::new())
@@ -447,7 +473,7 @@ impl ChatsViewMessage {
                         .unwrap();
 
                     let req = DATA.read().unwrap().to_request();
-                    if let Ok(message) = req
+                    match req
                         .make_request::<ochat_types::chats::messages::Message, MessageData>(
                             &format!("message/parent/{}", parent),
                             &message,
@@ -455,7 +481,7 @@ impl ChatsViewMessage {
                         )
                         .await
                     {
-                        Message::HomePaneView(HomePaneViewMessage::Chats(
+                        Ok(message) => Message::HomePaneView(HomePaneViewMessage::Chats(
                             id,
                             ChatsViewMessage::AIMessageUploaded(
                                 MessageMk::get(message).await,
@@ -465,9 +491,8 @@ impl ChatsViewMessage {
                                     messages,
                                 }),
                             ),
-                        ))
-                    } else {
-                        Message::None
+                        )),
+                        Err(e) => Message::Err(e),
                     }
                 })
             }
@@ -521,13 +546,14 @@ pub fn get_command_input(input: &str) -> Option<&str> {
 impl ChatsView {
     pub fn view_message<'a>(
         _id: u32,
-        theme : &Theme,
+        theme: &Theme,
         message: &'a MessageMk,
         edit: Option<&'a text_editor::Content>,
         expanded: bool,
     ) -> Element<'a, Message> {
-        let header = container(row(if edit.is_some() {
-                let widgets : Vec<Element<'a, Message>>= vec![
+        let header = container(
+            row(if edit.is_some() {
+                let widgets: Vec<Element<'a, Message>> = vec![
                     text(message.base.role.to_string()).size(BODY_SIZE).into(),
                     space::horizontal().into(),
                     style::svg_button::danger("close.svg", BODY_SIZE).into(),
@@ -535,8 +561,8 @@ impl ChatsView {
                 ];
 
                 widgets
-            }else {
-                let widgets : Vec<Element<'a, Message>>= vec![
+            } else {
+                let widgets: Vec<Element<'a, Message>> = vec![
                     text(message.base.role.to_string()).size(BODY_SIZE).into(),
                     space::horizontal().into(),
                     style::svg_button::text("edit.svg", BODY_SIZE).into(),
@@ -546,27 +572,44 @@ impl ChatsView {
                 ];
 
                 widgets
-            }
-        ).align_y(Vertical::Center)).padding(5).style(if message.base.role == Role::User {style::container::chat} else {style::container::chat_ai}).width(Length::Fill);
-        
+            })
+            .align_y(Vertical::Center),
+        )
+        .padding(5)
+        .style(if message.base.role == Role::User {
+            style::container::chat
+        } else {
+            style::container::chat_ai
+        })
+        .width(Length::Fill);
+
         let images = container(
             scrollable::Scrollable::new(
-                row(message.files.iter().filter(|x| x.file_type == FileType::Image).map(|x| {
-                    button(image(image::Handle::from_bytes(x.b64data.clone())).height(Length::Fixed(200.0)))
+                row(message
+                    .files
+                    .iter()
+                    .filter(|x| x.file_type == FileType::Image)
+                    .map(|x| {
+                        button(
+                            image(image::Handle::from_bytes(x.b64data.clone()))
+                                .height(Length::Fixed(200.0)),
+                        )
                         .style(style::button::transparent_back_white_text)
                         .into()
-                }))
+                    }))
                 .align_y(Vertical::Center)
                 .spacing(10),
             )
-            .direction(scrollable::Direction::Horizontal(scrollable::Scrollbar::new())),
+            .direction(scrollable::Direction::Horizontal(
+                scrollable::Scrollbar::new(),
+            )),
         )
         .padding(Padding::from([0, 20]))
         .style(style::container::bottom_input_back);
-        
-        let content : Element<'a, Message> = if let Some(edit) = edit {
+
+        let content: Element<'a, Message> = if let Some(edit) = edit {
             text_editor(&edit).into()
-        }else {
+        } else {
             markdown::view_with(
                 message.content.items(),
                 style::markdown::main(theme),
@@ -577,24 +620,26 @@ impl ChatsView {
         let mut col = column![header, images, content,].spacing(5);
 
         if message.thinking.is_some() {
-            let thinking : Element<'a, Message> = if expanded {
-                mouse_area(
-                    markdown::view_with(
-                        message.thinking.as_ref().unwrap().items(),
-                        style::markdown::main(theme),
-                        &style::markdown::CustomViewer,
-                    )
-                ).into()
-            }else {
-                button(
-                    text("Thinking").size(SMALL_SIZE)
-                ).width(Length::Fill).into()
+            let thinking: Element<'a, Message> = if expanded {
+                mouse_area(markdown::view_with(
+                    message.thinking.as_ref().unwrap().items(),
+                    style::markdown::main(theme),
+                    &style::markdown::CustomViewer,
+                ))
+                .into()
+            } else {
+                button(text("Thinking").size(SMALL_SIZE))
+                    .width(Length::Fill)
+                    .into()
             };
 
             col = col.push(thinking);
         }
 
-        container(col).padding(5).style(style::container::chat_back).into()
+        container(col)
+            .padding(5)
+            .style(style::container::chat_back)
+            .into()
     }
 
     pub fn view<'a>(&'a self, app: &'a Application, id: u32) -> Element<'a, Message> {
@@ -749,26 +794,34 @@ impl ChatsView {
 
         let input = container(input).padding(10);
 
-        let body : Element<'a, Message> = match self.messages.is_empty() {
-            true => container(self.view_start(id)).height(Length::Fill).width(Length::Fill).into(),
+        let body: Element<'a, Message> = match self.messages.is_empty() {
+            true => container(self.view_start(id))
+                .height(Length::Fill)
+                .width(Length::Fill)
+                .into(),
             false => {
-                let mut col = 
-column(self.messages.iter().map(|x| {
-                Self::view_message(id.clone(), &app.theme(), app.cache
-                            .home_shared
-                            .messages
-                            .0
-                            .get(x)
-                            .unwrap(), self.edits.get(x), self.expanded_messages.contains(&x)).into()
-            })).spacing(20);
+                let mut col = column(self.messages.iter().map(|x| {
+                    Self::view_message(
+                        id.clone(),
+                        &app.theme(),
+                        app.cache.home_shared.messages.0.get(x).unwrap(),
+                        self.edits.get(x),
+                        self.expanded_messages.contains(&x),
+                    )
+                    .into()
+                }))
+                .spacing(20);
 
                 col = col.push(space().height(120));
-                scrollable::Scrollable::new(col).direction(scrollable::Direction::Vertical(scrollable::Scrollbar::new())).anchor_bottom().height(Length::Fill).into()
-            },
+                scrollable::Scrollable::new(col)
+                    .direction(scrollable::Direction::Vertical(scrollable::Scrollbar::new()))
+                    .anchor_bottom()
+                    .height(Length::Fill)
+                    .into()
+            }
         };
 
-        container(stack([body, column![space::vertical(), input].into()]))
-            .into()
+        container(stack([body, column![space::vertical(), input].into()])).into()
     }
 
     fn view_commands<'a>(&'a self, _app: &'a Application, _id: u32) -> Element<'a, Message> {
@@ -796,14 +849,15 @@ column(self.messages.iter().map(|x| {
         .into()
     }
 
-     fn view_start<'a>(&'a self, id: u32) -> Element<'a, Message> {
+    fn view_start<'a>(&'a self, id: u32) -> Element<'a, Message> {
         let title = text("How can I help?")
-            .size(HEADER_SIZE).style(style::text::primary)
+            .size(HEADER_SIZE)
+            .style(style::text::primary)
             .align_x(Horizontal::Left);
 
-        
         let header = row(start::SECTIONS
-            .iter().enumerate()
+            .iter()
+            .enumerate()
             .map(|(i, x)| {
                 let style = match i == self.start {
                     true => style::button::start_chosen,
@@ -836,7 +890,8 @@ column(self.messages.iter().map(|x| {
                 .iter()
                 .map(|x| {
                     button(
-                        text(*x).style(style::text::translucent::text)
+                        text(*x)
+                            .style(style::text::translucent::text)
                             .align_x(Horizontal::Left)
                             .width(Length::Fill)
                             .size(SUB_HEADING_SIZE),
@@ -844,25 +899,26 @@ column(self.messages.iter().map(|x| {
                     .padding(10)
                     .style(style::button::transparent_translucent)
                     .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
-            id,
-            ChatsViewMessage::InputAction(text_editor::Action::Edit(text_editor::Edit::Paste(
-                            Arc::new(x.to_string()),
-                        ))),
-        ))
-
-            )
+                        id,
+                        ChatsViewMessage::InputAction(text_editor::Action::Edit(
+                            text_editor::Edit::Paste(Arc::new(x.to_string())),
+                        )),
+                    )))
                     .into()
                 })
                 .collect::<Vec<Element<Message>>>(),
         );
 
-        center(container(
+        center(
+            container(
                 column![title, header, prompts]
                     .spacing(20)
-                    .align_x(Horizontal::Left)
-            ).max_width(800)
+                    .align_x(Horizontal::Left),
+            )
+            .max_width(800)
             .padding(Padding::new(20.0))
-            .style(style::container::neutral_back))
+            .style(style::container::neutral_back),
+        )
         .into()
-    }   
+    }
 }

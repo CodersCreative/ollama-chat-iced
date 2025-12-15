@@ -177,19 +177,20 @@ impl ModelsViewMessage {
                 } else {
                     Task::future(async move {
                         let req = DATA.read().unwrap().to_request();
-                        Message::HomePaneView(HomePaneViewMessage::Models(
-                            id,
-                            ModelsViewMessage::SetHFExpand(
-                                x.clone(),
-                                req.make_request(
-                                    &format!("provider/hf/model/{}", x),
-                                    &(),
-                                    crate::data::RequestType::Get,
-                                )
-                                .await
-                                .unwrap(),
-                            ),
-                        ))
+                        match req
+                            .make_request(
+                                &format!("provider/hf/model/{}", x),
+                                &(),
+                                crate::data::RequestType::Get,
+                            )
+                            .await
+                        {
+                            Ok(y) => Message::HomePaneView(HomePaneViewMessage::Models(
+                                id,
+                                ModelsViewMessage::SetHFExpand(x.clone(), y),
+                            )),
+                            Err(e) => Message::Err(e),
+                        }
                     })
                 }
             }

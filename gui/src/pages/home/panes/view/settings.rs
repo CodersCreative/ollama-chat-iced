@@ -95,7 +95,7 @@ impl SettingsViewMessage {
                     .remove(index);
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
-                    if let Ok(Some(provider)) = req
+                    match req
                         .make_request::<Option<Provider>, ProviderData>(
                             "provider/",
                             &input,
@@ -103,32 +103,39 @@ impl SettingsViewMessage {
                         )
                         .await
                     {
-                        let provider_models: Result<Vec<Value>, String> = req
-                            .make_request(
-                                &format!("provider/{}/model/all/", provider.id.key()),
-                                &(),
-                                RequestType::Get,
-                            )
-                            .await;
+                        Ok(Some(provider)) => {
+                            let provider_models: Result<Vec<Value>, String> = req
+                                .make_request(
+                                    &format!("provider/{}/model/all/", provider.id.key()),
+                                    &(),
+                                    RequestType::Get,
+                                )
+                                .await;
 
-                        if let Ok(provider_models) = provider_models {
-                            let mut models = Vec::new();
+                            match provider_models {
+                                Ok(provider_models) => {
+                                    let mut models = Vec::new();
 
-                            for model in provider_models {
-                                models.push(
-                                    SettingsProviderBuilder::default()
-                                        .provider(provider.id.key().to_string())
-                                        .model(model["id"].as_str().unwrap().to_string())
-                                        .build()
-                                        .unwrap(),
-                                );
+                                    for model in provider_models {
+                                        models.push(
+                                            SettingsProviderBuilder::default()
+                                                .provider(provider.id.key().to_string())
+                                                .model(model["id"].as_str().unwrap().to_string())
+                                                .build()
+                                                .unwrap(),
+                                        );
+                                    }
+                                    DATA.write().unwrap().models.append(&mut models);
+                                }
+                                Err(e) => return Message::Err(e),
                             }
-                            DATA.write().unwrap().models.append(&mut models);
-                        }
-                        DATA.write().unwrap().providers.push(provider);
-                    }
 
-                    Message::None
+                            DATA.write().unwrap().providers.push(provider);
+                            Message::None
+                        }
+                        Err(e) => Message::Err(e),
+                        _ => Message::None,
+                    }
                 })
             }
             Self::DeleteProvider(id) => {
@@ -140,15 +147,17 @@ impl SettingsViewMessage {
 
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
-                    let _: Value = req
-                        .make_request(
+                    match req
+                        .make_request::<Value, ()>(
                             &format!("provider/{}", id.key().to_string()),
                             &(),
                             RequestType::Delete,
                         )
                         .await
-                        .unwrap_or_default();
-                    Message::None
+                    {
+                        Ok(_) => Message::None,
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::UpdateProviderName(index, name) => UpdateProviderInputProperty!(index, name),
@@ -187,11 +196,14 @@ impl SettingsViewMessage {
 
 async fn save_settings(settings: SettingsData) -> Message {
     let req = DATA.read().unwrap().to_request();
-    let _: Value = req
-        .make_request("settings/", &settings, RequestType::Put)
+
+    match req
+        .make_request::<Value, SettingsData>("settings/", &settings, RequestType::Put)
         .await
-        .unwrap();
-    Message::None
+    {
+        Ok(_) => Message::None,
+        Err(e) => Message::Err(e),
+    }
 }
 
 impl SettingsView {

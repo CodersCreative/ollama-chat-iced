@@ -166,14 +166,17 @@ impl PromptsViewMessage {
                     let req = DATA.read().unwrap().to_request();
                     let prompt: PromptData = prompt.into();
 
-                    let _ = req
+                    match req
                         .make_request::<Prompt, PromptData>(
                             &format!("prompt/{}", prompt_id),
                             &prompt,
                             crate::data::RequestType::Put,
                         )
-                        .await;
-                    Message::None
+                        .await
+                    {
+                        Ok(_) => Message::None,
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::UpdateCommand(prompt_id, command) => {
@@ -262,7 +265,7 @@ impl PromptsViewMessage {
                                         id,
                                         PromptsViewMessage::AddPrompt(x),
                                     )),
-                                    _ => Message::None,
+                                    Err(e) => Message::Err(e),
                                 }
                             }));
                         }
@@ -295,7 +298,7 @@ impl PromptsViewMessage {
                         id,
                         PromptsViewMessage::AddPrompt(x),
                     )),
-                    _ => Message::None,
+                    Err(e) => Message::Err(e),
                 }
             }),
             Self::Delete(x) => {
@@ -308,15 +311,17 @@ impl PromptsViewMessage {
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
 
-                    let _ = req
+                    match req
                         .make_request::<Prompt, ()>(
                             &format!("prompt/{}", x),
                             &(),
                             crate::data::RequestType::Delete,
                         )
-                        .await;
-
-                    Message::None
+                        .await
+                    {
+                        Ok(_) => Message::None,
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
         }
