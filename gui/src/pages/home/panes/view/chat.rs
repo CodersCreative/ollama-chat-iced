@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use iced::{
-    alignment::Vertical, clipboard, widget::{
-        button, column, container, image, markdown, mouse_area, pick_list, row, scrollable, space, stack, text, text_editor
+    alignment::{Horizontal, Vertical}, clipboard, widget::{
+        button, center, column, container, image, markdown, mouse_area, pick_list, row, scrollable, space, stack, text, text_editor
     }, Element, Length, Padding, Task, Theme
 };
 use ochat_types::{
@@ -12,15 +12,10 @@ use ochat_types::{
 };
 
 use crate::{
-    Application,  DATA, Message,
-    data::RequestType,
-    font::{BODY_SIZE, SMALL_SIZE},
-    pages::home::panes::{
+    data::{start::{self, Section}, RequestType}, font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE}, pages::home::panes::{
         data::{MessageMk, PromptsData},
         view::HomePaneViewMessage,
-    },
-    style,
-    subscriptions::SubMessage,
+    }, style, subscriptions::SubMessage, Application, Message, DATA
 };
 
 #[derive(Debug, Clone)]
@@ -33,6 +28,7 @@ pub struct ChatsView {
     pub selected_prompt: Option<String>,
     pub messages: Vec<String>,
     pub chat: Chat,
+    pub start : usize,
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +52,7 @@ pub enum ChatsViewMessage {
     AddModel,
     ChangeModel(usize, SettingsProvider),
     RemoveModel(usize),
+    ChangeStart(usize),
 }
 
 impl ChatsViewMessage {
@@ -503,6 +500,10 @@ impl ChatsViewMessage {
                 }
                 Task::none()
             }
+            Self::ChangeStart(index) => {
+                app.get_chats_view(&id).unwrap().start = index;
+                Task::none()
+            }
         }
     }
 }
@@ -742,14 +743,14 @@ impl ChatsView {
             .style(style::container::bottom_input_back),
             bottom,
         ])
-        .width(Length::FillPortion(10))
+        .width(Length::Fill)
         .padding(Padding::from([10, 20]))
         .style(style::container::input_back_opaque);
 
         let input = container(input).padding(10);
 
         let body : Element<'a, Message> = match self.messages.is_empty() {
-            true => text("Hello, World!").height(Length::Fill).into(),
+            true => container(self.view_start(id)).height(Length::Fill).width(Length::Fill).into(),
             false => {
                 let mut col = 
 column(self.messages.iter().map(|x| {
@@ -794,4 +795,74 @@ column(self.messages.iter().map(|x| {
         .max_height(250)
         .into()
     }
+
+     fn view_start<'a>(&'a self, id: u32) -> Element<'a, Message> {
+        let title = text("How can I help?")
+            .size(HEADER_SIZE).style(style::text::primary)
+            .align_x(Horizontal::Left);
+
+        
+        let header = row(start::SECTIONS
+            .iter().enumerate()
+            .map(|(i, x)| {
+                let style = match i == self.start {
+                    true => style::button::start_chosen,
+                    false => style::button::start,
+                };
+
+                button(
+                    text(x.title)
+                        .style(style::text::translucent::primary)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center)
+                        .size(SUB_HEADING_SIZE),
+                )
+                .padding(10)
+                .style(style)
+                .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                    id,
+                    ChatsViewMessage::ChangeStart(i),
+                )))
+                .into()
+            })
+            .collect::<Vec<Element<Message>>>())
+        .spacing(10);
+
+        let section: Section = start::SECTIONS[self.start].clone();
+
+        let prompts = column(
+            section
+                .prompts
+                .iter()
+                .map(|x| {
+                    button(
+                        text(*x).style(style::text::translucent::text)
+                            .align_x(Horizontal::Left)
+                            .width(Length::Fill)
+                            .size(SUB_HEADING_SIZE),
+                    )
+                    .padding(10)
+                    .style(style::button::transparent_translucent)
+                    .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+            id,
+            ChatsViewMessage::InputAction(text_editor::Action::Edit(text_editor::Edit::Paste(
+                            Arc::new(x.to_string()),
+                        ))),
+        ))
+
+            )
+                    .into()
+                })
+                .collect::<Vec<Element<Message>>>(),
+        );
+
+        center(container(
+                column![title, header, prompts]
+                    .spacing(20)
+                    .align_x(Horizontal::Left)
+            ).max_width(800)
+            .padding(Padding::new(20.0))
+            .style(style::container::neutral_back))
+        .into()
+    }   
 }

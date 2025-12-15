@@ -222,10 +222,7 @@ impl Application {
                     .block_on(Data::get(Some(x.instance_url.clone())))
                     .unwrap_or(get_default_data());
             } else {
-                *DATA.write().unwrap() = tokio::runtime::Runtime::new()
-                    .unwrap()
-                    .block_on(Data::get(None))
-                    .unwrap_or_default();
+                *DATA.write().unwrap() = get_default_data();
             }
             cache.client_settings = x;
         } else {

@@ -229,15 +229,19 @@ pub async fn init_db() -> Result<(), ServerError> {
 
     let _ = CONN.use_ns("test").use_db("test").await?;
 
-    let _ = define_settings().await?;
-    let _ = define_messages().await?;
-    let _ = define_chats().await?;
-    let _ = define_message_relationships().await?;
-    let _ = define_ollama_models().await?;
-    let _ = define_previews().await?;
-    let _ = define_files().await?;
-    let _ = define_prompts().await?;
-    let _ = define_gen_options().await?;
-    let _ = define_gen_models().await?;
-    define_providers().await
+    let _ = tokio::try_join![
+        define_settings(),
+        define_messages(),
+        define_chats(),
+        define_message_relationships(),
+        define_ollama_models(),
+        define_previews(),
+        define_files(),
+        define_prompts(),
+        define_gen_options(),
+        define_gen_models(),
+        define_providers(),
+    ]?;
+
+    Ok(())
 }

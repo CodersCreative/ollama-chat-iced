@@ -1,12 +1,12 @@
 use iced::{Task, window};
-use ochat_types::chats::previews::Preview;
+use ochat_types::chats::{Chat, ChatData, previews::Preview};
 
 use crate::{
     Application, DATA, InputMessage, Message,
     data::RequestType,
     pages::{
         PageMessage, Pages,
-        home::{HomePaneType, panes::PaneMessage},
+        home::{HomePaneType, panes::PaneMessage, sidebar::PreviewMk},
     },
     windows::message::WindowMessage,
 };
@@ -43,15 +43,16 @@ impl HomeMessage {
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
 
-                    let previews = req
+                    match req
                         .make_request(&format!("preview/search/{}", search), &(), RequestType::Get)
                         .await
-                        .unwrap_or_default();
-
-                    Message::Window(WindowMessage::Page(
-                        id,
-                        PageMessage::Home(HomeMessage::SetPreviews(previews)),
-                    ))
+                    {
+                        Ok(previews) => Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::SetPreviews(previews)),
+                        )),
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::SetPreviews(previews) => {
@@ -75,15 +76,50 @@ impl HomeMessage {
 
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
-                    let _: Result<Option<Preview>, String> = req
+                    let res: Result<Option<Preview>, String> = req
                         .make_request(&format!("chat/{}", x), &(), RequestType::Delete)
                         .await;
-                    Message::None
+                    match res {
+                        Ok(_) => Message::None,
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::Pane(x) => x.handle(app, id),
-            // TODO finish all other cases
-            _ => Task::none(),
+            Self::NewChat => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Chat, ChatData>(
+                        "chat/",
+                        &ChatData::default(),
+                        RequestType::Post,
+                    )
+                    .await
+                {
+                    Ok(chat) => Message::Batch(vec![
+                        match req
+                            .make_request::<Preview, ()>(
+                                &format!("preview/{}", chat.id.key().to_string()),
+                                &(),
+                                RequestType::Put,
+                            )
+                            .await
+                        {
+                            Ok(x) => {
+                                Message::Cache(crate::CacheMessage::AddPreview(PreviewMk::from(x)))
+                            }
+                            Err(e) => Message::Err(e),
+                        },
+                        Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                                HomePickingType::ReplaceChat(chat.id.key().to_string()),
+                            ))),
+                        )),
+                    ]),
+                    Err(e) => Message::Err(e),
+                }
+            }),
         }
     }
 }

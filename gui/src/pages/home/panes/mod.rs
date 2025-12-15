@@ -1,12 +1,3 @@
-use std::collections::HashMap;
-
-use iced::{
-    Task,
-    widget::{pane_grid, text_editor},
-    window,
-};
-use ochat_types::chats::{Chat, ChatData, previews::Preview};
-
 use crate::{
     Application, CacheMessage, DATA, Message,
     data::RequestType,
@@ -27,6 +18,13 @@ use crate::{
     },
     windows::message::WindowMessage,
 };
+use iced::{
+    Task,
+    widget::{pane_grid, text_editor},
+    window,
+};
+use ochat_types::chats::{Chat, ChatData, previews::Preview};
+use std::collections::HashMap;
 
 pub mod data;
 pub mod view;
@@ -247,6 +245,20 @@ impl PaneMessage {
                             )),
                         )));
                     }
+                    HomePickingType::ReplaceChat(x) => {
+                        let view = app.get_home_page(&id).unwrap();
+                        if view.panes.panes.panes.len() > 1 {
+                            view.panes.pick = Some(HomePickingType::ReplaceChat(x))
+                        } else {
+                            return Task::done(Message::Window(WindowMessage::Page(
+                                id,
+                                PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(
+                                    view.panes.panes.panes.first_key_value().unwrap().0.clone(),
+                                    x,
+                                ))),
+                            )));
+                        }
+                    }
                     _ => app.get_home_page(&id).unwrap().panes.pick = Some(x),
                 }
 
@@ -390,6 +402,7 @@ impl PaneMessage {
                         } else {
                             Vec::new()
                         },
+                        start: 0,
                         messages,
                         chat,
                         edits: HashMap::new(),
