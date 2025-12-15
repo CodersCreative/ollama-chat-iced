@@ -356,7 +356,10 @@ impl PaneMessage {
                     .unwrap();
 
                 let msgs = if let Some(x) = chat.root.clone() {
-                    MessagesData::load_chat_from_root(x, None).await
+                    match MessagesData::load_chat_from_root(x, None).await {
+                        Ok(x) => x,
+                        Err(e) => return Message::Err(e),
+                    }
                 } else {
                     Vec::new()
                 };

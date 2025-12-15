@@ -28,6 +28,20 @@ impl HFPull {
         }
     }
 
+    pub fn get_percent(&self) -> f32 {
+        match &self.state {
+            HFPullModelStreamResult::Pulling(status) => {
+                if let (Some(total), Some(completed)) = (&status.total, &status.completed) {
+                    (*completed as f64 / *total as f64) as f32 * 100.0
+                } else {
+                    0.0
+                }
+            }
+            HFPullModelStreamResult::Finished => 100.0,
+            _ => 0.0,
+        }
+    }
+
     pub fn start(&mut self) -> Task<HFPullUpdate> {
         match self.state {
             HFPullModelStreamResult::Err(_)

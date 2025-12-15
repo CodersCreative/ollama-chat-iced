@@ -192,6 +192,8 @@ impl SubMessage {
                     .ollama_pulls
                     .insert(id, OllamaPull::new(model.provider, model.model));
 
+                app.add_pull_pop_up(id);
+
                 app.subscriptions
                     .ollama_pulls
                     .get_mut(&id)
@@ -250,6 +252,8 @@ impl SubMessage {
                     .hf_pulls
                     .insert(id, HFPull::new(model.id.clone(), name));
                 app.cache.home_shared.downloads.hf.insert(id, model);
+
+                app.add_pull_pop_up(id);
 
                 app.subscriptions
                     .hf_pulls

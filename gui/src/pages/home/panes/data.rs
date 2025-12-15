@@ -101,22 +101,28 @@ impl MessagesData {
         ids
     }
 
-    pub async fn load_chat(chat_id: String, path: Option<Vec<i8>>) -> Vec<MessageMk> {
+    pub async fn load_chat(
+        chat_id: String,
+        path: Option<Vec<i8>>,
+    ) -> Result<Vec<MessageMk>, String> {
         let req = DATA.read().unwrap().to_request();
 
         let chat: Chat = req
             .make_request(&format!("chat/{}", chat_id), &(), RequestType::Get)
             .await
-            .unwrap();
+            .map_err(|e| e.to_string())?;
 
         if let Some(x) = chat.root {
             Self::load_chat_from_root(x, path).await
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     }
 
-    pub async fn load_chat_from_root(root_msg: String, path: Option<Vec<i8>>) -> Vec<MessageMk> {
+    pub async fn load_chat_from_root(
+        root_msg: String,
+        path: Option<Vec<i8>>,
+    ) -> Result<Vec<MessageMk>, String> {
         let req = DATA.read().unwrap().to_request();
 
         let messages: Vec<Message> = if let Some(path) = path {
@@ -126,7 +132,7 @@ impl MessagesData {
                 RequestType::Get,
             )
             .await
-            .unwrap_or_default()
+            .map_err(|e| e.to_string())?
         } else {
             req.make_request(
                 &format!("message/parent/{}/default/", root_msg),
@@ -134,7 +140,7 @@ impl MessagesData {
                 RequestType::Get,
             )
             .await
-            .unwrap_or_default()
+            .map_err(|e| e.to_string())?
         };
 
         let mut message_mks = Vec::new();
@@ -143,7 +149,7 @@ impl MessagesData {
             message_mks.push(MessageMk::get(msg).await);
         }
 
-        message_mks
+        Ok(message_mks)
     }
 }
 
@@ -213,10 +219,10 @@ pub struct HFDownloadData {
 }
 
 impl ModelsData {
-    pub async fn get_ollama(search: Option<String>) -> Self {
+    pub async fn get(search: Option<String>) -> Result<Self, String> {
         let req = DATA.read().unwrap().to_request();
 
-        Self {
+        Ok(Self {
             ollama: req
                 .make_request::<Vec<OllamaModelsInfo>, ()>(
                     &if let Some(search) = &search {
@@ -235,7 +241,7 @@ impl ModelsData {
                         x
                     }
                 })
-                .unwrap_or_default(),
+                .map_err(|e| e.to_string())?,
             hf: req
                 .make_request::<Vec<HFModel>, ()>(
                     &if let Some(search) = &search {
@@ -254,13 +260,13 @@ impl ModelsData {
                         x
                     }
                 })
-                .unwrap_or_default(),
-        }
+                .map_err(|e| e.to_string())?,
+        })
     }
 }
 
 impl OptionsData {
-    pub async fn get_gen_models(search: Option<String>) -> Self {
+    pub async fn get(search: Option<String>) -> Result<Self, String> {
         let req = DATA.read().unwrap().to_request();
 
         let options: Vec<GenOptions> = req
@@ -274,7 +280,7 @@ impl OptionsData {
                 RequestType::Get,
             )
             .await
-            .unwrap_or_default();
+            .map_err(|e| e.to_string())?;
 
         let mut value = Vec::new();
 
@@ -286,7 +292,7 @@ impl OptionsData {
                     RequestType::Get,
                 )
                 .await
-                .unwrap_or_default();
+                .map_err(|e| e.to_string())?;
 
             value.push(OptionData {
                 option,
@@ -294,15 +300,15 @@ impl OptionsData {
             });
         }
 
-        Self(value)
+        Ok(Self(value))
     }
 }
 
 impl PromptsData {
-    pub async fn get_prompts(search: Option<String>) -> Self {
+    pub async fn get(search: Option<String>) -> Result<Self, String> {
         let req = DATA.read().unwrap().to_request();
 
-        Self(
+        Ok(Self(
             req.make_request::<Vec<Prompt>, ()>(
                 &if let Some(search) = search {
                     format!("prompt/search/{}", search)
@@ -313,7 +319,7 @@ impl PromptsData {
                 RequestType::Get,
             )
             .await
-            .unwrap_or_default(),
-        )
+            .map_err(|e| e.to_string())?,
+        ))
     }
 }

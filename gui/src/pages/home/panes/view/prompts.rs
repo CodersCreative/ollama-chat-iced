@@ -96,12 +96,13 @@ impl PromptsViewMessage {
             Self::Search(_) => {
                 let search = app.get_prompts_view(&id).unwrap().search.clone();
                 Task::future(async move {
-                    Message::HomePaneView(HomePaneViewMessage::Prompts(
-                        id,
-                        PromptsViewMessage::SetPrompts(
-                            PromptsData::get_prompts(Some(search)).await,
-                        ),
-                    ))
+                    match PromptsData::get(Some(search)).await {
+                        Ok(x) => Message::HomePaneView(HomePaneViewMessage::Prompts(
+                            id,
+                            PromptsViewMessage::SetPrompts(x),
+                        )),
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::SetPrompts(x) => {

@@ -6,22 +6,27 @@ pub mod utils;
 pub mod windows;
 
 use iced::{
-    Element, Subscription, Task, Theme, clipboard, exit,
-    widget::{markdown, text},
+    Element, Length, Subscription, Task, Theme,
+    alignment::Vertical,
+    clipboard, exit,
+    widget::{column, container, markdown, mouse_area, progress_bar, right, row, stack, text},
     window::{self},
 };
 use ochat_types::{
     chats::previews::Preview,
+    providers::{hf::HFPullModelStreamResult, ollama::OllamaPullModelStreamResult},
     settings::{Settings, SettingsData},
 };
 use std::{
     collections::BTreeMap,
+    fmt::Debug,
+    rc::Rc,
     sync::{LazyLock, RwLock},
 };
 
 use crate::{
     data::{Data, settings::ClientSettings},
-    font::get_iced_font,
+    font::{BODY_SIZE, SUB_HEADING_SIZE, get_iced_font},
     pages::{
         Pages,
         home::{
@@ -68,6 +73,7 @@ pub struct Application {
     pub cache: AppCache,
     pub view_data: ViewData,
     pub subscriptions: Subscriptions,
+    pub popups: Vec<PopUp>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -91,6 +97,18 @@ pub enum InputMessage {
     Submit,
 }
 
+#[derive(Clone)]
+pub enum PopUp {
+    Err(String),
+    Custom(Rc<dyn Fn(&Application) -> Element<Message>>),
+}
+
+impl Debug for PopUp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Pop Up")
+    }
+}
+
 fn main() -> iced::Result {
     iced::daemon(Application::new, Application::update, Application::view)
         .subscription(Application::subscription)
@@ -112,6 +130,8 @@ pub enum Message {
     Cache(CacheMessage),
     SaveToClipboard(String),
     Batch(Vec<Self>),
+    RemovePopUp(usize),
+    Err(String),
 }
 
 #[derive(Debug, Clone)]
@@ -219,6 +239,7 @@ impl Application {
                 cache,
                 view_data: ViewData::default(),
                 subscriptions: Subscriptions::default(),
+                popups: Vec::new(),
             },
             open.map(|id| Message::Window(WindowMessage::WindowOpened(id)))
                 .chain(Task::batch([Self::update_data_cache()])),
@@ -229,44 +250,43 @@ impl Application {
         Task::batch([
             Task::future(async {
                 let req = DATA.read().unwrap().to_request();
-                Message::Cache(CacheMessage::SetPreviews(
-                    req.make_request::<Vec<Preview>, ()>(
-                        "preview/all/",
-                        &(),
-                        data::RequestType::Get,
-                    )
+                match req
+                    .make_request::<Vec<Preview>, ()>("preview/all/", &(), data::RequestType::Get)
                     .await
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|x| x.into())
-                    .collect(),
-                ))
+                {
+                    Ok(x) => Message::Cache(CacheMessage::SetPreviews(
+                        x.into_iter().map(|x| x.into()).collect(),
+                    )),
+                    Err(e) => Message::Err(e),
+                }
             }),
             Task::future(async {
                 let req = DATA.read().unwrap().to_request();
-                Message::Cache(CacheMessage::SetSettings(
-                    if let Ok(settings) = req
-                        .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
-                        .await
-                    {
-                        settings.into()
-                    } else {
-                        SettingsData::default()
-                    },
-                ))
+                match req
+                    .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
+                    .await
+                {
+                    Ok(x) => Message::Cache(CacheMessage::SetSettings(x.into())),
+                    Err(e) => Message::Err(e),
+                }
             }),
             Task::future(async {
-                Message::Cache(CacheMessage::SetPrompts(
-                    PromptsData::get_prompts(None).await,
-                ))
+                match PromptsData::get(None).await {
+                    Ok(x) => Message::Cache(CacheMessage::SetPrompts(x)),
+                    Err(e) => Message::Err(e),
+                }
             }),
             Task::future(async {
-                Message::Cache(CacheMessage::SetOptions(
-                    OptionsData::get_gen_models(None).await,
-                ))
+                match OptionsData::get(None).await {
+                    Ok(x) => Message::Cache(CacheMessage::SetOptions(x)),
+                    Err(e) => Message::Err(e),
+                }
             }),
             Task::future(async {
-                Message::Cache(CacheMessage::SetModels(ModelsData::get_ollama(None).await))
+                match ModelsData::get(None).await {
+                    Ok(x) => Message::Cache(CacheMessage::SetModels(x)),
+                    Err(e) => Message::Err(e),
+                }
             }),
         ])
     }
@@ -278,8 +298,16 @@ impl Application {
             Message::Subscription(message) => message.handle(self),
             Message::HomePaneView(message) => message.handle(self),
             Message::Cache(message) => message.handle(self),
+            Message::Err(e) => {
+                self.add_popup(PopUp::Err(e));
+                Task::none()
+            }
             Message::UriClicked(x) => {
                 open::that_in_background(x.to_string());
+                Task::none()
+            }
+            Message::RemovePopUp(index) => {
+                self.popups.remove(index);
                 Task::none()
             }
             Message::Batch(messages) => Task::batch(messages.into_iter().map(|x| Task::done(x))),
@@ -293,10 +321,37 @@ impl Application {
     }
 
     pub fn view<'a>(&'a self, window_id: window::Id) -> Element<'a, Message> {
-        if let Some(window) = self.windows.get(&window_id) {
+        let body = if let Some(window) = self.windows.get(&window_id) {
             window.view(self, window_id)
         } else {
             text("Window Not Found").into()
+        };
+
+        if !self.popups.is_empty() {
+            let popups = right(
+                column(self.popups.iter().enumerate().map(|(i, x)| {
+                    mouse_area(
+                        container(match x {
+                            PopUp::Err(e) => {
+                                text(e).style(style::text::danger).size(BODY_SIZE).into()
+                            }
+                            PopUp::Custom(x) => x(self),
+                        })
+                        .width(Length::Fill)
+                        .padding(10)
+                        .style(style::container::chat_back),
+                    )
+                    .on_press(Message::RemovePopUp(i))
+                    .into()
+                }))
+                .spacing(10)
+                .height(Length::Shrink)
+                .width(400),
+            );
+
+            stack![body, popups].into()
+        } else {
+            body
         }
     }
 
@@ -329,6 +384,72 @@ impl Application {
         };
 
         Some(page)
+    }
+
+    pub fn unwrap_value<T: Default>(&mut self, value: Result<T, String>) -> T {
+        match value {
+            Ok(x) => x,
+            Err(e) => {
+                self.add_popup(PopUp::Err(e));
+                T::default()
+            }
+        }
+    }
+
+    pub fn add_popup(&mut self, popup: PopUp) {
+        self.popups.push(popup);
+    }
+
+    pub fn add_pull_pop_up(&mut self, id: u32) {
+        self.popups.push(PopUp::Custom(Rc::new(move |app| {
+            let danger_text = |txt: String| text(txt).style(style::text::danger).size(BODY_SIZE);
+            let text_text = |txt: String| text(txt).style(style::text::text).size(BODY_SIZE);
+            let primary_text = |txt: String| text(txt).style(style::text::primary).size(BODY_SIZE);
+            let progress = |progress: f32| {
+                row![
+                    progress_bar(0.0..=100.0, progress)
+                        .length(Length::Fill)
+                        .girth(Length::Fixed(SUB_HEADING_SIZE as f32)),
+                    text(format!("{:.2}%", progress))
+                        .style(style::text::primary)
+                        .width(75.0)
+                        .size(SUB_HEADING_SIZE)
+                ]
+                .align_y(Vertical::Center)
+                .spacing(20)
+            };
+
+            if let Some(pull) = app.subscriptions.ollama_pulls.get(&id) {
+                let body: Element<Message> = match &pull.state {
+                    OllamaPullModelStreamResult::Err(e) => danger_text(e.to_string()).into(),
+                    OllamaPullModelStreamResult::Finished => {
+                        primary_text("Pull Finished!".to_string()).into()
+                    }
+                    OllamaPullModelStreamResult::Idle => {
+                        text_text("Starting...".to_string()).into()
+                    }
+                    _ => progress(pull.get_percent()).into(),
+                };
+
+                column![primary_text(pull.model.clone()), body].into()
+            } else if let Some(pull) = app.subscriptions.hf_pulls.get(&id) {
+                let body: Element<Message> = match &pull.state {
+                    HFPullModelStreamResult::Err(e) => danger_text(e.to_string()).into(),
+                    HFPullModelStreamResult::Finished => {
+                        primary_text("Pull Finished!".to_string()).into()
+                    }
+                    HFPullModelStreamResult::Idle => text_text("Starting...".to_string()).into(),
+                    _ => progress(pull.get_percent()).into(),
+                };
+
+                column![primary_text(pull.model.clone()), body].into()
+            } else {
+                text("Pull Finished!")
+                    .style(style::text::primary)
+                    .size(BODY_SIZE)
+                    .into()
+            }
+        })));
     }
 
     pub fn get_models_view(&mut self, id: &u32) -> Option<&mut ModelsView> {

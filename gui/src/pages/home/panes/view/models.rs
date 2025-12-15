@@ -130,10 +130,13 @@ impl ModelsViewMessage {
             Self::Search(_) => {
                 let search = app.get_models_view(&id).unwrap().search.clone();
                 Task::future(async move {
-                    Message::HomePaneView(HomePaneViewMessage::Models(
-                        id,
-                        ModelsViewMessage::SetModels(ModelsData::get_ollama(Some(search)).await),
-                    ))
+                    match ModelsData::get(Some(search)).await {
+                        Ok(x) => Message::HomePaneView(HomePaneViewMessage::Models(
+                            id,
+                            ModelsViewMessage::SetModels(x),
+                        )),
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::ChangePage(x) => {

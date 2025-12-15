@@ -12,7 +12,7 @@ use ochat_types::{
 };
 
 use crate::{
-    Application, CacheMessage, DATA, Message,
+    Application,  DATA, Message,
     data::RequestType,
     font::{BODY_SIZE, SMALL_SIZE},
     pages::home::panes::{
@@ -81,12 +81,13 @@ impl ChatsViewMessage {
                     Task::none()
                 } else {
                     Task::future(async move {
-                        let prompts = PromptsData::get_prompts(Some(search)).await;
-
-                        Message::HomePaneView(HomePaneViewMessage::Chats(
-                            id,
-                            ChatsViewMessage::SetPrompts(prompts),
-                        ))
+                        match PromptsData::get(Some(search)).await{
+                            Ok(x) => Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::SetPrompts(x),
+                            )),
+                            Err(e) => Message::Err(e)
+                        }
                     })
                 }
             }

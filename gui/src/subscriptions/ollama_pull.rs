@@ -28,6 +28,20 @@ impl OllamaPull {
         }
     }
 
+    pub fn get_percent(&self) -> f32 {
+        match &self.state {
+            OllamaPullModelStreamResult::Pulling(status) => {
+                if let (Some(total), Some(completed)) = (&status.total, &status.completed) {
+                    (*completed as f64 / *total as f64) as f32 * 100.0
+                } else {
+                    0.0
+                }
+            }
+            OllamaPullModelStreamResult::Finished => 100.0,
+            _ => 0.0,
+        }
+    }
+
     pub fn start(&mut self) -> Task<OllamaPullUpdate> {
         match self.state {
             OllamaPullModelStreamResult::Err(_)

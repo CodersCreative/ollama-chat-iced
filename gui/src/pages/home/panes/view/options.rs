@@ -64,12 +64,13 @@ impl OptionsViewMessage {
             Self::Search(_) => {
                 let search = app.get_options_view(&id).unwrap().search.clone();
                 Task::future(async move {
-                    Message::HomePaneView(HomePaneViewMessage::Options(
-                        id,
-                        OptionsViewMessage::SetOptions(
-                            OptionsData::get_gen_models(Some(search)).await,
-                        ),
-                    ))
+                    match OptionsData::get(Some(search)).await {
+                        Ok(x) => Message::HomePaneView(HomePaneViewMessage::Options(
+                            id,
+                            OptionsViewMessage::SetOptions(x),
+                        )),
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::AddRelationship(option_id) => {
