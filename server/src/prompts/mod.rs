@@ -52,7 +52,7 @@ pub async fn search_prompts(search: Path<String>) -> Result<Json<Vec<Prompt>>, S
     Ok(Json(CONN
         .query(&format!(
             "            
-SELECT *, search::score(1) + search::score(2) + search::score(3) AS score FROM {0} WHERE title @1@ {1} or command @2@ {1} or content @3@ {1} ORDER BY score DESC;
+SELECT *, search::score(1) + search::score(2) + search::score(3) AS score FROM {0} WHERE title @1@ '{1}' or command @2@ '{1}' or content @3@ '{1}' ORDER BY score DESC;
 ",
             PROMPTS_TABLE, search.trim()
         ))

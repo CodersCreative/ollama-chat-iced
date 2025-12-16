@@ -69,16 +69,7 @@ impl SubMessage {
                 } else {
                     return Task::none();
                 };
-                let (url, providers) = {
-                    let data = DATA.read().unwrap();
-                    (
-                        data.instance_url.clone().unwrap(),
-                        data.providers
-                            .iter()
-                            .map(|x| x.id.key().to_string())
-                            .collect(),
-                    )
-                };
+
                 let chat_id = app
                     .view_data
                     .home
@@ -88,21 +79,20 @@ impl SubMessage {
                     .map(|x| x.1.chat.id.key().to_string());
 
                 Task::future(async {
-                    if let Ok(x) = Data::get_models(url, providers).await {
-                        DATA.write().unwrap().models = x;
-                    }
-
                     let req = DATA.read().unwrap().to_request();
 
                     if let Some(id) = chat_id {
-                        req.make_request::<Preview, ()>(
-                            &format!("preview/{}", id),
-                            &(),
-                            RequestType::Put,
-                        )
-                        .await
-                        .map(|x| Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))))
-                        .unwrap_or(Message::None)
+                        match req
+                            .make_request::<Preview, ()>(
+                                &format!("preview/{}", id),
+                                &(),
+                                RequestType::Put,
+                            )
+                            .await
+                        {
+                            Ok(x) => Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))),
+                            Err(e) => Message::Err(e),
+                        }
                     } else {
                         Message::None
                     }
@@ -135,15 +125,17 @@ impl SubMessage {
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
 
-                    let _ = req
+                    match req
                         .make_request::<ochat_types::chats::messages::Message, MessageData>(
                             &format!("message/{}", id),
                             &msg,
                             RequestType::Put,
                         )
-                        .await;
-
-                    Message::None
+                        .await
+                    {
+                        Ok(_) => Message::None,
+                        Err(e) => Message::Err(e),
+                    }
                 })
             }
             Self::GeneratingMessage(id, ChatStreamResult::Generating(result)) => {
@@ -153,6 +145,7 @@ impl SubMessage {
                 } else {
                     return Task::none();
                 };
+
                 if let Some(msg) = app.cache.home_shared.messages.0.get_mut(&key) {
                     msg.base.content.push_str(&result.content);
 
@@ -226,11 +219,13 @@ impl SubMessage {
                 };
 
                 Task::future(async {
-                    if let Ok(x) = Data::get_models(url, providers).await {
-                        DATA.write().unwrap().models = x;
+                    match Data::get_models(url, providers).await {
+                        Ok(x) => {
+                            DATA.write().unwrap().models = x;
+                            Message::None
+                        }
+                        Err(e) => Message::Err(e.to_string()),
                     }
-
-                    Message::None
                 })
             }
             Self::OllamaPulling(id, result) => {
@@ -283,11 +278,13 @@ impl SubMessage {
                 };
 
                 Task::future(async {
-                    if let Ok(x) = Data::get_models(url, providers).await {
-                        DATA.write().unwrap().models = x;
+                    match Data::get_models(url, providers).await {
+                        Ok(x) => {
+                            DATA.write().unwrap().models = x;
+                            Message::None
+                        }
+                        Err(e) => Message::Err(e.to_string()),
                     }
-
-                    Message::None
                 })
             }
             Self::HFPulling(id, result) => {

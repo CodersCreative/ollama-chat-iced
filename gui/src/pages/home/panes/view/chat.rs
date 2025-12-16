@@ -5,14 +5,14 @@ use iced::{
     alignment::{Horizontal, Vertical},
     clipboard,
     widget::{
-        button, center, column, container, image, markdown, mouse_area, pick_list, row, scrollable,
-        space, stack, text, text_editor,
+        button, center, column, container, image, markdown, mouse_area, pick_list, row, rule,
+        scrollable, space, stack, text, text_editor,
     },
 };
 use ochat_types::{
     chats::{
         Chat,
-        messages::{MessageData, MessageDataBuilder, Role},
+        messages::{MessageData, MessageDataBuilder, ModelData, Role},
     },
     files::FileType,
     generation::text::{ChatQueryData, ChatQueryMessage},
@@ -43,6 +43,7 @@ pub struct ChatsView {
     pub prompts: PromptsData,
     pub selected_prompt: Option<String>,
     pub messages: Vec<String>,
+    pub path: Vec<i8>,
     pub chat: Chat,
     pub start: usize,
 }
@@ -244,9 +245,9 @@ impl ChatsViewMessage {
                                     RequestType::Put,
                                 )
                                 .await {
-                                Ok(_) => {},
-                                Err(e) => return Message::Err(e)
-                            }
+                                    Ok(_) => {},
+                                    Err(e) => return Message::Err(e)
+                                }
                             }
                             Message::HomePaneView(HomePaneViewMessage::Chats(
                                 id,
@@ -315,6 +316,8 @@ impl ChatsViewMessage {
                         let message = MessageDataBuilder::default()
                             .content(String::new())
                             .role(Role::AI)
+                            .model(Some(ModelData {provider : x.provider.trim().to_string(), model: x.model.clone()}))
+                            .reason(Some(ochat_types::chats::relationships::Reason::Model))
                             .build()
                             .unwrap();
                         match req
@@ -545,7 +548,7 @@ pub fn get_command_input(input: &str) -> Option<&str> {
 
 impl ChatsView {
     pub fn view_message<'a>(
-        _id: u32,
+        id: u32,
         theme: &Theme,
         message: &'a MessageMk,
         edit: Option<&'a text_editor::Content>,
@@ -555,24 +558,68 @@ impl ChatsView {
             row(if edit.is_some() {
                 let widgets: Vec<Element<'a, Message>> = vec![
                     text(message.base.role.to_string()).size(BODY_SIZE).into(),
+                    if let Some(model) = &message.base.model {
+                        text(format!("({})", model.model)).size(BODY_SIZE).into()
+                    } else {
+                        space().into()
+                    },
                     space::horizontal().into(),
-                    style::svg_button::danger("close.svg", BODY_SIZE).into(),
-                    style::svg_button::primary("save.svg", BODY_SIZE).into(),
+                    style::svg_button::danger("close.svg", BODY_SIZE)
+                        .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                            id,
+                            ChatsViewMessage::Edit(message.base.id.key().to_string()),
+                        )))
+                        .into(),
+                    style::svg_button::primary("save.svg", BODY_SIZE)
+                        .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                            id,
+                            ChatsViewMessage::SubmitEdit(message.base.id.key().to_string()),
+                        )))
+                        .into(),
                 ];
 
                 widgets
             } else {
-                let widgets: Vec<Element<'a, Message>> = vec![
+                let mut widgets: Vec<Element<'a, Message>> = vec![
                     text(message.base.role.to_string()).size(BODY_SIZE).into(),
+                    if let Some(model) = &message.base.model {
+                        text(format!("({})", model.model)).size(BODY_SIZE).into()
+                    } else {
+                        space().into()
+                    },
                     space::horizontal().into(),
-                    style::svg_button::text("edit.svg", BODY_SIZE).into(),
-                    style::svg_button::text("restart.svg", BODY_SIZE).into(),
-                    style::svg_button::text("branch.svg", BODY_SIZE).into(),
-                    style::svg_button::text("copy.svg", BODY_SIZE).into(),
+                    style::svg_button::text("edit.svg", BODY_SIZE)
+                        .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                            id,
+                            ChatsViewMessage::Edit(message.base.id.key().to_string()),
+                        )))
+                        .into(),
+                    style::svg_button::text("restart.svg", BODY_SIZE)
+                        .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                            id,
+                            ChatsViewMessage::Regenerate(message.base.id.key().to_string()),
+                        )))
+                        .into(),
+                    style::svg_button::text("branch.svg", BODY_SIZE)
+                        .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                            id,
+                            ChatsViewMessage::Branch(message.base.id.key().to_string()),
+                        )))
+                        .into(),
+                    style::svg_button::text("copy.svg", BODY_SIZE)
+                        .on_press(Message::SaveToClipboard(message.base.content.clone()))
+                        .into(),
                 ];
+
+                if message.can_change {
+                    widgets.push(style::svg_button::text("back_arrow.svg", BODY_SIZE).into());
+
+                    widgets.push(style::svg_button::text("forward_arrow.svg", BODY_SIZE).into());
+                }
 
                 widgets
             })
+            .spacing(10)
             .align_y(Vertical::Center),
         )
         .padding(5)
@@ -608,7 +655,14 @@ impl ChatsView {
         .style(style::container::bottom_input_back);
 
         let content: Element<'a, Message> = if let Some(edit) = edit {
-            text_editor(&edit).into()
+            text_editor(&edit)
+                .on_action(move |x| {
+                    Message::HomePaneView(HomePaneViewMessage::Chats(
+                        id.clone(),
+                        ChatsViewMessage::EditAction(message.base.id.key().to_string(), x),
+                    ))
+                })
+                .into()
         } else {
             markdown::view_with(
                 message.content.items(),
@@ -626,9 +680,17 @@ impl ChatsView {
                     style::markdown::main(theme),
                     &style::markdown::CustomViewer,
                 ))
+                .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                    id,
+                    ChatsViewMessage::Expand(message.base.id.key().to_string()),
+                )))
                 .into()
             } else {
                 button(text("Thinking").size(SMALL_SIZE))
+                    .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                        id,
+                        ChatsViewMessage::Expand(message.base.id.key().to_string()),
+                    )))
                     .width(Length::Fill)
                     .into()
             };
@@ -739,7 +801,7 @@ impl ChatsView {
         .max_height(350);
 
         let input = container(column![
-            self.view_commands(app, id.clone()),
+            self.view_commands(id.clone()),
             container(
                 row![
                     scrollable::Scrollable::new(
@@ -824,7 +886,7 @@ impl ChatsView {
         container(stack([body, column![space::vertical(), input].into()])).into()
     }
 
-    fn view_commands<'a>(&'a self, _app: &'a Application, _id: u32) -> Element<'a, Message> {
+    fn view_commands<'a>(&'a self, id: u32) -> Element<'a, Message> {
         container(
             scrollable::Scrollable::new(row(self.prompts.0.iter().map(|x| {
                 let chosen = if let Some(y) = &self.selected_prompt {
@@ -840,6 +902,10 @@ impl ChatsView {
                     } else {
                         style::button::not_chosen_chat
                     })
+                    .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                        id,
+                        ChatsViewMessage::ApplyPrompt(Some(x.id.key().to_string())),
+                    )))
                     .padding(10)
                     .into()
             })))
@@ -911,9 +977,15 @@ impl ChatsView {
 
         center(
             container(
-                column![title, header, prompts]
-                    .spacing(20)
-                    .align_x(Horizontal::Left),
+                column![
+                    title,
+                    rule::horizontal(1).style(style::rule::translucent::primary),
+                    header,
+                    rule::horizontal(1).style(style::rule::translucent::text),
+                    prompts
+                ]
+                .spacing(20)
+                .align_x(Horizontal::Left),
             )
             .max_width(800)
             .padding(Padding::new(20.0))

@@ -93,6 +93,13 @@ pub mod messages {
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub struct MessageCanChange {
+        pub id: String,
+        #[serde(default = "Default::default")]
+        pub can_change: bool,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Message {
         pub content: String,
         #[serde(default = "Vec::new")]

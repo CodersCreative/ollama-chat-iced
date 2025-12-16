@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use iced::widget::markdown;
 use ochat_types::{
-    chats::{Chat, messages::Message},
+    chats::{
+        Chat,
+        messages::{Message, MessageCanChange},
+    },
     files::B64File,
     options::{GenOptions, relationships::GenModelRelationship},
     prompts::Prompt,
@@ -40,6 +43,7 @@ pub struct MessageMk {
     pub content: markdown::Content,
     pub thinking: Option<markdown::Content>,
     pub files: Vec<B64File>,
+    pub can_change: bool,
     pub base: Message,
 }
 
@@ -54,6 +58,7 @@ impl Clone for MessageMk {
                 .clone()
                 .map(|x| markdown::Content::parse(&x)),
             base: self.base.clone(),
+            can_change: self.can_change,
         }
     }
 }
@@ -68,6 +73,7 @@ impl MessageMk {
                 .thinking
                 .clone()
                 .map(|x| markdown::Content::parse(&x)),
+            can_change: false,
             base: message,
         };
 
@@ -84,6 +90,17 @@ impl MessageMk {
             {
                 message.files.push(file);
             }
+        }
+
+        if let Ok(can_change) = req
+            .make_request::<MessageCanChange, ()>(
+                &format!("message/{}/change/", message.base.id.key().to_string()),
+                &(),
+                RequestType::Get,
+            )
+            .await
+        {
+            message.can_change = can_change.can_change;
         }
 
         message

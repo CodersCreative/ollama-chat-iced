@@ -52,6 +52,14 @@ async fn main() {
             get(messages::get_default_message_list_from_parent),
         )
         .route(
+            "/message/parent/{parent}/change/",
+            get(messages::get_can_change_list_from_parent),
+        )
+        .route(
+            "/message/parent/{parent}/change/default/",
+            get(messages::get_default_can_change_list_from_parent),
+        )
+        .route(
             "/message/parent/{parent}/all/",
             get(messages::list_all_messages_from_parent),
         )
@@ -62,6 +70,7 @@ async fn main() {
                 .put(messages::update_message)
                 .delete(messages::delete_message),
         )
+        .route("/message/{id}/change/", get(messages::get_can_change))
         .route("/preview/all/", get(previews::list_all_previews))
         .route("/preview/search/{search}", get(previews::search_previews))
         .route(

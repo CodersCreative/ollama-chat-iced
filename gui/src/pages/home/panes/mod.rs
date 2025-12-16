@@ -415,6 +415,7 @@ impl PaneMessage {
                         } else {
                             Vec::new()
                         },
+                        path: Vec::new(),
                         start: 0,
                         messages,
                         chat,

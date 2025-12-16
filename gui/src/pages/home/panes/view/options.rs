@@ -598,7 +598,7 @@ impl OptionsView {
     pub fn view<'a>(&'a self, app: &'a Application, id: u32) -> Element<'a, Message> {
         let search = style::svg_input::primary(
             Some(String::from("search.svg")),
-            text_input("Search prompts...", &self.search)
+            text_input("Search options...", &self.search)
                 .on_input(move |x| {
                     Message::HomePaneView(HomePaneViewMessage::Options(
                         id,

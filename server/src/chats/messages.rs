@@ -2,7 +2,7 @@ use crate::chats::relationships::{RELATIONSHIP_TABLE, get_count_of_children};
 use crate::files::FILE_TABLE;
 use crate::{CONN, errors::ServerError};
 use axum::{Json, extract::Path};
-use ochat_types::chats::messages::{Message, MessageData, ModelData, Role};
+use ochat_types::chats::messages::{Message, MessageCanChange, MessageData, ModelData, Role};
 use ochat_types::chats::relationships::{MessageRelationship, MessageRelationshipDataBuilder};
 use ochat_types::surreal::Datetime;
 use serde::{Deserialize, Serialize};
@@ -154,15 +154,17 @@ pub async fn get_message_list_from_parent(
     let mut parent: String = id.to_string();
 
     for index in path {
-        let len = get_count_of_children(Path(parent.to_string())).await?.0;
+        let len = get_count_of_children(Path(parent.to_string())).await?.0 as i8;
 
-        let index = if index < 0 {
-            len - 1
-        } else if index >= len as i8 {
-            0
-        } else {
-            index as u8
-        };
+        let mut index = index;
+
+        while index < 0 {
+            index += len;
+        }
+
+        while index > len {
+            index -= len;
+        }
 
         let query: Vec<MessageRelationship> = CONN
             .query(&format!(
@@ -192,6 +194,131 @@ pub async fn get_message_list_from_parent(
     if extra.len() > 1 {
         let _ = extra.remove(0);
         list.append(&mut extra);
+    }
+
+    Ok(Json(list))
+}
+
+pub async fn get_can_change(id: Path<String>) -> Result<Json<MessageCanChange>, ServerError> {
+    let mut parent: Vec<MessageRelationship> = CONN
+        .query(&format!(
+            "
+                SELECT * FROM {0} WHERE child = '{1}';
+            ",
+            RELATIONSHIP_TABLE,
+            id.trim(),
+        ))
+        .await?
+        .take(0)?;
+
+    if parent.is_empty() {
+        return Ok(Json(MessageCanChange {
+            id: id.to_string(),
+            can_change: false,
+        }));
+    }
+
+    let parent = parent.remove(0).parent;
+
+    let len = get_count_of_children(Path(parent)).await?.0 as i8;
+
+    Ok(Json(MessageCanChange {
+        id: id.to_string(),
+        can_change: if len > 1 { true } else { false },
+    }))
+}
+
+pub async fn get_can_change_list_from_parent(
+    id: Path<String>,
+    Json(path): Json<Vec<i8>>,
+) -> Result<Json<Vec<MessageCanChange>>, ServerError> {
+    let mut list = vec![MessageCanChange {
+        id: id.to_string(),
+        can_change: false,
+    }];
+    let mut parent: String = id.to_string();
+
+    for index in path {
+        let len = get_count_of_children(Path(parent.to_string())).await?.0 as i8;
+
+        let mut index = index;
+
+        while index < 0 {
+            index += len;
+        }
+
+        while index > len {
+            index -= len;
+        }
+
+        let query: Vec<MessageRelationship> = CONN
+            .query(&format!(
+                "
+                SELECT * FROM {0} WHERE parent = '{1}' and index = {2} ORDER BY index ASC LIMIT 1; 
+            ",
+                RELATIONSHIP_TABLE,
+                parent.trim(),
+                index
+            ))
+            .await?
+            .take(0)?;
+
+        if query.is_empty() {
+            break;
+        } else {
+            parent = query[0].child.to_string();
+
+            list.push(MessageCanChange {
+                id: parent.clone(),
+                can_change: if len > 1 { true } else { false },
+            });
+        }
+    }
+
+    let mut extra = get_default_can_change_list_from_parent(Path(parent))
+        .await?
+        .0;
+    if extra.len() > 1 {
+        let _ = extra.remove(0);
+        list.append(&mut extra);
+    }
+
+    Ok(Json(list))
+}
+
+pub async fn get_default_can_change_list_from_parent(
+    id: Path<String>,
+) -> Result<Json<Vec<MessageCanChange>>, ServerError> {
+    let mut list = vec![MessageCanChange {
+        id: id.to_string(),
+        can_change: false,
+    }];
+    let mut parent: String = id.to_string();
+
+    loop {
+        let len = get_count_of_children(Path(parent.to_string())).await?.0 as i8;
+
+        let query: Vec<MessageRelationship> = CONN
+            .query(&format!(
+                "
+                SELECT * FROM {0} WHERE parent = '{1}' ORDER BY index ASC LIMIT 1; 
+            ",
+                RELATIONSHIP_TABLE,
+                parent.trim(),
+            ))
+            .await?
+            .take(0)?;
+
+        if query.is_empty() {
+            break;
+        } else {
+            parent = query[0].child.to_string();
+
+            list.push(MessageCanChange {
+                id: parent.clone(),
+                can_change: if len > 1 { true } else { false },
+            });
+        }
     }
 
     Ok(Json(list))

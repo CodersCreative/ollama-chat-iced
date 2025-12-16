@@ -9,7 +9,9 @@ use iced::{
     Element, Length, Subscription, Task, Theme,
     alignment::Vertical,
     clipboard, exit,
-    widget::{column, container, markdown, mouse_area, progress_bar, right, row, stack, text},
+    widget::{
+        column, container, markdown, mouse_area, progress_bar, right, row, rule, stack, text,
+    },
     window::{self},
 };
 use ochat_types::{
@@ -326,21 +328,32 @@ impl Application {
 
         if !self.popups.is_empty() {
             let popups = right(
-                column(self.popups.iter().enumerate().map(|(i, x)| {
-                    mouse_area(
-                        container(match x {
-                            PopUp::Err(e) => {
-                                text(e).style(style::text::danger).size(BODY_SIZE).into()
-                            }
-                            PopUp::Custom(x) => x(self),
+                column({
+                    let mut widgets: Vec<Element<Message>> = self
+                        .popups
+                        .iter()
+                        .enumerate()
+                        .map(|(i, x)| {
+                            mouse_area(
+                                container(match x {
+                                    PopUp::Err(e) => {
+                                        text(e).style(style::text::danger).size(BODY_SIZE).into()
+                                    }
+                                    PopUp::Custom(x) => x(self),
+                                })
+                                .width(Length::Fill)
+                                .padding(10)
+                                .style(style::container::chat_back),
+                            )
+                            .on_press(Message::RemovePopUp(i))
+                            .into()
                         })
-                        .width(Length::Fill)
-                        .padding(10)
-                        .style(style::container::chat_back),
-                    )
-                    .on_press(Message::RemovePopUp(i))
-                    .into()
-                }))
+                        .collect();
+
+                    widgets.push(rule::horizontal(2).style(style::rule::primary).into());
+
+                    widgets
+                })
                 .spacing(10)
                 .height(Length::Shrink)
                 .width(400),

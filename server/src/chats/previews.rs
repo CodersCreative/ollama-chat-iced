@@ -144,7 +144,7 @@ pub async fn search_previews(search: Path<String>) -> Result<Json<Vec<Preview>>,
     Ok(Json(
         CONN.query(&format!(
             "            
-SELECT *, search::score(1) AS score FROM {0} WHERE title @1@ {1} ORDER BY score DESC LIMIT 25;
+SELECT *, search::score(1) AS score FROM {0} WHERE text @1@ '{1}' ORDER BY score DESC;
 ",
             PREVIEW_TABLE,
             search.trim()

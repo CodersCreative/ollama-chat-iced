@@ -51,7 +51,7 @@ pub async fn search_gen_options(
     Ok(Json(
         CONN.query(&format!(
             "            
-SELECT *, search::score(1) AS score FROM {0} WHERE name @1@ {1} ORDER BY score DESC LIMIT 25;
+SELECT *, search::score(1) AS score FROM {0} WHERE name @1@ '{1}' ORDER BY score DESC;
 ",
             GEN_OPTIONS_TABLE,
             search.trim()

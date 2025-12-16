@@ -16,7 +16,8 @@ use iced::{
     Element, Length, Padding, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        Button, button, column, container, hover, markdown, row, rule, space, text, text_input,
+        Button, button, column, container, hover, markdown, right, row, rule, space, text,
+        text_input,
     },
     window,
 };
@@ -69,6 +70,7 @@ impl HomeSideBar {
             style::markdown::main(theme),
             &style::markdown::CustomViewer,
         ))
+        .clip(true)
         .on_press(Message::Window(WindowMessage::Page(
             id,
             PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
@@ -85,11 +87,7 @@ impl HomeSideBar {
                 PageMessage::Home(HomeMessage::DeleteChat(preview.id.key().to_string())),
             )));
 
-        container(hover(
-            title,
-            row![space::horizontal(), close].align_y(Vertical::Center),
-        ))
-        .into()
+        container(hover(title, right(close).align_y(Vertical::Center))).into()
     }
 
     fn chat_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
