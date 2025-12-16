@@ -9,7 +9,10 @@ use iced::{
     Element, Length, Subscription, Task, Theme,
     alignment::Vertical,
     clipboard, exit,
-    widget::{column, container, markdown, mouse_area, progress_bar, right, row, stack, text},
+    widget::{
+        center, column, container, image, markdown, mouse_area, progress_bar, right, row, stack,
+        text,
+    },
     window::{self},
 };
 use ochat_types::{
@@ -89,6 +92,7 @@ pub struct Application {
 #[derive(Debug, Clone, Default)]
 pub struct AppCache {
     pub previews: Vec<PreviewMk>,
+    pub expanded_image: Option<Vec<u8>>,
     pub settings: SettingsData,
     pub client_settings: ClientSettings,
     pub home_shared: HomePaneSharedData,
@@ -153,6 +157,8 @@ pub enum CacheMessage {
     SetOptions(OptionsData),
     SetPreviews(Vec<PreviewMk>),
     SetSettings(SettingsData),
+    ExpandImage(Vec<u8>),
+    CloseExpandedImage,
     SetTheme(Theme),
     SetInstanceUrl(String),
     SetUsePanes(bool),
@@ -183,6 +189,12 @@ impl CacheMessage {
             }
             Self::SetPreviews(x) => {
                 app.cache.previews = x;
+            }
+            Self::ExpandImage(x) => {
+                app.cache.expanded_image = Some(x);
+            }
+            Self::CloseExpandedImage => {
+                app.cache.expanded_image = None;
             }
             Self::SetSettings(x) => {
                 app.cache.settings = x;
@@ -336,40 +348,65 @@ impl Application {
     }
 
     pub fn view<'a>(&'a self, window_id: window::Id) -> Element<'a, Message> {
-        let body = if let Some(window) = self.windows.get(&window_id) {
+        let mut body = if let Some(window) = self.windows.get(&window_id) {
             window.view(self, window_id)
         } else {
             text("Window Not Found").into()
         };
 
-        if !self.popups.is_empty() {
-            let popups = right(
-                column({
-                    self.popups.iter().enumerate().map(|(i, x)| {
-                        mouse_area(
-                            container(match x {
-                                PopUp::Err(e) => {
-                                    text(e).style(style::text::danger).size(BODY_SIZE).into()
-                                }
-                                PopUp::Custom(x) => x(self),
-                            })
-                            .width(Length::Fill)
-                            .padding(10)
-                            .style(style::container::popup_back),
+        if let Some(data) = &self.cache.expanded_image {
+            let size = self.windows.get(&window_id).unwrap().size.clone();
+            body = stack![
+                body,
+                mouse_area(
+                    container(center(
+                        container(
+                            image(image::Handle::from_bytes(data.clone()))
+                                .height(Length::Fill)
+                                .width(Length::Fill)
                         )
-                        .on_press(Message::RemovePopUp(i))
-                        .into()
-                    })
-                })
-                .spacing(10)
-                .height(Length::Shrink)
-                .width(400),
-            );
-
-            stack![body, popups].into()
-        } else {
-            body
+                        .max_width(size.width / 1.25)
+                        .max_height(size.height / 1.25)
+                    ))
+                    .style(style::container::translucent_back)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                )
+                .on_press(Message::Cache(CacheMessage::CloseExpandedImage))
+            ]
+            .into()
         }
+
+        if !self.popups.is_empty() {
+            body = stack![
+                body,
+                right(
+                    column({
+                        self.popups.iter().enumerate().map(|(i, x)| {
+                            mouse_area(
+                                container(match x {
+                                    PopUp::Err(e) => {
+                                        text(e).style(style::text::danger).size(BODY_SIZE).into()
+                                    }
+                                    PopUp::Custom(x) => x(self),
+                                })
+                                .width(Length::Fill)
+                                .padding(10)
+                                .style(style::container::popup_back),
+                            )
+                            .on_press(Message::RemovePopUp(i))
+                            .into()
+                        })
+                    })
+                    .spacing(10)
+                    .height(Length::Shrink)
+                    .width(400),
+                )
+            ]
+            .into();
+        }
+
+        body
     }
 
     pub fn theme(&self) -> Theme {

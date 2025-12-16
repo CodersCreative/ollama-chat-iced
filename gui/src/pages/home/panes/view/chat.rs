@@ -1,5 +1,5 @@
 use crate::{
-    Application, DATA, Message, PopUp,
+    Application, CacheMessage, DATA, Message, PopUp,
     data::{
         RequestType,
         start::{self, Section},
@@ -13,7 +13,7 @@ use crate::{
     subscriptions::SubMessage,
     utils::{self, get_path_assets},
 };
-use base64_stream::base64::{DecodeSliceError, Engine, decode, prelude::BASE64_STANDARD};
+use base64_stream::base64::{Engine, prelude::BASE64_STANDARD};
 use iced::{
     Element, Length, Padding, Task, Theme,
     alignment::{Horizontal, Vertical},
@@ -28,7 +28,7 @@ use ochat_types::{
         Chat,
         messages::{MessageData, MessageDataBuilder, ModelData, Role},
     },
-    files::{B64File, B64FileData, B64FileDataBuilder, DBFile, FileType},
+    files::{B64FileData, B64FileDataBuilder, DBFile, FileType},
     generation::text::{ChatQueryData, ChatQueryMessage},
     settings::SettingsProvider,
 };
@@ -743,6 +743,7 @@ impl ChatsView {
                                 image(image::Handle::from_bytes(x.data.clone()))
                                     .height(Length::Fixed(200.0)),
                             )
+                            .on_press(Message::Cache(CacheMessage::ExpandImage(x.data.clone())))
                             .style(style::button::transparent_back_white_text)
                             .into()
                         }))

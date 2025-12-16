@@ -64,6 +64,7 @@ pub mod container {
             ..Default::default()
         }
     }
+
     pub fn chat_back(theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(darken_colour(
@@ -128,6 +129,17 @@ pub mod container {
                 .width(2)
                 .color(change_alpha(theme.palette().danger.clone(), 0.4))
                 .rounded(10),
+            ..Default::default()
+        }
+    }
+
+    pub fn translucent_back(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(change_alpha(
+                theme.palette().background.clone(),
+                0.6,
+            ))),
+            text_color: Some(theme.palette().text.clone()),
             ..Default::default()
         }
     }
