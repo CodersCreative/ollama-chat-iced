@@ -1,12 +1,17 @@
+use crate::{
+    Application, DATA, InputMessage, Message,
+    data::RequestType,
+    font::{BODY_SIZE, SUB_HEADING_SIZE},
+    pages::home::panes::view::HomePaneViewMessage,
+    style::{self},
+};
 use iced::{
     Element, Length, Padding, Task, Theme,
     alignment::Vertical,
     border, padding,
     widget::{
-        Scrollable, button, checkbox, column, container, float, grid, hover, keyed_column,
-        pick_list, right_center, row,
-        scrollable::{Direction, Scrollbar},
-        space, stack, text, text_input,
+        button, checkbox, column, container, float, grid, hover, keyed_column, pick_list,
+        right_center, row, scrollable, space, stack, text, text_input,
     },
 };
 use ochat_types::{
@@ -16,19 +21,12 @@ use ochat_types::{
 };
 use serde_json::Value;
 
-use crate::{
-    Application, DATA, InputMessage, Message,
-    data::RequestType,
-    font::{BODY_SIZE, SUB_HEADING_SIZE},
-    pages::home::panes::view::HomePaneViewMessage,
-    style::{self},
-};
-
 #[derive(Debug, Clone)]
 pub struct SettingsView {
     pub instance_url: String,
     pub provider_inputs: Vec<ProviderData>,
 }
+
 impl Default for SettingsView {
     fn default() -> Self {
         Self {
@@ -421,7 +419,7 @@ impl SettingsView {
                     .spacing(5);
 
                     let data = DATA.read().unwrap();
-                    let providers = Scrollable::new(
+                    let providers = scrollable::Scrollable::new(
                         row(data
                             .providers
                             .clone()
@@ -429,7 +427,9 @@ impl SettingsView {
                             .map(|provider| Self::view_provider(id, provider)))
                         .spacing(5),
                     )
-                    .direction(Direction::Horizontal(Scrollbar::new()));
+                    .direction(scrollable::Direction::Horizontal(
+                        scrollable::Scrollbar::new(),
+                    ));
 
                     column![inputs, providers].spacing(5).into()
                 };
@@ -480,21 +480,26 @@ impl SettingsView {
             .on_toggle(move |x| Message::Cache(crate::CacheMessage::SetUsePanes(x)));
 
         container(
-            column![
-                sub_heading("Instance Url"),
-                ochat,
-                sub_heading("Models Download Path"),
-                models_path,
-                providers,
-                model_column,
-                sub_heading("Decorations"),
-                use_panes,
-                sub_heading("Themes"),
-                container(Self::themes(app.theme()))
-                    .padding(10)
-                    .style(style::container::window_title_back)
-            ]
-            .spacing(10),
+            scrollable::Scrollable::new(
+                column![
+                    sub_heading("Instance Url"),
+                    ochat,
+                    sub_heading("Models Download Path"),
+                    models_path,
+                    providers,
+                    model_column,
+                    sub_heading("Decorations"),
+                    use_panes,
+                    sub_heading("Themes"),
+                    container(Self::themes(app.theme()))
+                        .padding(10)
+                        .style(style::container::window_title_back)
+                ]
+                .spacing(10),
+            )
+            .direction(scrollable::Direction::Vertical(
+                scrollable::Scrollbar::default(),
+            )),
         )
         .into()
     }

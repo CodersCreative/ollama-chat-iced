@@ -12,7 +12,7 @@ use ochat_types::{
 };
 
 use crate::{
-    Application, CacheMessage, DATA, Message,
+    Application, CacheMessage, DATA, Message, PopUp,
     data::{Data, RequestType},
     pages::home::sidebar::PreviewMk,
     subscriptions::{
@@ -167,6 +167,9 @@ impl SubMessage {
                 Task::none()
             }
             Self::GeneratingMessage(id, result) => {
+                if let ChatStreamResult::Err(e) = &result {
+                    app.add_popup(PopUp::Err(e.to_string()));
+                }
                 if let Some(x) = app.subscriptions.message_gens.get_mut(&id) {
                     x.progress(result);
                 }
@@ -229,6 +232,9 @@ impl SubMessage {
                 })
             }
             Self::OllamaPulling(id, result) => {
+                if let OllamaPullModelStreamResult::Err(e) = &result {
+                    app.add_popup(PopUp::Err(e.to_string()));
+                }
                 if let Some(x) = app.subscriptions.ollama_pulls.get_mut(&id) {
                     x.progress(result);
                 }
@@ -288,6 +294,9 @@ impl SubMessage {
                 })
             }
             Self::HFPulling(id, result) => {
+                if let HFPullModelStreamResult::Err(e) = &result {
+                    app.add_popup(PopUp::Err(e.to_string()));
+                }
                 if let Some(x) = app.subscriptions.hf_pulls.get_mut(&id) {
                     x.progress(result);
                 }

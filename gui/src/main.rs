@@ -9,9 +9,7 @@ use iced::{
     Element, Length, Subscription, Task, Theme,
     alignment::Vertical,
     clipboard, exit,
-    widget::{
-        column, container, markdown, mouse_area, progress_bar, right, row, rule, stack, text,
-    },
+    widget::{column, container, markdown, mouse_area, progress_bar, right, row, stack, text},
     window::{self},
 };
 use ochat_types::{
@@ -61,6 +59,16 @@ pub mod font {
             weight: iced::font::Weight::Normal,
         }
     }
+
+    pub fn get_bold_font() -> Font {
+        Font {
+            family: iced::font::Family::Name("Roboto"),
+            style: iced::font::Style::Normal,
+            stretch: iced::font::Stretch::Normal,
+            weight: iced::font::Weight::Bold,
+        }
+    }
+
     pub const HEADER_SIZE: u32 = 24;
     pub const SUB_HEADING_SIZE: u32 = 16;
     pub const BODY_SIZE: u32 = 12;
@@ -310,7 +318,15 @@ impl Application {
                 Task::none()
             }
             Message::Batch(messages) => Task::batch(messages.into_iter().map(|x| Task::done(x))),
-            Message::SaveToClipboard(x) => clipboard::write::<Message>(x.clone()),
+            Message::SaveToClipboard(x) => {
+                self.add_popup(PopUp::Custom(Rc::new(|_| {
+                    text("Text copied!")
+                        .size(BODY_SIZE)
+                        .style(style::text::primary)
+                        .into()
+                })));
+                clipboard::write::<Message>(x.clone())
+            }
             Message::Quit => exit(),
         }
     }
@@ -329,30 +345,21 @@ impl Application {
         if !self.popups.is_empty() {
             let popups = right(
                 column({
-                    let mut widgets: Vec<Element<Message>> = self
-                        .popups
-                        .iter()
-                        .enumerate()
-                        .map(|(i, x)| {
-                            mouse_area(
-                                container(match x {
-                                    PopUp::Err(e) => {
-                                        text(e).style(style::text::danger).size(BODY_SIZE).into()
-                                    }
-                                    PopUp::Custom(x) => x(self),
-                                })
-                                .width(Length::Fill)
-                                .padding(10)
-                                .style(style::container::chat_back),
-                            )
-                            .on_press(Message::RemovePopUp(i))
-                            .into()
-                        })
-                        .collect();
-
-                    widgets.push(rule::horizontal(2).style(style::rule::primary).into());
-
-                    widgets
+                    self.popups.iter().enumerate().map(|(i, x)| {
+                        mouse_area(
+                            container(match x {
+                                PopUp::Err(e) => {
+                                    text(e).style(style::text::danger).size(BODY_SIZE).into()
+                                }
+                                PopUp::Custom(x) => x(self),
+                            })
+                            .width(Length::Fill)
+                            .padding(10)
+                            .style(style::container::popup_back),
+                        )
+                        .on_press(Message::RemovePopUp(i))
+                        .into()
+                    })
                 })
                 .spacing(10)
                 .height(Length::Shrink)

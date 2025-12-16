@@ -1,5 +1,3 @@
-use iced::{Element, Task, window};
-
 use crate::{
     Application, Message,
     pages::{
@@ -7,6 +5,7 @@ use crate::{
         setup::{SetupMessage, SetupPage},
     },
 };
+use iced::{Element, Task, window};
 
 pub mod home;
 pub mod setup;

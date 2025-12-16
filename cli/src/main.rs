@@ -8,7 +8,8 @@ use ochat_types::{
         ChatQueryDataBuilder, ChatQueryMessage, ChatQueryMessageBuilder, ChatStreamResult,
     },
     providers::{
-        Provider, ProviderData, ProviderDataBuilder, ProviderType, ollama::OllamaModelsInfo,
+        Provider, ProviderData, ProviderDataBuilder, ProviderType,
+        ollama::{OllamaModelsInfo, OllamaPullModelStreamResult},
     },
 };
 use rustyline::{DefaultEditor, error::ReadlineError};
@@ -261,8 +262,10 @@ async fn repl(req: &data::Request, provider: String, model: String) -> Result<()
                                         let _ = stdout.write_all(x.content.as_bytes()).unwrap();
                                         let _ = stdout.flush().unwrap();
                                     }
-                                    ChatStreamResult::Finished(x) => {
+                                    ChatStreamResult::Generated(x) => {
                                         messages.push(x.into());
+                                    }
+                                    ChatStreamResult::Finished => {
                                         break;
                                     }
                                     ChatStreamResult::Err(e) => eprintln!("{e}"),
@@ -318,19 +321,20 @@ async fn pull_model(req: &data::Request, provider: &str, model: &str) {
     while let Some(response) = response.next().await {
         match response {
             Ok(response) => {
-                let _ = match serde_json::from_slice::<PullModelStreamResult>(&response) {
+                let _ = match serde_json::from_slice::<OllamaPullModelStreamResult>(&response) {
                     Ok(x) => match x {
-                        PullModelStreamResult::Pulling(x) => {
+                        OllamaPullModelStreamResult::Idle => {}
+                        OllamaPullModelStreamResult::Pulling(x) => {
                             pb.set_position(
                                 (x.completed.unwrap_or(0) as f64 / x.total.unwrap_or(1) as f64
                                     * 1000000.0) as u64,
                             );
                         }
-                        PullModelStreamResult::Finished => {
+                        OllamaPullModelStreamResult::Finished => {
                             pb.finish_with_message(format!("{model} downloaded!"));
                             break;
                         }
-                        PullModelStreamResult::Err(e) => eprintln!("{e}"),
+                        OllamaPullModelStreamResult::Err(e) => eprintln!("{e}"),
                     },
                     Err(e) => eprintln!("{e}"),
                 };

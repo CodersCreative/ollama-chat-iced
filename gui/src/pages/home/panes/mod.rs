@@ -237,8 +237,8 @@ impl PaneMessage {
             Self::Pick(x) => {
                 match x {
                     HomePickingType::OpenPane(x)
-                        if !(app.cache.client_settings.use_panes
-                            || !app.windows.get(&id).unwrap().is_portrait()) =>
+                        if !app.cache.client_settings.use_panes
+                            || app.windows.get(&id).unwrap().is_portrait() =>
                     {
                         return Task::done(Message::Window(WindowMessage::Page(
                             id,

@@ -50,6 +50,7 @@ async fn run_text_stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamRe
                     }));
                 }
                 Err(e) => {
+                    eprintln!("{:?}", e);
                     let _ = tx.send(ChatStreamResult::Err(e.to_string()));
                 }
             }
@@ -64,7 +65,7 @@ async fn run_text_stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamRe
             func_calls: Vec::new(),
         }));
 
-        thread::sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(100));
 
         let _ = tx.send(ChatStreamResult::Finished);
     });

@@ -1,6 +1,6 @@
 use crate::{
     Application, InputMessage, Message,
-    font::{HEADER_SIZE, SUB_HEADING_SIZE},
+    font::{HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
     pages::{
         PageMessage,
         home::{
@@ -101,6 +101,7 @@ impl HomeSideBar {
 
     fn chat_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         let name = text("ochat")
+            .font(get_bold_font())
             .align_x(Horizontal::Center)
             .align_y(Vertical::Center)
             .width(Length::Fill)
@@ -109,6 +110,7 @@ impl HomeSideBar {
 
         let new_chat = button(
             text("New Chat")
+                .font(get_bold_font())
                 .align_x(Horizontal::Center)
                 .align_y(Vertical::Center)
                 .width(Length::Fill)

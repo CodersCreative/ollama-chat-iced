@@ -55,6 +55,8 @@ pub mod messages {
 
     #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
     pub struct MessageData {
+        #[serde(default = "Default::default")]
+        #[builder(default = "String::new()")]
         pub content: String,
         #[builder(default = "None")]
         pub model: Option<ModelData>,

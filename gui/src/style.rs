@@ -1,4 +1,6 @@
 pub mod container {
+    use std::f32::consts::PI;
+
     use crate::utils::{change_alpha, darken_colour};
     use iced::border::bottom;
     use iced::{Theme, widget::container::Style};
@@ -56,7 +58,24 @@ pub mod container {
                 theme.palette().background.clone(),
                 0.01,
             ))),
-            border: iced::Border::default().rounded(5),
+            border: iced::Border::default()
+                .rounded(5)
+                .width(1)
+                .color(darken_colour(theme.palette().background.clone(), 0.05)),
+            ..Default::default()
+        }
+    }
+
+    pub fn popup_back(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(darken_colour(
+                theme.palette().background.clone(),
+                0.01,
+            ))),
+            border: iced::Border::default()
+                .rounded(5)
+                .width(1)
+                .color(theme.palette().text),
             ..Default::default()
         }
     }
@@ -103,22 +122,34 @@ pub mod container {
 
     pub fn chat(theme: &Theme) -> Style {
         Style {
-            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            background: Some(iced::Background::Gradient(
+                iced::gradient::Gradient::Linear(
+                    iced::gradient::Linear::new(PI / 2.0)
+                        .add_stop(0.0, change_alpha(theme.palette().primary.clone(), 0.6))
+                        .add_stop(0.5, iced::Color::TRANSPARENT),
+                ),
+            )),
             border: iced::Border::default()
                 .rounded(5)
                 .width(1)
-                .color(theme.palette().primary),
+                .color(change_alpha(theme.palette().primary.clone(), 0.6)),
             text_color: Some(theme.palette().text.clone()),
             ..Default::default()
         }
     }
     pub fn chat_ai(theme: &Theme) -> Style {
         Style {
-            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            background: Some(iced::Background::Gradient(
+                iced::gradient::Gradient::Linear(
+                    iced::gradient::Linear::new(PI / 2.0)
+                        .add_stop(0.0, change_alpha(theme.palette().danger.clone(), 0.6))
+                        .add_stop(0.5, iced::Color::TRANSPARENT),
+                ),
+            )),
             border: iced::Border::default()
                 .rounded(5)
                 .width(1)
-                .color(theme.palette().danger),
+                .color(change_alpha(theme.palette().danger.clone(), 0.6)),
             text_color: Some(theme.palette().text.clone()),
             ..Default::default()
         }
@@ -146,6 +177,15 @@ pub mod container {
             ..Default::default()
         }
     }
+
+    pub fn back(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(theme.palette().background.clone())),
+            border: iced::Border::default().rounded(5),
+            ..Default::default()
+        }
+    }
+
     pub fn code(theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(darken_colour(

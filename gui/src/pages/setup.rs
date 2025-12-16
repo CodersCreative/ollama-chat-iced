@@ -1,7 +1,7 @@
 use crate::{
     Application, CacheMessage, DATA, InputMessage, Message,
     data::RequestType,
-    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
+    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
     pages::{PageMessage, Pages, home::HomePage},
     style,
     windows::message::WindowMessage,
@@ -313,6 +313,7 @@ impl SetupPage {
     pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         let sub_heading = |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::primary);
         let banner = text("Welcome to OChat!")
+            .font(get_bold_font())
             .size(HEADER_SIZE)
             .style(style::text::primary);
 

@@ -1,7 +1,3 @@
-pub mod message;
-pub mod panes;
-pub mod sidebar;
-
 use crate::{
     Application, Message,
     pages::{
@@ -15,6 +11,10 @@ use crate::{
 };
 use iced::{Element, window};
 use iced_split::vertical_split;
+
+pub mod message;
+pub mod panes;
+pub mod sidebar;
 
 pub const COLLAPSED_SIZE: f32 = 50.0;
 pub const COLLAPSED_CUT_OFF: f32 = 100.0;
@@ -35,6 +35,9 @@ impl HomePage {
     }
 
     pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
+        if app.windows.get(&id).unwrap().is_portrait() && !self.side_bar.is_collapsed {
+            return self.side_bar.view(app, id);
+        }
         vertical_split(
             self.side_bar.view(app, id),
             self.panes.view(app, id),

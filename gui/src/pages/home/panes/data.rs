@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use crate::{DATA, data::RequestType};
 use iced::widget::markdown;
 use ochat_types::{
     chats::{
@@ -16,8 +15,7 @@ use ochat_types::{
     settings::SettingsProvider,
     surreal::RecordId,
 };
-
-use crate::{DATA, data::RequestType};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
 pub struct HomePaneSharedData {

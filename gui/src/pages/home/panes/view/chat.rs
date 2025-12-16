@@ -1,12 +1,25 @@
-use std::{collections::HashMap, sync::Arc};
-
+use crate::{
+    Application, DATA, Message,
+    data::{
+        RequestType,
+        start::{self, Section},
+    },
+    font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE, get_bold_font},
+    pages::home::panes::{
+        data::{MessageMk, PromptsData},
+        view::HomePaneViewMessage,
+    },
+    style,
+    subscriptions::SubMessage,
+    utils::get_path_assets,
+};
 use iced::{
     Element, Length, Padding, Task, Theme,
     alignment::{Horizontal, Vertical},
     clipboard,
     widget::{
         button, center, column, container, image, markdown, mouse_area, pick_list, row, rule,
-        scrollable, space, stack, text, text_editor,
+        scrollable, space, stack, svg, text, text_editor,
     },
 };
 use ochat_types::{
@@ -18,21 +31,7 @@ use ochat_types::{
     generation::text::{ChatQueryData, ChatQueryMessage},
     settings::SettingsProvider,
 };
-
-use crate::{
-    Application, DATA, Message,
-    data::{
-        RequestType,
-        start::{self, Section},
-    },
-    font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE},
-    pages::home::panes::{
-        data::{MessageMk, PromptsData},
-        view::HomePaneViewMessage,
-    },
-    style,
-    subscriptions::SubMessage,
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct ChatsView {
@@ -557,7 +556,10 @@ impl ChatsView {
         let header = container(
             row(if edit.is_some() {
                 let widgets: Vec<Element<'a, Message>> = vec![
-                    text(message.base.role.to_string()).size(BODY_SIZE).into(),
+                    text(message.base.role.to_string())
+                        .size(BODY_SIZE)
+                        .font(get_bold_font())
+                        .into(),
                     if let Some(model) = &message.base.model {
                         text(format!("({})", model.model)).size(BODY_SIZE).into()
                     } else {
@@ -581,7 +583,10 @@ impl ChatsView {
                 widgets
             } else {
                 let mut widgets: Vec<Element<'a, Message>> = vec![
-                    text(message.base.role.to_string()).size(BODY_SIZE).into(),
+                    text(message.base.role.to_string())
+                        .font(get_bold_font())
+                        .size(BODY_SIZE)
+                        .into(),
                     if let Some(model) = &message.base.model {
                         text(format!("({})", model.model)).size(BODY_SIZE).into()
                     } else {
@@ -675,31 +680,44 @@ impl ChatsView {
 
         if message.thinking.is_some() {
             let thinking: Element<'a, Message> = if expanded {
-                mouse_area(markdown::view_with(
-                    message.thinking.as_ref().unwrap().items(),
-                    style::markdown::main(theme),
-                    &style::markdown::CustomViewer,
-                ))
+                mouse_area(
+                    container(markdown::view_with(
+                        message.thinking.as_ref().unwrap().items(),
+                        style::markdown::main(theme),
+                        &style::markdown::CustomViewer,
+                    ))
+                    .padding(10)
+                    .style(style::container::back),
+                )
                 .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
                     id,
                     ChatsViewMessage::Expand(message.base.id.key().to_string()),
                 )))
                 .into()
             } else {
-                button(text("Thinking").size(SMALL_SIZE))
-                    .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
-                        id,
-                        ChatsViewMessage::Expand(message.base.id.key().to_string()),
-                    )))
-                    .width(Length::Fill)
-                    .into()
+                button(
+                    row![
+                        svg(svg::Handle::from_path(get_path_assets("ai.svg"))).width(BODY_SIZE),
+                        text("Thinking").size(BODY_SIZE)
+                    ]
+                    .align_y(Vertical::Center)
+                    .spacing(10),
+                )
+                .padding(10)
+                .style(style::button::chosen_chat)
+                .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                    id,
+                    ChatsViewMessage::Expand(message.base.id.key().to_string()),
+                )))
+                .width(Length::Fill)
+                .into()
             };
 
             col = col.push(thinking);
         }
 
         container(col)
-            .padding(5)
+            .padding(10)
             .style(style::container::chat_back)
             .into()
     }
@@ -917,6 +935,7 @@ impl ChatsView {
 
     fn view_start<'a>(&'a self, id: u32) -> Element<'a, Message> {
         let title = text("How can I help?")
+            .font(get_bold_font())
             .size(HEADER_SIZE)
             .style(style::text::primary)
             .align_x(Horizontal::Left);

@@ -1,10 +1,9 @@
-// pub mod panes;
 pub mod message;
 
 use crate::{Application, Message, pages::Pages};
 use iced::{Element, Size, window};
 
-const MIN_WIDTH: f32 = 300.0;
+const MIN_WIDTH: f32 = 500.0;
 
 #[derive(Debug, Clone)]
 pub struct Window {

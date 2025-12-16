@@ -1,6 +1,6 @@
 use crate::{
     Application, Message,
-    font::{BODY_SIZE, HEADER_SIZE},
+    font::{BODY_SIZE, HEADER_SIZE, get_bold_font},
     pages::{
         PageMessage,
         home::{
@@ -79,6 +79,7 @@ fn add_to_window<'a>(
 ) -> pane_grid::Content<'a, Message> {
     let header = pane_grid::TitleBar::new(
         text(title)
+            .font(get_bold_font())
             .color(app.theme().palette().primary)
             .size(BODY_SIZE + 2)
             .align_y(Vertical::Center)

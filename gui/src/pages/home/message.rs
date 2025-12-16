@@ -1,6 +1,3 @@
-use iced::{Task, window};
-use ochat_types::chats::{Chat, ChatData, previews::Preview};
-
 use crate::{
     Application, DATA, InputMessage, Message,
     data::RequestType,
@@ -10,6 +7,8 @@ use crate::{
     },
     windows::message::WindowMessage,
 };
+use iced::{Task, window};
+use ochat_types::chats::{Chat, ChatData, previews::Preview};
 
 #[derive(Debug, Clone)]
 pub enum HomePickingType {
