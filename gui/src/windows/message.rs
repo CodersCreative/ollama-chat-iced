@@ -1,4 +1,4 @@
-use iced::{Task, Vector, widget::operation, window};
+use iced::{Size, Task, Vector, widget::operation, window};
 
 use crate::{
     Application, Message,
@@ -16,6 +16,7 @@ pub enum WindowMessage {
     Page(window::Id, PageMessage),
     WindowOpened(window::Id),
     WindowClosed(window::Id),
+    Resize(window::Id, Size<f32>),
 }
 
 impl WindowMessage {
@@ -43,6 +44,11 @@ impl WindowMessage {
                     .map(|id| Message::Window(WindowMessage::WindowOpened(id)))
             }
             Self::Page(id, x) => x.handle(app, id),
+            Self::Resize(id, size) => {
+                let win = app.windows.get_mut(&id).unwrap();
+                win.size = size;
+                Task::none()
+            }
             Self::WindowClosed(id) => {
                 app.windows.remove(&id);
 
@@ -69,6 +75,7 @@ impl WindowMessage {
                 app.windows.insert(id, window);
 
                 Task::batch([
+                    window::size(id).map(move |x| Message::Window(WindowMessage::Resize(id, x))),
                     focus_input,
                     if is_chat {
                         let Pages::Home(pane) = &app.windows.get(&id).unwrap().page else {

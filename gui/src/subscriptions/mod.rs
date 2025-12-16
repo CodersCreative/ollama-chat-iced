@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use iced::{Subscription, Task, widget::markdown};
+use iced::{Subscription, Task, widget::markdown, window};
 use ochat_types::{
     chats::{messages::MessageData, previews::Preview},
     generation::text::{ChatQueryData, ChatStreamResult},
@@ -313,6 +313,7 @@ pub struct Subscriptions {
 
 impl Subscriptions {
     pub fn get(&self, _app: &Application) -> Subscription<Message> {
-        Subscription::none()
+        window::resize_events()
+            .map(|x| Message::Window(crate::windows::message::WindowMessage::Resize(x.0, x.1)))
     }
 }

@@ -22,6 +22,7 @@ pub enum HomeMessage {
     SearchPreviews(InputMessage),
     SetPreviews(Vec<Preview>),
     NewChat,
+    SplitDrag(f32),
     DeleteChat(String),
     Pane(PaneMessage),
     CollapseSideBar,
@@ -36,6 +37,11 @@ impl HomeMessage {
                     page.side_bar.previews.clear();
                 }
                 page.side_bar.search = x;
+                Task::none()
+            }
+            Self::SplitDrag(x) => {
+                app.get_home_page(&id).unwrap().side_bar.split =
+                    app.windows.get(&id).unwrap().get_size_from_split(x);
                 Task::none()
             }
             Self::SearchPreviews(_) => {

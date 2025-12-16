@@ -4,7 +4,7 @@ use crate::{
     pages::{
         PageMessage,
         home::{
-            HomePaneType,
+            COLLAPSED_CUT_OFF, HomePaneType, NORMAL_SIZE,
             message::{HomeMessage, HomePickingType},
             panes::PaneMessage,
         },
@@ -38,26 +38,35 @@ impl From<Preview> for PreviewMk {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct HomeSideBar {
+    pub split: f32,
     pub is_collapsed: bool,
     pub previews: Vec<PreviewMk>,
     pub search: String,
 }
 
+impl Default for HomeSideBar {
+    fn default() -> Self {
+        Self {
+            split: NORMAL_SIZE,
+            is_collapsed: false,
+            previews: Vec::new(),
+            search: String::new(),
+        }
+    }
+}
+
 impl HomeSideBar {
     pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         let mut content = row![self.pane_buttons(app, id.clone())];
-        if !self.is_collapsed {
+        if self.split > COLLAPSED_CUT_OFF || !self.is_collapsed {
             content = content.push(self.chat_buttons(app, id));
         }
 
         content = content.push(rule::vertical(2).style(style::rule::side_bar_darker));
 
-        container(content)
-            .style(style::container::side_bar)
-            .width(if self.is_collapsed { 45 } else { 325 })
-            .into()
+        container(content).style(style::container::side_bar).into()
     }
 
     fn view_preview<'a>(
