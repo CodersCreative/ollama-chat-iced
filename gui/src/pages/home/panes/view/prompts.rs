@@ -242,8 +242,7 @@ impl PromptsViewMessage {
                             Ok(x) => vec![x],
                             _ => match load_from_file(&path) {
                                 Ok(x) => x,
-                                Err(e) => {
-                                    eprintln!("{:?}", e);
+                                Err(_) => {
                                     continue;
                                 }
                             },

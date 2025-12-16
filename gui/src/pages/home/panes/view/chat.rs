@@ -236,22 +236,33 @@ impl ChatsViewMessage {
                         .await
                     {
                         Ok(x) => {
-                            if parent.is_none() {
+                            let msg = if parent.is_none() {
                                 match req
-                                .make_request::<ochat_types::chats::messages::Message, MessageData>(
-                                    &format!("chat/{}/root/{}", chat_id, x.id.key().to_string()),
-                                    &user_message,
-                                    RequestType::Put,
-                                )
-                                .await {
-                                    Ok(_) => {},
-                                    Err(e) => return Message::Err(e)
+                                    .make_request::<Chat, ()>(
+                                        &format!(
+                                            "chat/{}/root/{}",
+                                            chat_id,
+                                            x.id.key().to_string()
+                                        ),
+                                        &(),
+                                        RequestType::Put,
+                                    )
+                                    .await
+                                {
+                                    Ok(_) => Message::None,
+                                    Err(e) => Message::Err(e),
                                 }
-                            }
-                            Message::HomePaneView(HomePaneViewMessage::Chats(
-                                id,
-                                ChatsViewMessage::UserMessageUploaded(MessageMk::get(x).await),
-                            ))
+                            } else {
+                                Message::None
+                            };
+
+                            Message::Batch(vec![
+                                Message::HomePaneView(HomePaneViewMessage::Chats(
+                                    id,
+                                    ChatsViewMessage::UserMessageUploaded(MessageMk::get(x).await),
+                                )),
+                                msg,
+                            ])
                         }
                         Err(e) => Message::Err(e),
                     }
