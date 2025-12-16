@@ -1,5 +1,5 @@
-/target
-/index/*
-*.json
-chat.json
+**/target
+**/index/*
+**.json
+**chat.json
 **.wav
