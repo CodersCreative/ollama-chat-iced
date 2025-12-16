@@ -1,11 +1,12 @@
 use crate::{DATA, data::RequestType};
+use base64_stream::base64::{Engine, prelude::BASE64_STANDARD};
 use iced::widget::markdown;
 use ochat_types::{
     chats::{
         Chat,
         messages::{Message, MessageCanChange},
     },
-    files::B64File,
+    files::{B64File, FileType},
     options::{GenOptions, relationships::GenModelRelationship},
     prompts::Prompt,
     providers::{
@@ -36,11 +37,30 @@ pub struct DownloadsData {
 #[derive(Debug, Clone, Default)]
 pub struct MessagesData(pub HashMap<String, MessageMk>);
 
+#[derive(Debug, Clone, Hash)]
+pub struct ViewFile {
+    pub data: Vec<u8>,
+    pub filename: String,
+    pub file_type: FileType,
+    pub id: String,
+}
+
+impl From<B64File> for ViewFile {
+    fn from(value: B64File) -> Self {
+        Self {
+            filename: value.filename,
+            data: BASE64_STANDARD.decode(value.b64data).unwrap(),
+            file_type: value.file_type,
+            id: value.id.key().to_string(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct MessageMk {
     pub content: markdown::Content,
     pub thinking: Option<markdown::Content>,
-    pub files: Vec<B64File>,
+    pub files: Vec<ViewFile>,
     pub can_change: bool,
     pub base: Message,
 }
@@ -80,13 +100,13 @@ impl MessageMk {
         for file in files {
             if let Ok(Some(file)) = req
                 .make_request::<Option<B64File>, ()>(
-                    &format!("file/{}", file),
+                    &format!("file/{}", file.trim()),
                     &(),
                     RequestType::Get,
                 )
                 .await
             {
-                message.files.push(file);
+                message.files.push(file.into());
             }
         }
 

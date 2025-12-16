@@ -1,38 +1,11 @@
 use crate::chats::relationships::{RELATIONSHIP_TABLE, get_count_of_children};
-use crate::files::FILE_TABLE;
 use crate::{CONN, errors::ServerError};
 use axum::{Json, extract::Path};
-use ochat_types::chats::messages::{Message, MessageCanChange, MessageData, ModelData, Role};
+use ochat_types::chats::messages::{Message, MessageCanChange, MessageData};
 use ochat_types::chats::relationships::{MessageRelationship, MessageRelationshipDataBuilder};
 use ochat_types::surreal::Datetime;
-use serde::{Deserialize, Serialize};
 
 const MESSAGE_TABLE: &str = "messages";
-const MESSAGE_FILE_TABLE: &str = "message_files";
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct StoredMessageData {
-    content: String,
-    model: Option<ModelData>,
-    thinking: Option<String>,
-    time: Datetime,
-    role: Role,
-}
-
-impl From<MessageData> for StoredMessageData {
-    fn from(value: MessageData) -> Self {
-        Self {
-            content: value.content,
-            model: value.model,
-            thinking: value.thinking,
-            time: match value.time {
-                Some(x) => x,
-                None => Datetime::default(),
-            },
-            role: value.role,
-        }
-    }
-}
 
 // Change time to use surreal datetime
 pub async fn define_messages() -> Result<(), ServerError> {
@@ -42,8 +15,10 @@ pub async fn define_messages() -> Result<(), ServerError> {
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS content ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS thinking ON TABLE {0} TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS model ON TABLE {0} TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS role ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS files ON TABLE {0} TYPE array<string>;
 ",
             MESSAGE_TABLE
         ))
@@ -52,34 +27,24 @@ DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
 }
 
 pub async fn create_message(
-    Json(chat): Json<MessageData>,
+    Json(mut chat): Json<MessageData>,
 ) -> Result<Json<Option<Message>>, ServerError> {
-    let files = chat.files.clone();
-    let data = StoredMessageData::from(chat);
-    let chat: Option<Message> = CONN.create(MESSAGE_TABLE).content(data).await?;
-
-    if let Some(chat) = &chat {
-        for file in files.into_iter() {
-            let _ = CONN
-                .query(&format!(
-                    "RELATE {MESSAGE_TABLE}:{0} -> {MESSAGE_FILE_TABLE} -> {FILE_TABLE}:{file};",
-                    chat.id.key()
-                ))
-                .await?;
-        }
+    if chat.time.is_none() {
+        chat.time = Some(Datetime::default());
     }
-
+    let chat: Option<Message> = CONN.create(MESSAGE_TABLE).content(chat).await?;
     Ok(Json(chat))
 }
 
 pub async fn create_message_with_parent(
     parent: Path<String>,
-    Json(chat): Json<MessageData>,
+    Json(mut chat): Json<MessageData>,
 ) -> Result<Json<Option<Message>>, ServerError> {
-    let files = chat.files.clone();
+    if chat.time.is_none() {
+        chat.time = Some(Datetime::default());
+    }
     let reason = chat.reason.clone();
-    let data = StoredMessageData::from(chat);
-    let chat: Option<Message> = CONN.create(MESSAGE_TABLE).content(data).await?;
+    let chat: Option<Message> = CONN.create(MESSAGE_TABLE).content(chat).await?;
 
     if let Some(chat) = &chat {
         let _ = super::relationships::create_message_relationship(Json(
@@ -91,15 +56,6 @@ pub async fn create_message_with_parent(
                 .unwrap(),
         ))
         .await?;
-
-        for file in files.into_iter() {
-            let _ = CONN
-                .query(&format!(
-                    "RELATE {MESSAGE_TABLE}:{0} -> {MESSAGE_FILE_TABLE} -> {FILE_TABLE}:{file};",
-                    chat.id.key()
-                ))
-                .await?;
-        }
     }
 
     Ok(Json(chat))
@@ -111,30 +67,15 @@ pub async fn read_message(id: Path<String>) -> Result<Json<Option<Message>>, Ser
 
 pub async fn update_message(
     id: Path<String>,
-    Json(chat): Json<MessageData>,
+    Json(mut chat): Json<MessageData>,
 ) -> Result<Json<Option<Message>>, ServerError> {
-    let files = chat.files.clone();
-    let data = StoredMessageData::from(chat);
+    if chat.time.is_none() {
+        chat.time = Some(Datetime::default());
+    }
     let chat: Option<Message> = CONN
         .update((MESSAGE_TABLE, id.trim()))
-        .content(data)
+        .content(chat)
         .await?;
-
-    if let Some(chat) = &chat {
-        let _ = CONN.query(&format!(
-            "DELETE {0} WHERE in = {1}",
-            MESSAGE_FILE_TABLE,
-            chat.id.key()
-        ));
-        for file in files.into_iter() {
-            let _ = CONN
-                .query(&format!(
-                    "RELATE {MESSAGE_TABLE}:{0} -> {MESSAGE_FILE_TABLE} -> {FILE_TABLE}:{file};",
-                    chat.id.key()
-                ))
-                .await?;
-        }
-    }
 
     Ok(Json(chat))
 }

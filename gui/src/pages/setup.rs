@@ -443,7 +443,7 @@ impl SetupPage {
                 WindowMessage::Page(id, PageMessage::Setup(SetupMessage::NextPage)),
             )),
         )
-        .style(style::container::chat);
+        .style(style::container::back_bordered);
 
         center(
             container(

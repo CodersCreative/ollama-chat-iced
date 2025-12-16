@@ -15,6 +15,18 @@ pub mod container {
         }
     }
 
+    pub fn back_bordered(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            border: iced::Border::default()
+                .rounded(5)
+                .width(1)
+                .color(theme.palette().primary),
+            text_color: Some(theme.palette().text.clone()),
+            ..Default::default()
+        }
+    }
+
     pub fn side_bar_darker(theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(darken_colour(

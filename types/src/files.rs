@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{fmt::Display, io::Read};
 
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
@@ -8,12 +8,13 @@ use crate::surreal::RecordId;
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct B64FileData {
     pub b64data: String,
+    pub filename: String,
     #[serde(default = "FileType::default")]
     #[builder(default = "FileType::Image")]
     pub file_type: FileType,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub enum FileType {
     #[default]
     Image,
@@ -22,9 +23,25 @@ pub enum FileType {
     File,
 }
 
+impl Display for FileType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Image => "image",
+                Self::Video => "video",
+                Self::Audio => "audio",
+                Self::File => "file",
+            }
+        )
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DBFile {
     pub path: String,
+    pub filename: String,
     pub file_type: FileType,
     pub id: RecordId,
 }
@@ -32,6 +49,7 @@ pub struct DBFile {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct B64File {
     pub b64data: String,
+    pub filename: String,
     pub file_type: FileType,
     pub id: RecordId,
 }
@@ -45,6 +63,7 @@ impl TryInto<B64File> for DBFile {
 
         Ok(B64File {
             b64data: data,
+            filename: self.filename,
             file_type: self.file_type,
             id: self.id,
         })

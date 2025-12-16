@@ -1,24 +1,25 @@
 use crate::{
-    Application, DATA, Message,
+    Application, DATA, Message, PopUp,
     data::{
         RequestType,
         start::{self, Section},
     },
     font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE, get_bold_font},
     pages::home::panes::{
-        data::{MessageMk, PromptsData},
+        data::{MessageMk, PromptsData, ViewFile},
         view::HomePaneViewMessage,
     },
     style,
     subscriptions::SubMessage,
-    utils::get_path_assets,
+    utils::{self, get_path_assets},
 };
+use base64_stream::base64::{DecodeSliceError, Engine, decode, prelude::BASE64_STANDARD};
 use iced::{
     Element, Length, Padding, Task, Theme,
     alignment::{Horizontal, Vertical},
     clipboard,
     widget::{
-        button, center, column, container, image, markdown, mouse_area, pick_list, row, rule,
+        button, center, column, container, image, lazy, markdown, mouse_area, pick_list, row, rule,
         scrollable, space, stack, svg, text, text_editor,
     },
 };
@@ -27,15 +28,21 @@ use ochat_types::{
         Chat,
         messages::{MessageData, MessageDataBuilder, ModelData, Role},
     },
-    files::FileType,
+    files::{B64File, B64FileData, B64FileDataBuilder, DBFile, FileType},
     generation::text::{ChatQueryData, ChatQueryMessage},
     settings::SettingsProvider,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
+
+const IMAGE_FORMATS: [&str; 15] = [
+    "bmp", "dds", "ff", "gif", "hdr", "ico", "jpeg", "jpg", "exr", "png", "pnm", "qoi", "tga",
+    "tiff", "webp",
+];
 
 #[derive(Debug, Clone)]
 pub struct ChatsView {
     pub input: text_editor::Content,
+    pub files: Vec<ViewFile>,
     pub models: Vec<SettingsProvider>,
     pub edits: HashMap<String, text_editor::Content>,
     pub expanded_messages: Vec<String>,
@@ -56,7 +63,10 @@ pub enum ChatsViewMessage {
     InputAction(text_editor::Action),
     SubmitInput,
     CancelGenerating,
-    UploadFile,
+    SelectFiles,
+    FilesSelected(Vec<String>),
+    FileUploaded(ViewFile),
+    RemoveFile(usize),
     UserMessageUploaded(MessageMk),
     AIMessageUploaded(MessageMk, Option<ChatQueryData>),
     Regenerate(String),
@@ -186,8 +196,60 @@ impl ChatsViewMessage {
                     ))
                 })
             }
-            Self::UploadFile => {
-                // TODO
+            Self::SelectFiles => Task::perform(Self::get_file_paths(), move |x| match x {
+                Ok(x) => Message::HomePaneView(HomePaneViewMessage::Chats(
+                    id,
+                    ChatsViewMessage::FilesSelected(x),
+                )),
+                Err(e) => Message::Err(e),
+            }),
+            Self::FilesSelected(paths) => {
+                let mut files = Vec::new();
+                for path in paths {
+                    let file = Path::new(&path);
+                    let file = match utils::convert_image(&file) {
+                        Ok(x) => B64FileDataBuilder::default()
+                            .file_type(FileType::Image)
+                            .filename(path.rsplit_once("/").unwrap().1.to_string())
+                            .b64data(x)
+                            .build()
+                            .unwrap(),
+                        Err(e) => {
+                            app.add_popup(PopUp::Err(e.to_string()));
+                            continue;
+                        }
+                    };
+
+                    files.push(file);
+                }
+
+                Task::batch(files.into_iter().map(|file| {
+                    Task::future(async move {
+                        let req = DATA.read().unwrap().to_request();
+                        match req
+                            .make_request::<DBFile, B64FileData>(&"file/", &file, RequestType::Post)
+                            .await
+                        {
+                            Ok(x) => Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::FileUploaded(ViewFile {
+                                    filename: file.filename,
+                                    data: BASE64_STANDARD.decode(file.b64data).unwrap(),
+                                    file_type: file.file_type,
+                                    id: x.id.key().to_string().trim().to_string(),
+                                }),
+                            )),
+                            Err(e) => Message::Err(e),
+                        }
+                    })
+                }))
+            }
+            Self::FileUploaded(x) => {
+                app.get_chats_view(&id).unwrap().files.push(x);
+                Task::none()
+            }
+            Self::RemoveFile(index) => {
+                let _ = app.get_chats_view(&id).unwrap().files.remove(index);
                 Task::none()
             }
             Self::CancelGenerating => {
@@ -211,6 +273,7 @@ impl ChatsViewMessage {
                     let ret = (
                         MessageDataBuilder::default()
                             .content(view.input.text())
+                            .files(view.files.iter().map(|x| x.id.trim().to_string()).collect())
                             .role(Role::User)
                             .build()
                             .unwrap(),
@@ -218,6 +281,7 @@ impl ChatsViewMessage {
                         view.chat.id.key().to_string(),
                     );
                     view.input = text_editor::Content::new();
+                    view.files.clear();
                     ret
                 };
 
@@ -544,6 +608,28 @@ impl ChatsViewMessage {
             }
         }
     }
+
+    async fn get_file_paths() -> Result<Vec<String>, String> {
+        let files = rfd::AsyncFileDialog::new()
+            .add_filter("Image", &IMAGE_FORMATS)
+            .pick_files()
+            .await;
+
+        if let Some(files) = files {
+            return Ok(files
+                .iter()
+                .map(|x| {
+                    x.path()
+                        .to_path_buf()
+                        .into_os_string()
+                        .into_string()
+                        .unwrap()
+                })
+                .collect());
+        }
+
+        Err("Failed".to_string())
+    }
 }
 
 pub fn get_command_input(input: &str) -> Option<&str> {
@@ -646,29 +732,30 @@ impl ChatsView {
         })
         .width(Length::Fill);
 
-        let images = container(
-            scrollable::Scrollable::new(
-                row(message
-                    .files
-                    .iter()
-                    .filter(|x| x.file_type == FileType::Image)
-                    .map(|x| {
-                        button(
-                            image(image::Handle::from_bytes(x.b64data.clone()))
-                                .height(Length::Fixed(200.0)),
-                        )
-                        .style(style::button::transparent_back_white_text)
-                        .into()
-                    }))
-                .align_y(Vertical::Center)
-                .spacing(10),
+        let images = lazy(&message.files, |files| {
+            container(
+                scrollable::Scrollable::new(
+                    row(files
+                        .iter()
+                        .filter(|x| x.file_type == FileType::Image)
+                        .map(|x| {
+                            button(
+                                image(image::Handle::from_bytes(x.data.clone()))
+                                    .height(Length::Fixed(200.0)),
+                            )
+                            .style(style::button::transparent_back_white_text)
+                            .into()
+                        }))
+                    .align_y(Vertical::Center)
+                    .spacing(10),
+                )
+                .direction(scrollable::Direction::Horizontal(
+                    scrollable::Scrollbar::new(),
+                )),
             )
-            .direction(scrollable::Direction::Horizontal(
-                scrollable::Scrollbar::new(),
-            )),
-        )
-        .padding(Padding::from([0, 20]))
-        .style(style::container::bottom_input_back);
+            .padding(Padding::from([0, 20]))
+            .style(style::container::bottom_input_back)
+        });
 
         let content: Element<'a, Message> = if let Some(edit) = edit {
             text_editor(&edit)
@@ -804,7 +891,7 @@ impl ChatsView {
 
         let upload = btn("upload.svg").on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
             id,
-            ChatsViewMessage::UploadFile,
+            ChatsViewMessage::SelectFiles,
         )));
 
         let submit: Element<Message> = match is_generating {
@@ -829,56 +916,84 @@ impl ChatsView {
         )
         .max_height(350);
 
-        let input = container(column![
-            self.view_commands(id.clone()),
+        let files = lazy(&self.files, move |files| {
             container(
-                row![
-                    scrollable::Scrollable::new(
-                        row(self
-                            .models
-                            .clone()
-                            .into_iter()
-                            .enumerate()
-                            .map(|(i, model)| {
-                                mouse_area(
-                                    pick_list(
-                                        DATA.read().unwrap().models.clone(),
-                                        Some(model),
-                                        move |x| {
-                                            Message::HomePaneView(HomePaneViewMessage::Chats(
-                                                id,
-                                                ChatsViewMessage::ChangeModel(i, x),
-                                            ))
-                                        },
-                                    )
-                                    .style(style::pick_list::main)
-                                    .menu_style(style::menu::main)
-                                    .text_size(BODY_SIZE),
-                                )
-                                .on_right_press(Message::HomePaneView(HomePaneViewMessage::Chats(
-                                    id,
-                                    ChatsViewMessage::RemoveModel(i),
-                                )))
-                                .into()
-                            }))
-                        .spacing(5)
-                    )
-                    .width(Length::Fill)
-                    .direction(scrollable::Direction::Horizontal(
-                        scrollable::Scrollbar::new()
-                    )),
-                    btn_small("add.svg").on_press(Message::HomePaneView(
-                        HomePaneViewMessage::Chats(id, ChatsViewMessage::AddModel,)
-                    )),
-                ]
-                .spacing(10)
-                .align_y(Vertical::Center)
+                scrollable::Scrollable::new(
+                    row(files.iter().enumerate().map(|(i, x)| {
+                        button(image(image::Handle::from_bytes(x.data.clone())).height(100))
+                            .style(style::button::transparent_back_white_text)
+                            .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::RemoveFile(i),
+                            )))
+                            .into()
+                    }))
+                    .align_y(Vertical::Center)
+                    .spacing(5),
+                )
+                .direction(scrollable::Direction::Horizontal(
+                    scrollable::Scrollbar::new(),
+                )),
             )
-            .width(Length::Fill)
-            .align_y(Vertical::Center)
-            .style(style::container::bottom_input_back),
-            bottom,
-        ])
+            .style(style::container::bottom_input_back)
+        });
+
+        let models = container(
+            row![
+                scrollable::Scrollable::new(
+                    row(self
+                        .models
+                        .clone()
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, model)| {
+                            mouse_area(
+                                pick_list(
+                                    DATA.read().unwrap().models.clone(),
+                                    Some(model),
+                                    move |x| {
+                                        Message::HomePaneView(HomePaneViewMessage::Chats(
+                                            id,
+                                            ChatsViewMessage::ChangeModel(i, x),
+                                        ))
+                                    },
+                                )
+                                .style(style::pick_list::main)
+                                .menu_style(style::menu::main)
+                                .text_size(BODY_SIZE),
+                            )
+                            .on_right_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::RemoveModel(i),
+                            )))
+                            .into()
+                        }))
+                    .spacing(5)
+                )
+                .width(Length::Fill)
+                .direction(scrollable::Direction::Horizontal(
+                    scrollable::Scrollbar::new()
+                )),
+                btn_small("add.svg").on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                    id,
+                    ChatsViewMessage::AddModel,
+                ))),
+            ]
+            .spacing(10)
+            .align_y(Vertical::Center),
+        )
+        .width(Length::Fill)
+        .align_y(Vertical::Center)
+        .style(style::container::bottom_input_back);
+
+        let input = container(
+            if self.files.is_empty() {
+                column![models, self.view_commands(id.clone()), bottom,]
+            } else {
+                column![files, models, self.view_commands(id.clone()), bottom,]
+            }
+            .spacing(10),
+        )
         .width(Length::Fill)
         .padding(Padding::from([10, 20]))
         .style(style::container::input_back_opaque);
@@ -903,7 +1018,7 @@ impl ChatsView {
                 }))
                 .spacing(20);
 
-                col = col.push(space().height(120));
+                col = col.push(space().height(if self.files.is_empty() { 130 } else { 250 }));
                 scrollable::Scrollable::new(col)
                     .direction(scrollable::Direction::Vertical(scrollable::Scrollbar::new()))
                     .anchor_bottom()

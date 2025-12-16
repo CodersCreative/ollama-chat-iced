@@ -43,13 +43,18 @@ pub async fn get_chat_completion_request(
                         .map(|x| x.0)
                     {
                         Ok(Some(image)) if image.file_type == FileType::Image => {
-                            parts.push(
-                                ChatCompletionRequestMessageContentPartImageArgs::default()
-                                    .image_url(image.b64data)
-                                    .build()
-                                    .unwrap()
-                                    .into(),
-                            );
+                            match ChatCompletionRequestMessageContentPartImageArgs::default()
+                                .image_url(format!(
+                                    "data:{}/{};base64,{}",
+                                    image.file_type,
+                                    image.filename.rsplit_once(".").unwrap().1,
+                                    image.b64data
+                                ))
+                                .build()
+                            {
+                                Ok(x) => parts.push(x.into()),
+                                Err(e) => eprintln!("{:?}", e),
+                            }
                         }
                         _ => {}
                     }

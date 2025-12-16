@@ -96,7 +96,9 @@ impl HomeSideBar {
                 PageMessage::Home(HomeMessage::DeleteChat(preview.id.key().to_string())),
             )));
 
-        container(hover(title, right(close).align_y(Vertical::Center))).into()
+        container(hover(title, right(close).align_y(Vertical::Center)))
+            .max_height(HEADER_SIZE * 2)
+            .into()
     }
 
     fn chat_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {

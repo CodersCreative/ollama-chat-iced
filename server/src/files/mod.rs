@@ -16,6 +16,7 @@ pub const FILE_TABLE: &str = "files";
 struct DBFileData {
     path: String,
     file_type: FileType,
+    filename: String,
 }
 
 impl TryFrom<B64FileData> for DBFileData {
@@ -34,6 +35,7 @@ impl TryFrom<B64FileData> for DBFileData {
         Ok(Self {
             path,
             file_type: value.file_type,
+            filename: value.filename,
         })
     }
 }
@@ -44,6 +46,7 @@ pub async fn define_files() -> Result<(), ServerError> {
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS file_type ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS filename ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS path ON TABLE {0} TYPE string;
 ",
             FILE_TABLE

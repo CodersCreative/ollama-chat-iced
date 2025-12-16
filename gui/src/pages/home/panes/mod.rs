@@ -418,6 +418,7 @@ impl PaneMessage {
                         } else {
                             Vec::new()
                         },
+                        files: Vec::new(),
                         path: Vec::new(),
                         start: 0,
                         messages,
