@@ -138,7 +138,7 @@ impl PullsView {
             .spacing(5),
         )
         .padding(10)
-        .style(style::container::chat)
+        .style(style::container::back_bordered)
         .into()
     }
 
@@ -226,7 +226,7 @@ impl PullsView {
             .spacing(5),
         )
         .padding(10)
-        .style(style::container::chat)
+        .style(style::container::back_bordered)
         .into()
     }
 
