@@ -18,6 +18,7 @@ pub async fn define_settings() -> Result<(), ServerError> {
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS previews_provider ON TABLE {0} TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS models_path ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS use_llama_cpp ON TABLE {0} TYPE bool;
 ",
             SETTINGS_TABLE,
         ))
@@ -60,6 +61,7 @@ pub async fn reset_settings() -> Result<Json<Option<Settings>>, ServerError> {
 
     let settings = SettingsData {
         previews_provider: default_provider.clone(),
+        use_llama_cpp: Some(true),
         models_path: Some(PathBuf::from_str(&get_path_local("models/".to_string())).unwrap()),
     };
 
@@ -95,6 +97,10 @@ pub async fn update_settings(
 
     if let Some(x) = settings.models_path {
         current_settings.models_path = x;
+    }
+
+    if let Some(x) = settings.use_llama_cpp {
+        current_settings.use_llama_cpp = x;
     }
 
     let chat: Vec<Settings> = CONN

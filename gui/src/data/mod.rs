@@ -88,6 +88,15 @@ impl Data {
             }
         }
 
+        let mut hf_models: Vec<SettingsProvider> = request_ochat_server(
+            &format!("{}/provider/hf/text/model/downloaded/", url),
+            &(),
+            RequestType::Get,
+        )
+        .await?;
+
+        models.append(&mut hf_models);
+
         Ok(models)
     }
 

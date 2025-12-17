@@ -13,30 +13,12 @@ use tokio::io::AsyncWriteExt;
 const EXTRA_FILES: [&str; 1] = ["tokenizer.json"];
 
 async fn run_pull_stream(
-    dir: PathBuf,
     user: String,
     model: String,
     name: String,
 ) -> impl Stream<Item = HFPullModelStreamResult> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-    if !fs::try_exists(&dir).await.unwrap_or(true) {
-        let _ = fs::create_dir(&dir).await.unwrap();
-    }
-
-    let mut model_path = dir.join(user.trim());
-
-    if !fs::try_exists(&model_path).await.unwrap_or(true) {
-        let _ = fs::create_dir(&model_path).await.unwrap();
-    }
-
-    model_path = model_path.join(model.trim());
-
-    if !fs::try_exists(&model_path).await.unwrap_or(true) {
-        let _ = fs::create_dir(&model_path).await.unwrap();
-    }
-
-    let bin_path = model_path.join(name.trim());
     let details_res = reqwest::get(format!(
         "{}/models/{}/{}",
         API_URL,
@@ -63,6 +45,15 @@ async fn run_pull_stream(
             return Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx));
         }
     };
+
+    let model_path = get_models_dir(
+        format!("{}/{}", user, model),
+        match details.pipeline_tag {
+            _ => "text".to_string(),
+        },
+    )
+    .await;
+    let bin_path = model_path.join(name.trim());
 
     let model_ref = if let Some(x) = details.base_model.clone() {
         x
@@ -205,6 +196,34 @@ async fn run_pull_stream(
 
 #[axum::debug_handler]
 pub async fn run(Path((user, id, name)): Path<(String, String, String)>) -> impl IntoResponse {
+    StreamBodyAs::json_nl(run_pull_stream(user, id, name).await)
+}
+
+pub async fn get_models_dir(model: String, sub_type: String) -> PathBuf {
     let dir = get_settings().await.unwrap().models_path.clone();
-    StreamBodyAs::json_nl(run_pull_stream(dir, user, id, name).await)
+    let (user, model) = model.rsplit_once("/").unwrap();
+
+    if !fs::try_exists(&dir).await.unwrap_or(true) {
+        let _ = fs::create_dir(&dir).await.unwrap();
+    }
+
+    let mut model_path = dir.join(sub_type.trim());
+
+    if !fs::try_exists(&model_path).await.unwrap_or(true) {
+        let _ = fs::create_dir(&model_path).await.unwrap();
+    }
+
+    model_path = model_path.join(user.trim());
+
+    if !fs::try_exists(&model_path).await.unwrap_or(true) {
+        let _ = fs::create_dir(&model_path).await.unwrap();
+    }
+
+    model_path = model_path.join(model.trim());
+
+    if !fs::try_exists(&model_path).await.unwrap_or(true) {
+        let _ = fs::create_dir(&model_path).await.unwrap();
+    }
+
+    model_path
 }

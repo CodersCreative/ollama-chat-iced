@@ -10,6 +10,8 @@ pub struct SettingsData {
     pub previews_provider: Option<SettingsProvider>,
     #[builder(default = "None")]
     pub models_path: Option<PathBuf>,
+    #[builder(default = "None")]
+    pub use_llama_cpp: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, PartialEq, Eq, PartialOrd, Ord)]
@@ -28,6 +30,7 @@ impl Into<SettingsData> for Settings {
     fn into(self) -> SettingsData {
         SettingsData {
             previews_provider: self.previews_provider,
+            use_llama_cpp: Some(self.use_llama_cpp),
             models_path: Some(self.models_path),
         }
     }
@@ -56,5 +59,7 @@ pub struct Settings {
     pub previews_provider: Option<SettingsProvider>,
     #[serde(default = "get_models_path")]
     pub models_path: PathBuf,
+    #[serde(default = "Default::default")]
+    pub use_llama_cpp: bool,
     pub id: RecordId,
 }

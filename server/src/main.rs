@@ -143,6 +143,10 @@ async fn main() {
             get(providers::hf::text::list_all_models),
         )
         .route(
+            "/provider/hf/text/model/downloaded/",
+            get(providers::hf::text::list_all_downloaded_models),
+        )
+        .route(
             "/provider/hf/text/model/search/{search}",
             get(providers::hf::text::search_models),
         )
@@ -208,10 +212,7 @@ async fn main() {
                 .delete(files::delete_file),
         )
         .route("/generation/text/run/", get(generation::text::run))
-        .route(
-            "/generation/text/stream/",
-            get(generation::text::stream::run),
-        );
+        .route("/generation/text/stream/", get(generation::text::stream));
 
     #[cfg(feature = "sound")]
     let app = app

@@ -118,6 +118,7 @@ pub mod hf {
         pub downloads: u64,
         pub likes: u64,
         pub base_model: Option<String>,
+        pub pipeline_tag: Option<String>,
         pub architecture: Option<String>,
         #[serde(default = "Default::default")]
         pub parameters: u64,

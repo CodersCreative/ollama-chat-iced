@@ -50,6 +50,7 @@ pub enum SetupMessage {
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
     AddProvider(usize),
+    SetLlamacpp(bool),
     AddProviderInput,
     NextPage,
 }
@@ -88,6 +89,7 @@ impl SetupMessage {
                 );
                 Task::none()
             }
+            Self::SetLlamacpp(_) => Task::none(),
             Self::AddProvider(index) => {
                 let input = app
                     .get_setup_page(&id)
@@ -432,6 +434,10 @@ impl SetupPage {
             .label("Use Panes")
             .on_toggle(move |x| Message::Cache(CacheMessage::SetUsePanes(x)));
 
+        let use_llamacpp = checkbox(app.cache.client_settings.use_panes)
+            .label("Use llama-cpp huggingface backend")
+            .on_toggle(move |x| Message::Cache(CacheMessage::SetUsePanes(x)));
+
         let theme = pick_list(Theme::ALL, Some(app.theme()), move |x| {
             Message::Cache(CacheMessage::SetTheme(x))
         })
@@ -454,6 +460,7 @@ impl SetupPage {
                     ochat,
                     sub_heading("Models Download Path"),
                     models_path,
+                    use_llamacpp,
                     providers,
                     model_column,
                     sub_heading("Decorations"),
