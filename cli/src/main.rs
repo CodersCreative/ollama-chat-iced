@@ -220,14 +220,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let url = args.url.clone().unwrap_or("localhost:1212".to_string());
 
-    if args.serve || args.action.is_none() {
+    if args.serve || (args.action.is_none() && !args.gui) {
         println!("Starting server at '{}'.", url);
         server_handle = Some(spawn_server(url.clone())?);
         std::thread::sleep(Duration::from_secs(5));
         println!("Server successfully started at '{}'", url);
     }
 
-    if args.gui || args.action.is_none() {
+    if args.gui || (args.action.is_none() && !args.serve) {
         if args.action.is_some() {
             println!("CLI action will not be performed due to use of the iced gui.");
         }

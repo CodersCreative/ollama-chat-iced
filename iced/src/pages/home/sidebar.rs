@@ -102,13 +102,24 @@ impl HomeSideBar {
     }
 
     fn chat_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
-        let name = text("ochat")
-            .font(get_bold_font())
-            .align_x(Horizontal::Center)
-            .align_y(Vertical::Center)
-            .width(Length::Fill)
-            .style(style::text::primary)
-            .size(SUB_HEADING_SIZE);
+        let name = button(
+            text("ochat")
+                .font(get_bold_font())
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center)
+                .width(Length::Fill)
+                .style(style::text::primary)
+                .size(SUB_HEADING_SIZE),
+        )
+        .style(style::button::transparent_back_white_text)
+        .padding(0)
+        .width(Length::Fill)
+        .on_press(Message::Window(WindowMessage::Page(
+            id,
+            PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                HomePickingType::OpenPane(HomePaneType::Info),
+            ))),
+        )));
 
         let new_chat = button(
             text("New Chat")

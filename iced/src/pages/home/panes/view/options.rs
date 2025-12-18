@@ -17,7 +17,10 @@ use iced::{
     },
 };
 use ochat_types::{
-    options::{GenOption, GenOptions, GenOptionsData},
+    options::{
+        GenOption, GenOptions, GenOptionsData,
+        relationships::{GenModelRelationship, GenModelRelationshipData},
+    },
     settings::SettingsProvider,
 };
 use std::collections::HashMap;
@@ -40,6 +43,7 @@ pub enum OptionsViewMessage {
     SaveOption(String),
     UpdateRelationshipModel(String, usize, SettingsProvider),
     AddRelationship(String),
+    SetUpdatedRelationships(String, Vec<OptionRelationshipData>),
     SetOptions(OptionsData),
     Expand(String),
     Edit(String),
@@ -183,7 +187,6 @@ impl OptionsViewMessage {
                     .iter()
                     .find(|x| x.option.id.key().to_string() == option_id)
                     .unwrap()
-                    .option
                     .clone();
 
                 let edit = app
@@ -194,8 +197,25 @@ impl OptionsViewMessage {
                     .unwrap()
                     .clone();
 
-                option.name = edit.option.name;
-                option.data = edit.option.data;
+                option.option.name = edit.option.name;
+                option.option.data = edit.option.data;
+
+                let added_relationships: Vec<OptionRelationshipData> = edit
+                    .models
+                    .clone()
+                    .into_iter()
+                    .filter(|x| !option.models.contains(x))
+                    .filter(|x| x.model.is_some())
+                    .collect();
+                let removed_relationships: Vec<String> = option
+                    .models
+                    .clone()
+                    .into_iter()
+                    .filter(|x| !added_relationships.contains(&x))
+                    .filter(|x| x.id.is_some())
+                    .filter(|x| !edit.models.contains(&x))
+                    .map(|x| x.id.unwrap().key().to_string())
+                    .collect();
 
                 app.cache
                     .home_shared
@@ -203,7 +223,7 @@ impl OptionsViewMessage {
                     .0
                     .iter_mut()
                     .filter(|x| x.option.id.key().to_string() == option_id)
-                    .for_each(|x| x.option = option.clone());
+                    .for_each(|x| x.option = option.option.clone());
 
                 app.view_data
                     .home
@@ -215,12 +235,13 @@ impl OptionsViewMessage {
                             .0
                             .iter_mut()
                             .filter(|x| x.option.id.key().to_string() == option_id)
-                            .for_each(|x| x.option = option.clone())
+                            .for_each(|x| x.option = option.option.clone())
                     });
 
                 Task::future(async move {
                     let req = DATA.read().unwrap().to_request();
-                    let option: GenOptionsData = option.into();
+                    let option: GenOptionsData = option.option.into();
+                    let mut tasks = Vec::new();
 
                     match req
                         .make_request::<GenOptions, GenOptionsData>(
@@ -230,10 +251,103 @@ impl OptionsViewMessage {
                         )
                         .await
                     {
-                        Ok(_) => Message::None,
-                        Err(e) => Message::Err(e),
+                        Ok(_) => {}
+                        Err(e) => tasks.push(Message::Err(e)),
                     }
+
+                    for relationship in added_relationships {
+                        let id = relationship.id.as_ref().map(|x| x.key().to_string());
+                        let relationship: GenModelRelationshipData = relationship.into();
+
+                        match if let Some(id) = id {
+                            req
+                                .make_request::<Option<GenModelRelationship>, GenModelRelationshipData>(
+                                    &format!("option/relationship/{}", id),
+                                    &relationship,
+                                    crate::data::RequestType::Put,
+                                )
+                                .await
+                        } else {
+                            req
+                                .make_request::<Option<GenModelRelationship>, GenModelRelationshipData>(
+                                    "option/relationship/",
+                                    &relationship,
+                                    crate::data::RequestType::Post,
+                                )
+                                .await
+                        } {
+                            Ok(_) => {}
+                            Err(e) => tasks.push(Message::Err(e)),
+                        }
+                    }
+
+                    for relationship in removed_relationships {
+                        match req
+                            .make_request::<Option<GenModelRelationship>, ()>(
+                                &format!("option/relationship/{}", relationship),
+                                &(),
+                                crate::data::RequestType::Delete,
+                            )
+                            .await
+                        {
+                            Ok(_) => {}
+                            Err(e) => tasks.push(Message::Err(e)),
+                        }
+                    }
+
+                    match req
+                        .make_request::<Vec<GenModelRelationship>, ()>(
+                            &format!("option/{}/all/", option_id),
+                            &(),
+                            crate::data::RequestType::Get,
+                        )
+                        .await
+                    {
+                        Ok(x) => tasks.push(Message::HomePaneView(HomePaneViewMessage::Options(
+                            id,
+                            OptionsViewMessage::SetUpdatedRelationships(
+                                option_id.clone(),
+                                x.into_iter().map(|x| x.into()).collect(),
+                            ),
+                        ))),
+                        Err(e) => tasks.push(Message::Err(e)),
+                    }
+
+                    Message::Batch(tasks)
                 })
+            }
+            Self::SetUpdatedRelationships(option_id, data) => {
+                if let Some(editing) = app
+                    .get_options_view(&id)
+                    .unwrap()
+                    .editing
+                    .get_mut(&option_id)
+                {
+                    editing.models = data.clone();
+                }
+
+                app.cache
+                    .home_shared
+                    .options
+                    .0
+                    .iter_mut()
+                    .filter(|x| x.option.id.key().to_string() == option_id)
+                    .for_each(|x| x.models = data.clone());
+
+                app.view_data
+                    .home
+                    .options
+                    .iter_mut()
+                    .filter(|x| !x.1.options.0.is_empty())
+                    .for_each(|x| {
+                        x.1.options
+                            .0
+                            .iter_mut()
+                            .filter(|x| x.option.id.key().to_string() == option_id)
+                            .for_each(|x| x.models = data.clone())
+                    });
+
+                Task::none()
             }
             Self::Expand(x) => {
                 let view = app.get_options_view(&id).unwrap();
@@ -481,7 +595,7 @@ impl OptionsView {
                     {
                         let models = DATA.read().unwrap().models.clone();
                         scrollable::Scrollable::new(
-                            row(option.models.iter().enumerate().map(|(i, x)| {
+                            row(edit_data.models.iter().enumerate().map(|(i, x)| {
                                 pick_list(models.clone(), x.model.clone(), move |x| {
                                     Message::HomePaneView(HomePaneViewMessage::Options(
                                         id,

@@ -30,6 +30,7 @@ use iced::{
 use std::{collections::HashMap, fmt::Display};
 
 pub mod chat;
+pub mod info;
 pub mod models;
 pub mod options;
 pub mod prompts;
@@ -231,6 +232,7 @@ impl Display for HomePaneTypeWithId {
                 Self::Settings(_) => "Settings",
                 Self::Tools(_) => "Tools",
                 Self::Loading => "Loading",
+                Self::Info => "Info",
             }
         )
     }
@@ -256,6 +258,7 @@ impl HomePaneTypeWithId {
                 .style(style::container::neutral_back),
             )
             .into(),
+            Self::Info => info::view(app),
             _ => text("Hello, World!!!").into(),
         }
     }

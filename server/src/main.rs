@@ -18,7 +18,7 @@ use surrealdb::{
 static CONN: LazyLock<Surreal<Db>> = LazyLock::new(Surreal::init);
 
 use axum::{
-    Router,
+    Json, Router,
     routing::{get, post, put},
 };
 use clap::Parser;
@@ -51,6 +51,7 @@ async fn main() {
     let args = Arguments::parse();
     init_db().await.unwrap();
     let app = Router::new()
+        .route("/version/", get(version))
         .route("/message/", post(messages::create_message))
         .route(
             "/message/parent/{parent}",
@@ -246,6 +247,9 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+pub async fn version() -> Result<Json<String>, ServerError> {
+    Ok(Json(env!("CARGO_PKG_VERSION").to_string()))
+}
 pub async fn init_db() -> Result<(), ServerError> {
     let _ = CONN
         .connect::<RocksDb>(&get_path_settings("database".to_string()))

@@ -11,7 +11,7 @@ use iced::{
     alignment::Vertical,
     widget::{
         Scrollable, center, checkbox, column, container, keyed_column, pick_list, row, rule,
-        scrollable::{Direction, Scrollbar},
+        scrollable::{self, Direction, Scrollbar},
         space, text, text_input,
     },
     window,
@@ -314,7 +314,7 @@ fn view_provider_input<'a>(
 impl SetupPage {
     pub fn view<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         let sub_heading = |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::primary);
-        let banner = text("Welcome to OChat!")
+        let banner = text("Welcome to ochat!")
             .font(get_bold_font())
             .size(HEADER_SIZE)
             .style(style::text::primary);
@@ -453,24 +453,29 @@ impl SetupPage {
 
         center(
             container(
-                column![
-                    banner,
-                    rule::horizontal(1),
-                    sub_heading("Instance Url"),
-                    ochat,
-                    sub_heading("Models Download Path"),
-                    models_path,
-                    use_llamacpp,
-                    providers,
-                    model_column,
-                    sub_heading("Decorations"),
-                    row![theme, use_panes].spacing(10).align_y(Vertical::Center),
-                    rule::horizontal(1),
-                    row![space::horizontal(), next]
-                        .spacing(10)
-                        .align_y(Vertical::Center),
-                ]
-                .spacing(10),
+                scrollable::Scrollable::new(
+                    column![
+                        banner,
+                        rule::horizontal(1),
+                        sub_heading("Instance Url"),
+                        ochat,
+                        sub_heading("Models Download Path"),
+                        models_path,
+                        use_llamacpp,
+                        providers,
+                        model_column,
+                        sub_heading("Decorations"),
+                        row![theme, use_panes].spacing(10).align_y(Vertical::Center),
+                        rule::horizontal(1),
+                        row![space::horizontal(), next]
+                            .spacing(10)
+                            .align_y(Vertical::Center),
+                    ]
+                    .spacing(10),
+                )
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::default(),
+                )),
             )
             .max_width(800)
             .padding(Padding::new(20.0))

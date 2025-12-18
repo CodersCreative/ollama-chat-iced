@@ -8,6 +8,7 @@ use serde_json::Value;
 use std::{error::Error, sync::LazyLock};
 pub mod settings;
 pub mod start;
+pub mod versions;
 
 pub static REQWEST_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
 

@@ -7,7 +7,7 @@ use ochat_types::{
     settings::SettingsProvider,
 };
 
-use crate::{CONN, errors::ServerError, options::GEN_OPTIONS_TABLE};
+use crate::{CONN, errors::ServerError};
 
 pub const GEN_MODELS_TABLE: &str = "gen_models";
 
@@ -30,7 +30,7 @@ pub async fn add_gen_models(
     Json(relationship): Json<GenModelRelationshipData>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
     Ok(Json(
-        CONN.create(GEN_OPTIONS_TABLE).content(relationship).await?,
+        CONN.create(GEN_MODELS_TABLE).content(relationship).await?,
     ))
 }
 
@@ -103,9 +103,9 @@ pub async fn get_gen_models_from_options(
 pub async fn delete_gen_models(
     id: Path<String>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
-    Ok(Json(CONN.delete((GEN_OPTIONS_TABLE, id.trim())).await?))
+    Ok(Json(CONN.delete((GEN_MODELS_TABLE, id.trim())).await?))
 }
 
 pub async fn list_all_gen_models() -> Result<Json<Vec<GenOptions>>, ServerError> {
-    Ok(Json(CONN.select(GEN_OPTIONS_TABLE).await?))
+    Ok(Json(CONN.select(GEN_MODELS_TABLE).await?))
 }

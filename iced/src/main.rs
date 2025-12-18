@@ -28,7 +28,7 @@ use std::{
 };
 
 use crate::{
-    data::{Data, settings::ClientSettings},
+    data::{Data, settings::ClientSettings, versions::Versions},
     font::{BODY_SIZE, SUB_HEADING_SIZE, get_iced_font},
     pages::{
         Pages,
@@ -92,6 +92,7 @@ pub struct Application {
 #[derive(Debug, Clone, Default)]
 pub struct AppCache {
     pub previews: Vec<PreviewMk>,
+    pub versions: Versions,
     pub expanded_image: Option<Vec<u8>>,
     pub settings: SettingsData,
     pub client_settings: ClientSettings,
@@ -165,6 +166,7 @@ pub enum CacheMessage {
     CloseExpandedImage,
     SetTheme(Theme),
     SetInstanceUrl(String),
+    SetVersions(Versions),
     SetUsePanes(bool),
 }
 
@@ -181,6 +183,9 @@ impl CacheMessage {
                     .messages
                     .0
                     .insert(x.base.id.key().to_string(), x);
+            }
+            Self::SetVersions(x) => {
+                app.cache.versions = x;
             }
             Self::SetModels(x) => {
                 app.cache.home_shared.models = x;
@@ -291,6 +296,12 @@ impl Application {
                     .await
                 {
                     Ok(x) => Message::Cache(CacheMessage::SetSettings(x.into())),
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Task::future(async {
+                match Versions::get().await {
+                    Ok(x) => Message::Cache(CacheMessage::SetVersions(x)),
                     Err(e) => Message::Err(e),
                 }
             }),

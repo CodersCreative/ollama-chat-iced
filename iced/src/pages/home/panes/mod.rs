@@ -39,6 +39,7 @@ pub enum HomePaneType {
     Options,
     Settings,
     Tools,
+    Info,
 }
 
 impl HomePaneType {
@@ -78,6 +79,7 @@ impl HomePaneType {
                 app.view_data.home.pulls.insert(count, PullsView::default());
                 HomePaneTypeWithId::Pulls(count)
             }
+            Self::Info => HomePaneTypeWithId::Info,
             _ => HomePaneTypeWithId::Loading,
         }
     }
@@ -93,12 +95,14 @@ pub enum HomePaneTypeWithId {
     Settings(u32),
     Tools(u32),
     Loading,
+    Info,
 }
 
 impl Into<HomePaneType> for &HomePaneTypeWithId {
     fn into(self) -> HomePaneType {
         match self {
             HomePaneTypeWithId::Loading => HomePaneType::Loading,
+            HomePaneTypeWithId::Info => HomePaneType::Info,
             HomePaneTypeWithId::Chat(_) => HomePaneType::Chat,
             HomePaneTypeWithId::Pulls(_) => HomePaneType::Pulls,
             HomePaneTypeWithId::Models(_) => HomePaneType::Models,

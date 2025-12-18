@@ -7,7 +7,10 @@ use ochat_types::{
         messages::{Message, MessageCanChange},
     },
     files::{B64File, FileType},
-    options::{GenOptions, relationships::GenModelRelationship},
+    options::{
+        GenOptions,
+        relationships::{GenModelRelationship, GenModelRelationshipData},
+    },
     prompts::Prompt,
     providers::{
         hf::{HFModel, HFPullModelStreamResult},
@@ -216,6 +219,12 @@ pub struct OptionRelationshipData {
     pub id: Option<RecordId>,
 }
 
+impl PartialEq for OptionRelationshipData {
+    fn eq(&self, other: &Self) -> bool {
+        self.model == other.model && self.option == other.option
+    }
+}
+
 impl From<GenModelRelationship> for OptionRelationshipData {
     fn from(value: GenModelRelationship) -> Self {
         Self {
@@ -241,6 +250,16 @@ impl Into<GenModelRelationship> for OptionRelationshipData {
     }
 }
 
+impl Into<GenModelRelationshipData> for OptionRelationshipData {
+    fn into(self) -> GenModelRelationshipData {
+        let model = self.model.unwrap();
+        GenModelRelationshipData {
+            provider: model.provider,
+            model: model.model,
+            option: self.option,
+        }
+    }
+}
 #[derive(Debug, Clone)]
 pub struct OllamaDownloadData {
     pub model: OllamaModelsInfo,
