@@ -2,25 +2,15 @@ use axum::{Json, response::IntoResponse};
 use axum_streams::StreamBodyAs;
 use ochat_types::generation::text::{ChatQueryData, ChatResponse};
 
-use crate::{errors::ServerError, settings::get_settings};
+use crate::errors::ServerError;
 
 pub mod api;
-pub mod candle;
 pub mod llamacpp;
 
 #[axum::debug_handler]
 pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, ServerError> {
     if data.provider.starts_with("HF:") {
-        if get_settings()
-            .await
-            .map(|x| x.use_llama_cpp)
-            .unwrap_or_default()
-        {
-            llamacpp::run(data).await
-        } else {
-            // candle
-            llamacpp::run(data).await
-        }
+        llamacpp::run(data).await
     } else {
         api::run(data).await
     }
@@ -29,16 +19,7 @@ pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, 
 #[axum::debug_handler]
 pub async fn stream(Json(data): Json<ChatQueryData>) -> impl IntoResponse {
     if data.provider.starts_with("HF:") {
-        if get_settings()
-            .await
-            .map(|x| x.use_llama_cpp)
-            .unwrap_or_default()
-        {
-            StreamBodyAs::json_nl(llamacpp::stream(data).await)
-        } else {
-            // candle
-            StreamBodyAs::json_nl(llamacpp::stream(data).await)
-        }
+        StreamBodyAs::json_nl(llamacpp::stream(data).await)
     } else {
         StreamBodyAs::json_nl(api::stream(data).await)
     }
