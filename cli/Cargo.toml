@@ -1,5 +1,5 @@
 [package]
-name = "ochat-cli"
+name = "ochat"
 version = "0.5.0"
 edition = "2024"
 authors = ["Creative Coders <officialccoders@gmail.com>"]
@@ -24,3 +24,4 @@ indicatif = { version = "0.18.3", features = ["tokio"] }
 futures = "0.3.31"
 tokio-stream = "0.1.17"
 rustyline = "17.0.2"
+cmd-exists = "0.1.2"

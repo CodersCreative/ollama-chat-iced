@@ -17,6 +17,8 @@ use serde_json::Value;
 use std::{
     error::Error,
     io::{self, Write},
+    process::Command,
+    time::Duration,
 };
 use tabled::{
     builder::Builder,
@@ -29,9 +31,13 @@ use crate::data::{REQWEST_CLIENT, RequestType};
 #[command(version, about, long_about = None)]
 struct Arguments {
     #[command(subcommand)]
-    action: Action,
+    action: Option<Action>,
     #[arg(short, long)]
     url: Option<String>,
+    #[arg(long)]
+    serve: bool,
+    #[arg(long)]
+    gui: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -68,6 +74,7 @@ enum Action {
     },
     List,
 }
+
 #[derive(ValueEnum, Debug, Clone)]
 enum ClapProviderType {
     Ollama,
@@ -85,17 +92,18 @@ impl Into<ProviderType> for ClapProviderType {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let args = Arguments::parse();
+fn spawn_iced() -> Result<std::process::Child, std::io::Error> {
+    return Command::new("ochat-iced").spawn();
+}
 
-    let req = if let Some(url) = args.url {
-        data::Request(url)
-    } else {
-        data::Request(String::from("http://localhost:1212"))
-    };
+fn spawn_server(url: String) -> Result<std::process::Child, std::io::Error> {
+    return Command::new("ochat-server").arg("--url").arg(url).spawn();
+}
 
-    match args.action {
+async fn run_action(url: String, action: Action) -> Result<(), Box<dyn Error>> {
+    let req = data::Request(url);
+
+    match action {
         Action::Ollama { action } => match action {
             OllamaAction::All { search } => {
                 let models = req
@@ -200,6 +208,53 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             print_providers(providers);
         }
+    }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let args = Arguments::parse();
+    let mut server_handle = None;
+
+    let url = args.url.clone().unwrap_or("localhost:1212".to_string());
+
+    if args.serve || args.action.is_none() {
+        println!("Starting server at '{}'.", url);
+        server_handle = Some(spawn_server(url.clone())?);
+        std::thread::sleep(Duration::from_secs(5));
+        println!("Server successfully started at '{}'", url);
+    }
+
+    if args.gui || args.action.is_none() {
+        if args.action.is_some() {
+            println!("CLI action will not be performed due to use of the iced gui.");
+        }
+        println!("Starting iced gui.");
+
+        let mut iced = spawn_iced()?;
+        let _ = iced.wait();
+
+        if let Some(server) = &mut server_handle {
+            println!("Closing server.");
+            let _ = server.kill()?;
+        }
+
+        return Ok(());
+    }
+
+    if let Some(action) = args.action {
+        let res = run_action(url, action).await;
+        if let Some(server) = &mut server_handle {
+            println!("Closing server.");
+            let _ = server.kill()?;
+        }
+        return res;
+    }
+
+    if let Some(server) = &mut server_handle {
+        let _ = server.wait();
     }
 
     Ok(())

@@ -21,6 +21,7 @@ use axum::{
     Router,
     routing::{get, post, put},
 };
+use clap::Parser;
 
 use crate::{
     chats::{
@@ -38,8 +39,16 @@ use crate::{
     utils::get_path_settings,
 };
 
+#[derive(Parser, Debug, Clone)]
+#[command(version, about, long_about = None)]
+struct Arguments {
+    #[arg(short, long)]
+    url: Option<String>,
+}
+
 #[tokio::main]
 async fn main() {
+    let args = Arguments::parse();
     init_db().await.unwrap();
     let app = Router::new()
         .route("/message/", post(messages::create_message))
@@ -226,9 +235,14 @@ async fn main() {
     #[cfg(feature = "voice")]
     let app = app.route("/generation/speech/stt/run/", get(generation::text::run));
 
-    let listener = tokio::net::TcpListener::bind("localhost:1212")
-        .await
-        .unwrap();
+    let mut url = args.url.unwrap_or("localhost:1212".to_string());
+
+    if url.is_empty() {
+        url = "localhost:1212".to_string();
+    }
+
+    let listener = tokio::net::TcpListener::bind(url).await.unwrap();
+
     axum::serve(listener, app).await.unwrap();
 }
 

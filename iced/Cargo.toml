@@ -1,5 +1,5 @@
 [package]
-name = "ochat"
+name = "ochat-iced"
 version = "0.5.0"
 edition = "2024"
 authors = ["Creative Coders <officialccoders@gmail.com>"]

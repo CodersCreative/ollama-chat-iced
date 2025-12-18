@@ -123,14 +123,18 @@ impl Debug for PopUp {
     }
 }
 
-fn main() -> iced::Result {
-    iced::daemon(Application::new, Application::update, Application::view)
-        .subscription(Application::subscription)
-        .font(font::FONT)
-        .title(Application::title)
-        .default_font(get_iced_font())
-        .theme(Application::window_theme)
-        .run()
+pub fn main() -> iced::Result {
+    iced::daemon(
+        || Application::new(None),
+        Application::update,
+        Application::view,
+    )
+    .subscription(Application::subscription)
+    .font(font::FONT)
+    .title(Application::title)
+    .default_font(get_iced_font())
+    .theme(Application::window_theme)
+    .run()
 }
 
 #[derive(Debug, Clone)]
@@ -227,18 +231,19 @@ impl CacheMessage {
 }
 
 impl Application {
-    pub fn new() -> (Self, Task<Message>) {
+    pub fn new(url: Option<String>) -> (Self, Task<Message>) {
+        let url = url.unwrap_or("http://localhost:1212".to_string());
         let get_default_data = || -> Data {
             tokio::runtime::Runtime::new()
                 .unwrap()
-                .block_on(Data::get(None))
+                .block_on(Data::get(Some(url.clone())))
                 .unwrap_or_default()
         };
 
         let mut cache = AppCache::default();
 
         if let Ok(x) = ClientSettings::load() {
-            if &x.instance_url != "http://localhost:1212" && !x.instance_url.is_empty() {
+            if &x.instance_url != &url && !x.instance_url.is_empty() {
                 *DATA.write().unwrap() = tokio::runtime::Runtime::new()
                     .unwrap()
                     .block_on(Data::get(Some(x.instance_url.clone())))

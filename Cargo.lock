@@ -1686,6 +1686,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmd-exists"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "023c523050bdbe68ab3814ae3d78f343e71710bb4d1e08df25bc2eda7d58dd3d"
+
+[[package]]
 name = "cocoa-foundation"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6833,6 +6839,24 @@ dependencies = [
 name = "ochat"
 version = "0.5.0"
 dependencies = [
+ "clap 4.5.53",
+ "cmd-exists",
+ "futures",
+ "indicatif 0.18.3",
+ "ochat-types",
+ "reqwest 0.12.24",
+ "rustyline",
+ "serde",
+ "serde_json",
+ "tabled",
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
+name = "ochat-iced"
+version = "0.5.0"
+dependencies = [
  "base64-stream",
  "clipboard-rs",
  "derive_builder",
@@ -6851,29 +6875,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "ochat-cli"
-version = "0.5.0"
-dependencies = [
- "clap 4.5.53",
- "futures",
- "indicatif 0.18.3",
- "ochat-types",
- "reqwest 0.12.24",
- "rustyline",
- "serde",
- "serde_json",
- "tabled",
- "tokio",
- "tokio-stream",
-]
-
-[[package]]
 name = "ochat-server"
 version = "0.5.0"
 dependencies = [
  "async-openai",
  "axum",
  "axum-streams",
+ "clap 4.5.53",
  "futures",
  "kalosm",
  "llama-cpp-2",
