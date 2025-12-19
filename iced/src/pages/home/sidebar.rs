@@ -235,7 +235,8 @@ impl HomeSideBar {
             )),
         );
 
-        let quit = style::svg_button::danger("quit.svg", size).on_press(Message::Quit);
+        let quit = style::svg_button::danger("quit.svg", size)
+            .on_press(Message::Window(WindowMessage::CloseWindow(id)));
 
         vec![
             new_chat_pane,

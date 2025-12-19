@@ -1,11 +1,13 @@
 pub mod messages;
 pub mod previews;
 pub mod relationships;
+pub mod route;
 
-use axum::{Json, extract::Path};
+use axum::{Extension, Json, extract::Path};
 use ochat_types::{
     chats::{Chat, ChatData, previews::Preview},
     surreal::Datetime,
+    user::User,
 };
 
 use crate::{CONN, chats::previews::PREVIEW_TABLE, errors::ServerError};
@@ -18,6 +20,7 @@ pub async fn define_chats() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS root ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
 ",
@@ -28,8 +31,10 @@ DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
 }
 
 pub async fn create_chat(
+    Extension(user): Extension<User>,
     Json(mut chat): Json<ChatData>,
 ) -> Result<Json<Option<Chat>>, ServerError> {
+    chat.user_id = Some(user.id.key().to_string());
     if chat.time.is_none() {
         chat.time = Some(Datetime::default());
     }
@@ -56,9 +61,11 @@ pub async fn set_chat_root(
 }
 
 pub async fn update_chat(
+    Extension(user): Extension<User>,
     id: Path<String>,
     Json(mut chat): Json<ChatData>,
 ) -> Result<Json<Option<Chat>>, ServerError> {
+    chat.user_id = Some(user.id.key().to_string());
     if chat.time.is_none() {
         chat.time = Some(Datetime::default())
     }
@@ -71,7 +78,6 @@ pub async fn delete_chat(id: Path<String>) -> Result<Json<Option<Chat>>, ServerE
     let _: Option<Preview> = CONN.delete((PREVIEW_TABLE, &*id)).await?;
     Ok(Json(CONN.delete((CHAT_TABLE, id.trim())).await?))
 }
-
 pub async fn list_all_chats() -> Result<Json<Vec<Chat>>, ServerError> {
     Ok(Json(CONN.select(CHAT_TABLE).await?))
 }

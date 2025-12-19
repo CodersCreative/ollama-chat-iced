@@ -1,4 +1,4 @@
-use axum::{Json, extract::Path};
+use axum::{Extension, Json, extract::Path};
 use ochat_types::{
     chats::{
         messages::Role,
@@ -6,6 +6,7 @@ use ochat_types::{
     },
     generation::text::{ChatQueryData, ChatQueryMessage},
     surreal::Datetime,
+    user::User,
 };
 
 use crate::{
@@ -22,6 +23,7 @@ pub async fn define_previews() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS text ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
 
@@ -34,7 +36,10 @@ DEFINE INDEX text_index ON TABLE {0} COLUMNS text SEARCH ANALYZER previews_analy
     Ok(())
 }
 
-pub async fn update_preview(id: Path<String>) -> Result<Json<Option<Preview>>, ServerError> {
+pub async fn update_preview(
+    Extension(user): Extension<User>,
+    id: Path<String>,
+) -> Result<Json<Option<Preview>>, ServerError> {
     let (messages, time) = match get_chat(Path(id.clone())).await.map(|x| x.0) {
         Ok(Some(chat)) if chat.root.is_some() => (
             get_default_message_list_from_parent(Path(chat.root.unwrap()))
@@ -49,6 +54,7 @@ pub async fn update_preview(id: Path<String>) -> Result<Json<Option<Preview>>, S
 
     if messages.is_empty() {
         let preview = PreviewData {
+            user_id: Some(user.id.key().to_string()),
             text: String::from("New Chat"),
             time: time.clone(),
         };
@@ -110,6 +116,7 @@ Generate a **concise, 3 to 5 word title** for the previous messages.
     .content;
 
     let preview = PreviewData {
+        user_id: Some(user.id.key().to_string()),
         text: preview,
         time,
     };
@@ -131,12 +138,15 @@ Generate a **concise, 3 to 5 word title** for the previous messages.
     ))
 }
 
-pub async fn get_preview(id: Path<String>) -> Result<Json<Option<Preview>>, ServerError> {
+pub async fn get_preview(
+    user: Extension<User>,
+    id: Path<String>,
+) -> Result<Json<Option<Preview>>, ServerError> {
     let preview = CONN.select((PREVIEW_TABLE, id.trim())).await?;
     if preview.is_some() {
         Ok(Json(preview))
     } else {
-        update_preview(id).await
+        update_preview(user, id).await
     }
 }
 

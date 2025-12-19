@@ -9,6 +9,7 @@ use crate::{
 use axum::{Json, extract::Path};
 use ochat_types::{providers::ProviderType, settings::*};
 
+pub mod route;
 const SETTINGS_TABLE: &str = "settings";
 
 pub async fn define_settings() -> Result<(), ServerError> {

@@ -4,6 +4,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use futures::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use ochat_types::{
+    WORD_ART,
     generation::text::{
         ChatQueryDataBuilder, ChatQueryMessage, ChatQueryMessageBuilder, ChatStreamResult,
     },
@@ -217,6 +218,8 @@ async fn run_action(url: String, action: Action) -> Result<(), Box<dyn Error>> {
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Arguments::parse();
     let mut server_handle = None;
+
+    println!("{}", WORD_ART);
 
     let url = args.url.clone().unwrap_or("localhost:1212".to_string());
 

@@ -5,7 +5,7 @@ use iced::{
 };
 use ochat_types::providers::ollama::{OllamaPullModelResponse, OllamaPullModelStreamResult};
 
-use crate::{DATA, data::REQWEST_CLIENT};
+use crate::{DATA, get_client};
 
 #[derive(Debug, Clone)]
 pub struct OllamaPull {
@@ -75,7 +75,7 @@ pub fn pull_stream(
     let url = DATA.read().unwrap().instance_url.clone().unwrap();
 
     sipper(async move |mut output| {
-        let mut response = REQWEST_CLIENT
+        let mut response = get_client()
             .post(&format!("{0}/provider/{1}/model/{2}", url, provider, model))
             .send()
             .await

@@ -85,6 +85,7 @@ impl OptionsViewMessage {
                     .unwrap()
                     .models
                     .push(OptionRelationshipData {
+                        user_id: None,
                         model: None,
                         option: option_id.clone(),
                         id: None,

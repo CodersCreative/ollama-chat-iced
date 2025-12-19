@@ -1,6 +1,7 @@
 pub mod hf;
 pub mod models;
 pub mod ollama;
+pub mod route;
 
 use async_openai::{Client, config::OpenAIConfig};
 use axum::{Json, extract::Path};

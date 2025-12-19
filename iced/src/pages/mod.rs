@@ -7,7 +7,9 @@ use crate::{
 };
 use iced::{Element, Task, window};
 
+pub mod auth;
 pub mod home;
+pub mod info;
 pub mod setup;
 
 #[derive(Debug, Clone)]

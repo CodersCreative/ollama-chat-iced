@@ -20,6 +20,7 @@ use ochat_types::{
     providers::{hf::HFPullModelStreamResult, ollama::OllamaPullModelStreamResult},
     settings::{Settings, SettingsData},
 };
+use reqwest::header::{HeaderMap, HeaderValue};
 use std::{
     collections::BTreeMap,
     fmt::Debug,
@@ -32,6 +33,7 @@ use crate::{
     font::{BODY_SIZE, SUB_HEADING_SIZE, get_iced_font},
     pages::{
         Pages,
+        auth::{AuthMessage, AuthPage},
         home::{
             HomePage,
             panes::{
@@ -52,8 +54,9 @@ use crate::{
 
 pub mod font {
     use iced::Font;
-
+    pub const FONT_MONO: &[u8] = include_bytes!("../assets/RobotoMonoNerdFontMono-Regular.ttf");
     pub const FONT: &[u8] = include_bytes!("../assets/RobotoMonoNerdFont-Regular.ttf");
+
     pub fn get_iced_font() -> Font {
         Font {
             family: iced::font::Family::Name("Roboto"),
@@ -78,7 +81,22 @@ pub mod font {
     pub const SMALL_SIZE: u32 = 8;
 }
 
+const JWT_ENV_VAR: &str = "OCHAT_JWT";
+static JWT: LazyLock<RwLock<Option<String>>> = LazyLock::new(|| RwLock::new(None));
 static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| RwLock::new(data::Data::default()));
+
+pub fn get_client() -> reqwest::Client {
+    if let Some(jwt) = JWT.read().unwrap().as_ref() {
+        let mut headers = HeaderMap::new();
+        headers.append("Authorization", HeaderValue::from_str(jwt).unwrap());
+        reqwest::Client::builder()
+            .default_headers(headers)
+            .build()
+            .unwrap()
+    } else {
+        reqwest::Client::new()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Application {
@@ -104,6 +122,7 @@ pub struct ViewData {
     pub counter: u32,
     pub page_stack: Vec<Pages>,
     pub home: HomePaneViewData,
+    pub auth: AuthPage,
 }
 
 #[derive(Debug, Clone)]
@@ -146,6 +165,7 @@ pub enum Message {
     Window(WindowMessage),
     HomePaneView(HomePaneViewMessage),
     Subscription(SubMessage),
+    Auth(AuthMessage),
     Cache(CacheMessage),
     SaveToClipboard(String),
     Batch(Vec<Self>),
@@ -218,8 +238,12 @@ impl CacheMessage {
                 app.cache.client_settings.save();
             }
             Self::SetInstanceUrl(x) => {
+                if app.cache.client_settings.instance_url == x {
+                    return Task::none();
+                }
                 app.cache.client_settings.instance_url = x.clone();
                 app.cache.client_settings.save();
+                *JWT.write().unwrap() = None;
 
                 return Task::future(async {
                     if let Ok(x) = Data::get(Some(x)).await {
@@ -237,6 +261,11 @@ impl CacheMessage {
 
 impl Application {
     pub fn new(url: Option<String>) -> (Self, Task<Message>) {
+        *JWT.write().unwrap() = match std::env::var(JWT_ENV_VAR) {
+            Ok(x) => Some(x),
+            _ => None,
+        };
+
         let url = url.unwrap_or("http://localhost:1212".to_string());
         let get_default_data = || -> Data {
             tokio::runtime::Runtime::new()
@@ -333,6 +362,7 @@ impl Application {
             Message::Subscription(message) => message.handle(self),
             Message::HomePaneView(message) => message.handle(self),
             Message::Cache(message) => message.handle(self),
+            Message::Auth(message) => message.handle(self),
             Message::Err(e) => {
                 self.add_popup(PopUp::Err(e));
                 Task::none()
@@ -364,6 +394,9 @@ impl Application {
     }
 
     pub fn view<'a>(&'a self, window_id: window::Id) -> Element<'a, Message> {
+        if JWT.read().unwrap().is_none() {
+            return self.view_data.auth.view(self);
+        }
         let mut body = if let Some(window) = self.windows.get(&window_id) {
             window.view(self, window_id)
         } else {

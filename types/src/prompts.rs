@@ -5,6 +5,8 @@ use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct PromptData {
+    #[builder(default = "None")]
+    pub user_id: Option<String>,
     pub command: String,
     pub title: String,
     pub content: String,
@@ -27,6 +29,7 @@ impl Display for Prompt {
 impl Into<PromptData> for Prompt {
     fn into(self) -> PromptData {
         PromptData {
+            user_id: Some(self.user_id),
             command: self.command,
             title: self.title,
             content: self.content,
@@ -40,6 +43,7 @@ impl Into<PromptData> for Prompt {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Prompt {
+    pub user_id: String,
     pub command: String,
     pub title: String,
     pub content: String,

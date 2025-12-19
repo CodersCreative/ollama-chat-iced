@@ -5,7 +5,7 @@ use iced::{
 };
 use ochat_types::providers::hf::{HFPullModelResponse, HFPullModelStreamResult};
 
-use crate::{DATA, data::REQWEST_CLIENT};
+use crate::{DATA, get_client};
 
 #[derive(Debug, Clone)]
 pub struct HFPull {
@@ -71,7 +71,7 @@ pub fn pull_stream(model: String, name: String) -> impl Straw<(), HFPullModelStr
     let url = DATA.read().unwrap().instance_url.clone().unwrap();
 
     sipper(async move |mut output| {
-        let mut response = REQWEST_CLIENT
+        let mut response = get_client()
             .post(&format!("{0}/provider/hf/model/{1}/{2}", url, model, name))
             .send()
             .await

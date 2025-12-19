@@ -1,13 +1,13 @@
-use axum::{Json, extract::Path};
+use crate::{CONN, errors::ServerError};
+use axum::{Extension, Json, extract::Path};
 use ochat_types::{
     options::{
         GenOptions,
         relationships::{GenModelRelationship, GenModelRelationshipData},
     },
     settings::SettingsProvider,
+    user::User,
 };
-
-use crate::{CONN, errors::ServerError};
 
 pub const GEN_MODELS_TABLE: &str = "gen_models";
 
@@ -16,6 +16,7 @@ pub async fn define_gen_models() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS provider ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS model ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS option ON TABLE {0} TYPE string;
@@ -27,17 +28,21 @@ DEFINE FIELD IF NOT EXISTS option ON TABLE {0} TYPE string;
 }
 
 pub async fn add_gen_models(
-    Json(relationship): Json<GenModelRelationshipData>,
+    Extension(user): Extension<User>,
+    Json(mut relationship): Json<GenModelRelationshipData>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
+    relationship.user_id = Some(user.id.key().to_string());
     Ok(Json(
         CONN.create(GEN_MODELS_TABLE).content(relationship).await?,
     ))
 }
 
 pub async fn update_gen_models(
+    Extension(user): Extension<User>,
     id: Path<String>,
-    Json(options): Json<GenModelRelationshipData>,
+    Json(mut options): Json<GenModelRelationshipData>,
 ) -> Result<Json<Option<GenModelRelationship>>, ServerError> {
+    options.user_id = Some(user.id.key().to_string());
     let _ = CONN
         .query(&format!(
             "DELETE {0} WHERE provider = '{1}' and model = '{2}';",

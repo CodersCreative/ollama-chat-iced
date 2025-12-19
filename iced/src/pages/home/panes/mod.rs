@@ -309,7 +309,7 @@ impl PaneMessage {
             Self::Close(pane) => {
                 let page = app.get_home_page(&id).unwrap();
                 if page.panes.panes.len() <= 1 {
-                    return Task::none();
+                    return Task::done(Message::Window(WindowMessage::CloseWindow(id)));
                 }
 
                 // TODO remove pane from view_data

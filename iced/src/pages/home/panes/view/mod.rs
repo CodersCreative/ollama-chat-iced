@@ -17,6 +17,7 @@ use crate::{
                 },
             },
         },
+        info,
     },
     style,
     windows::message::WindowMessage,
@@ -30,7 +31,6 @@ use iced::{
 use std::{collections::HashMap, fmt::Display};
 
 pub mod chat;
-pub mod info;
 pub mod models;
 pub mod options;
 pub mod prompts;

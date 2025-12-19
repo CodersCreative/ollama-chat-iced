@@ -325,7 +325,3 @@ pub async fn list_all_messages_from_parent(
 
     Ok(Json(messages))
 }
-
-pub async fn list_all_messages() -> Result<Json<Vec<Message>>, ServerError> {
-    Ok(Json(CONN.select(MESSAGE_TABLE).await?))
-}

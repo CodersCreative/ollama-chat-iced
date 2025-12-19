@@ -1,21 +1,21 @@
 use iced::{
-    Element, Padding,
+    Element, Font, Padding,
     alignment::{Horizontal, Vertical},
     widget::{button, center, column, container, image, row, rule, scrollable, text},
 };
+use ochat_types::WORD_ART;
 
 use crate::{
     Application, Message,
-    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
+    font::{BODY_SIZE, SUB_HEADING_SIZE},
     style,
     utils::get_path_assets,
 };
 
 pub fn view<'a>(app: &'a Application) -> Element<'a, Message> {
     let sub_heading = |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::primary);
-    let banner = text("ochat")
-        .font(get_bold_font())
-        .size(HEADER_SIZE)
+    let banner = text(WORD_ART)
+        .font(Font::MONOSPACE)
         .style(style::text::primary);
 
     let iced_version = text(format!("ochat-iced version: {}", app.cache.versions.iced))

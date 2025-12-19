@@ -181,6 +181,8 @@ impl From<GenOptionKey> for GenOption {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct GenOptionsData {
+    #[builder(default = "None")]
+    pub user_id: Option<String>,
     pub name: String,
     #[builder(default = "GenOption::get_all()")]
     #[serde(default = "GenOption::get_all")]
@@ -190,6 +192,7 @@ pub struct GenOptionsData {
 impl Default for GenOptionsData {
     fn default() -> Self {
         Self {
+            user_id: None,
             name: String::from("default"),
             data: GenOption::get_all(),
         }
@@ -199,6 +202,7 @@ impl Default for GenOptionsData {
 impl From<GenOptions> for GenOptionsData {
     fn from(value: GenOptions) -> Self {
         Self {
+            user_id: Some(value.user_id),
             name: value.name,
             data: value.data,
         }
@@ -207,6 +211,7 @@ impl From<GenOptions> for GenOptionsData {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GenOptions {
+    pub user_id: String,
     pub name: String,
     pub data: [GenOption; 16],
     pub id: RecordId,
@@ -219,6 +224,8 @@ pub mod relationships {
 
     #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
     pub struct GenModelRelationshipData {
+        #[builder(default = "None")]
+        pub user_id: Option<String>,
         pub provider: String,
         pub model: String,
         pub option: String,
@@ -232,6 +239,7 @@ pub mod relationships {
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct GenModelRelationship {
+        pub user_id: String,
         pub provider: String,
         pub model: String,
         pub option: String,

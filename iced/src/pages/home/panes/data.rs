@@ -214,6 +214,7 @@ pub struct OptionData {
 
 #[derive(Debug, Clone)]
 pub struct OptionRelationshipData {
+    pub user_id: Option<String>,
     pub model: Option<SettingsProvider>,
     pub option: String,
     pub id: Option<RecordId>,
@@ -228,6 +229,7 @@ impl PartialEq for OptionRelationshipData {
 impl From<GenModelRelationship> for OptionRelationshipData {
     fn from(value: GenModelRelationship) -> Self {
         Self {
+            user_id: Some(value.user_id),
             model: Some(SettingsProvider {
                 provider: value.provider,
                 model: value.model,
@@ -242,6 +244,7 @@ impl Into<GenModelRelationship> for OptionRelationshipData {
     fn into(self) -> GenModelRelationship {
         let model = self.model.unwrap();
         GenModelRelationship {
+            user_id: self.user_id.unwrap(),
             provider: model.provider,
             model: model.model,
             option: self.option,
@@ -254,6 +257,7 @@ impl Into<GenModelRelationshipData> for OptionRelationshipData {
     fn into(self) -> GenModelRelationshipData {
         let model = self.model.unwrap();
         GenModelRelationshipData {
+            user_id: self.user_id,
             provider: model.provider,
             model: model.model,
             option: self.option,

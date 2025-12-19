@@ -6,29 +6,11 @@ pub mod options;
 pub mod prompts;
 pub mod providers;
 pub mod settings;
+pub mod user;
 pub mod utils;
 
-use chats::{messages, relationships};
-use std::sync::LazyLock;
-use surrealdb::{
-    Surreal,
-    engine::local::{Db, RocksDb},
-};
-
-static CONN: LazyLock<Surreal<Db>> = LazyLock::new(Surreal::init);
-
-use axum::{
-    Json, Router,
-    routing::{get, post, put},
-};
-use clap::Parser;
-
 use crate::{
-    chats::{
-        define_chats,
-        previews::{self, define_previews},
-        relationships::define_message_relationships,
-    },
+    chats::{define_chats, previews::define_previews, relationships::define_message_relationships},
     errors::ServerError,
     files::define_files,
     messages::define_messages,
@@ -36,8 +18,22 @@ use crate::{
     prompts::define_prompts,
     providers::{define_providers, ollama::models::define_ollama_models},
     settings::define_settings,
+    user::{define_users, get_user_from_header},
     utils::get_path_settings,
 };
+use axum::{Router, body::Body, middleware};
+use chats::messages;
+use clap::Parser;
+use ochat_types::WORD_ART;
+use std::sync::LazyLock;
+use surrealdb::{
+    Surreal,
+    engine::local::{Db, RocksDb},
+};
+
+static CONN: LazyLock<Surreal<Db>> = LazyLock::new(Surreal::init);
+const DATABASE: &str = "test";
+const NAMESPACE: &str = "test";
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
@@ -50,191 +46,20 @@ struct Arguments {
 async fn main() {
     let args = Arguments::parse();
     init_db().await.unwrap();
-    let app = Router::new()
-        .route("/version/", get(version))
-        .route("/message/", post(messages::create_message))
-        .route(
-            "/message/parent/{parent}",
-            post(messages::create_message_with_parent).get(messages::get_message_list_from_parent),
-        )
-        .route(
-            "/message/parent/{parent}/default/",
-            get(messages::get_default_message_list_from_parent),
-        )
-        .route(
-            "/message/parent/{parent}/change/",
-            get(messages::get_can_change_list_from_parent),
-        )
-        .route(
-            "/message/parent/{parent}/change/default/",
-            get(messages::get_default_can_change_list_from_parent),
-        )
-        .route(
-            "/message/parent/{parent}/all/",
-            get(messages::list_all_messages_from_parent),
-        )
-        .route("/message/all/", get(messages::list_all_messages))
-        .route(
-            "/message/{id}",
-            get(messages::read_message)
-                .put(messages::update_message)
-                .delete(messages::delete_message),
-        )
-        .route("/message/{id}/change/", get(messages::get_can_change))
-        .route("/preview/all/", get(previews::list_all_previews))
-        .route("/preview/search/{search}", get(previews::search_previews))
-        .route(
-            "/preview/{id}",
-            get(previews::get_preview).put(previews::update_preview),
-        )
-        .route("/chat/", post(chats::create_chat))
-        .route("/chat/{id}/root/{root}", put(chats::set_chat_root))
-        .route("/chat/all/", get(chats::list_all_chats))
-        .route(
-            "/chat/{id}",
-            get(chats::get_chat)
-                .put(chats::update_chat)
-                .delete(chats::delete_chat),
-        )
-        .route(
-            "/settings/",
-            get(settings::get_settings).put(settings::update_settings),
-        )
-        .route("/settings/reset/", post(settings::reset_settings))
-        .route("/prompt/", post(prompts::add_prompt))
-        .route("/prompt/all/", get(prompts::list_all_prompts))
-        .route("/prompt/search/{search}", get(prompts::search_prompts))
-        .route(
-            "/prompt/{id}",
-            get(prompts::get_prompt)
-                .put(prompts::update_prompt)
-                .delete(prompts::delete_prompt),
-        )
-        .route(
-            "/relationship/parent/{parent}/all/",
-            get(relationships::list_all_message_relationships_from_parent),
-        )
-        .route(
-            "/relationship/",
-            post(relationships::create_message_relationship),
-        )
-        .route(
-            "/relationship/all/",
-            get(relationships::list_all_message_relationships),
-        )
-        .route(
-            "/relationship/{id}",
-            get(relationships::get_message_relationship)
-                .put(relationships::update_message_relationship)
-                .delete(relationships::delete_message_relationship),
-        )
-        .route(
-            "/provider/ollama/model/all/",
-            get(providers::ollama::models::list_all_ollama_models),
-        )
-        .route(
-            "/provider/ollama/model/search/{search}",
-            get(providers::ollama::models::search_ollama_models),
-        )
-        .route(
-            "/provider/hf/model/{user}/{id}",
-            get(providers::hf::fetch_model_details),
-        )
-        .route(
-            "/provider/hf/model/{user}/{id}/{name}",
-            post(providers::hf::pull::run),
-        )
-        .route(
-            "/provider/hf/model/downloaded/",
-            get(providers::hf::get_downloaded_hf_models),
-        )
-        .route(
-            "/provider/hf/text/model/all/",
-            get(providers::hf::text::list_all_models),
-        )
-        .route(
-            "/provider/hf/text/model/downloaded/",
-            get(providers::hf::text::list_all_downloaded_models),
-        )
-        .route(
-            "/provider/hf/text/model/search/{search}",
-            get(providers::hf::text::search_models),
-        )
-        .route(
-            "/provider/{id}/model/{model}",
-            post(providers::ollama::pull::run)
-                .get(providers::models::get_provider_model)
-                .delete(providers::models::delete_provider_model),
-        )
-        .route(
-            "/provider/{id}/model/{model}/options/",
-            get(options::relationships::get_default_gen_options_from_model),
-        )
-        .route(
-            "/provider/{id}/model/all/",
-            get(providers::models::list_all_provider_models),
-        )
-        .route("/provider/", post(providers::add_provider))
-        .route("/provider/all/", get(providers::list_all_providers))
-        .route(
-            "/provider/{id}",
-            get(providers::read_provider)
-                .put(providers::update_provider)
-                .delete(providers::delete_provider),
-        )
-        .route("/option/", post(options::add_gen_options))
-        .route("/option/all/", get(options::list_all_gen_options))
-        .route("/option/search/{search}", get(options::search_gen_options))
-        .route(
-            "/option/{id}",
-            get(options::get_gen_options)
-                .put(options::update_gen_options)
-                .delete(options::delete_gen_options),
-        )
-        .route(
-            "/option/relationship/",
-            post(options::relationships::add_gen_models),
-        )
-        .route(
-            "/option/relationship/all/",
-            get(options::relationships::list_all_gen_models),
-        )
-        .route(
-            "/option/relationship/{id}",
-            get(options::relationships::get_gen_models)
-                .put(options::relationships::update_gen_models)
-                .delete(options::relationships::delete_gen_models),
-        )
-        .route(
-            "/option/{id}/model/all/",
-            get(options::relationships::get_models_from_options),
-        )
-        .route(
-            "/option/{id}/all/",
-            get(options::relationships::get_gen_models_from_options),
-        )
-        .route("/file/", post(files::create_file))
-        .route("/file/all/", get(files::list_all_files))
-        .route(
-            "/file/{id}",
-            get(files::get_file)
-                .put(files::update_file)
-                .delete(files::delete_file),
-        )
-        .route("/generation/text/run/", get(generation::text::run))
-        .route("/generation/text/stream/", get(generation::text::stream));
+    let app = Router::new().merge(user::route::auth_routes());
 
-    #[cfg(feature = "sound")]
-    let app = app
-        .route("/generation/speech/tts/run/", get(generation::tts::run))
-        .route(
-            "/generation/speech/tts/stream/",
-            get(generation::tts::stream::run),
-        );
+    let protected = Router::new()
+        .merge(user::route::routes())
+        .merge(chats::route::routes())
+        .merge(files::route::routes())
+        .merge(generation::route::routes())
+        .merge(options::route::routes())
+        .merge(prompts::route::routes())
+        .merge(providers::route::routes())
+        .merge(settings::route::routes())
+        .route_layer(middleware::from_fn(guard));
 
-    // TODO create stt endpoints
-    #[cfg(feature = "voice")]
-    let app = app.route("/generation/speech/stt/run/", get(generation::text::run));
+    let app = Router::new().merge(app).merge(protected);
 
     let mut url = args.url.unwrap_or("localhost:1212".to_string());
 
@@ -242,20 +67,35 @@ async fn main() {
         url = "localhost:1212".to_string();
     }
 
-    let listener = tokio::net::TcpListener::bind(url).await.unwrap();
+    println!("{}", WORD_ART);
+    println!("Starting server at '{}'.", url);
 
+    let listener = tokio::net::TcpListener::bind(url).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
-pub async fn version() -> Result<Json<String>, ServerError> {
-    Ok(Json(env!("CARGO_PKG_VERSION").to_string()))
+pub async fn guard(
+    mut req: axum::http::Request<Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, ServerError> {
+    let user = match get_user_from_header(req.headers()).await?.0 {
+        Some(x) => x,
+        None => {
+            return Err(ServerError::Unknown(String::from(
+                "AUTH ERROR : Not Logged In.",
+            )));
+        }
+    };
+
+    req.extensions_mut().insert(user);
+    Ok(next.run(req).await)
 }
 pub async fn init_db() -> Result<(), ServerError> {
     let _ = CONN
         .connect::<RocksDb>(&get_path_settings("database".to_string()))
         .await?;
 
-    let _ = CONN.use_ns("test").use_db("test").await?;
+    let _ = CONN.use_ns(NAMESPACE).use_db(DATABASE).await?;
 
     let _ = tokio::try_join![
         define_settings(),
@@ -269,6 +109,8 @@ pub async fn init_db() -> Result<(), ServerError> {
         define_gen_options(),
         define_gen_models(),
         define_providers(),
+        define_chats(),
+        define_users(),
     ]?;
 
     Ok(())

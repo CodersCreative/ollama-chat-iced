@@ -1,7 +1,6 @@
-use crate::{CONN, errors::ServerError};
+use crate::{CONN, errors::ServerError, utils::get_count};
 use axum::{Json, extract::Path};
 use ochat_types::chats::relationships::{MessageRelationship, MessageRelationshipData};
-use serde_json::Value;
 
 pub const RELATIONSHIP_TABLE: &str = "relationships";
 
@@ -22,28 +21,15 @@ DEFINE FIELD IF NOT EXISTS index ON TABLE {0} TYPE int;
 }
 
 pub async fn get_count_of_children(Path(parent): Path<String>) -> Result<Json<u8>, ServerError> {
-    let mut count: u8 = 0;
-    let query: Option<Value> = CONN
-        .query(&format!(
-            "
+    get_count(&format!(
+        "
                 SELECT count() FROM {0} WHERE parent = '{1}' GROUP ALL;
             ",
-            RELATIONSHIP_TABLE,
-            parent.trim(),
-        ))
-        .await?
-        .take(0)?;
-
-    if let Some(mut query) = query {
-        if query.is_array() {
-            query = query[0].clone();
-        }
-        if query.is_object() {
-            count = query["count"].as_number().unwrap().as_u64().unwrap() as u8;
-        }
-    }
-
-    Ok(Json(count))
+        RELATIONSHIP_TABLE,
+        parent.trim(),
+    ))
+    .await
+    .map(|x| Json(x))
 }
 pub async fn create_message_relationship(
     Json(mut relationship): Json<MessageRelationshipData>,

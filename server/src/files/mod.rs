@@ -4,16 +4,22 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use axum::{Json, extract::Path};
-use ochat_types::files::{B64File, B64FileData, DBFile, FileType};
+use axum::{Extension, Json, extract::Path};
+use ochat_types::{
+    files::{B64File, B64FileData, DBFile, FileType},
+    user::User,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{CONN, errors::ServerError, utils::get_file_uploads_path};
 
 pub const FILE_TABLE: &str = "files";
 
+pub mod route;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct DBFileData {
+    user_id: Option<String>,
     path: String,
     file_type: FileType,
     filename: String,
@@ -34,6 +40,7 @@ impl TryFrom<B64FileData> for DBFileData {
 
         Ok(Self {
             path,
+            user_id: value.user_id,
             file_type: value.file_type,
             filename: value.filename,
         })
@@ -45,6 +52,7 @@ pub async fn define_files() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS file_type ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS filename ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS path ON TABLE {0} TYPE string;
@@ -56,9 +64,11 @@ DEFINE FIELD IF NOT EXISTS path ON TABLE {0} TYPE string;
 }
 
 pub async fn create_file(
+    Extension(user): Extension<User>,
     Json(file): Json<B64FileData>,
 ) -> Result<Json<Option<DBFile>>, ServerError> {
-    let file = DBFileData::try_from(file)?;
+    let mut file = DBFileData::try_from(file)?;
+    file.user_id = Some(user.id.key().to_string());
     Ok(Json(CONN.create(FILE_TABLE).content(file).await?))
 }
 
@@ -71,9 +81,11 @@ pub async fn get_file(id: Path<String>) -> Result<Json<Option<B64File>>, ServerE
 }
 
 pub async fn update_file(
+    Extension(user): Extension<User>,
     id: Path<String>,
-    Json(file): Json<B64FileData>,
+    Json(mut file): Json<B64FileData>,
 ) -> Result<Json<Option<DBFile>>, ServerError> {
+    file.user_id = Some(user.id.key().to_string());
     if let Some(prev) = CONN
         .select::<Option<DBFile>>((FILE_TABLE, id.trim()))
         .await?

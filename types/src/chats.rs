@@ -5,6 +5,8 @@ use crate::surreal::{Datetime, RecordId};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct ChatData {
+    #[builder(default = "None")]
+    pub user_id: Option<String>,
     #[serde(default = "Vec::new")]
     #[builder(default = "Vec::new()")]
     pub default_tools: Vec<String>,
@@ -16,6 +18,7 @@ pub struct ChatData {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Chat {
+    pub user_id: String,
     #[serde(default = "Vec::new")]
     pub default_tools: Vec<String>,
     pub root: Option<String>,
@@ -149,6 +152,7 @@ pub mod previews {
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Preview {
+        pub user_id: String,
         pub text: String,
         pub time: Datetime,
         pub id: RecordId,
@@ -156,6 +160,7 @@ pub mod previews {
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct PreviewData {
+        pub user_id: Option<String>,
         pub text: String,
         pub time: Datetime,
     }

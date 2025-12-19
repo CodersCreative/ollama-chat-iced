@@ -13,6 +13,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum WindowMessage {
     OpenWindow,
+    CloseWindow(window::Id),
     Page(window::Id, PageMessage),
     WindowOpened(window::Id),
     WindowClosed(window::Id),
@@ -43,6 +44,7 @@ impl WindowMessage {
                     })
                     .map(|id| Message::Window(WindowMessage::WindowOpened(id)))
             }
+            Self::CloseWindow(id) => window::close(id),
             Self::Page(id, x) => x.handle(app, id),
             Self::Resize(id, size) => {
                 let win = app.windows.get_mut(&id).unwrap();

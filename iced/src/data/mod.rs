@@ -2,15 +2,14 @@ use ochat_types::{
     providers::Provider,
     settings::{SettingsProvider, SettingsProviderBuilder},
 };
-use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use std::{error::Error, sync::LazyLock};
+use std::error::Error;
+
+use crate::get_client;
 pub mod settings;
 pub mod start;
 pub mod versions;
-
-pub static REQWEST_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
 
 #[derive(Clone, Debug, Default)]
 pub struct Data {
@@ -123,10 +122,10 @@ pub async fn request_ochat_server<T: DeserializeOwned, Json: Serialize>(
     request_type: RequestType,
 ) -> Result<T, String> {
     let request = match request_type {
-        RequestType::Get => REQWEST_CLIENT.get(url),
-        RequestType::Post => REQWEST_CLIENT.post(url),
-        RequestType::Put => REQWEST_CLIENT.put(url),
-        RequestType::Delete => REQWEST_CLIENT.delete(url),
+        RequestType::Get => get_client().get(url),
+        RequestType::Post => get_client().post(url),
+        RequestType::Put => get_client().put(url),
+        RequestType::Delete => get_client().delete(url),
     };
 
     serde_json::from_value(

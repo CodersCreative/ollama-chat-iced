@@ -7,6 +7,8 @@ use crate::surreal::RecordId;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct B64FileData {
+    #[builder(default = "None")]
+    pub user_id: Option<String>,
     pub b64data: String,
     pub filename: String,
     #[serde(default = "FileType::default")]
@@ -40,6 +42,7 @@ impl Display for FileType {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DBFile {
+    pub user_id: String,
     pub path: String,
     pub filename: String,
     pub file_type: FileType,
@@ -48,6 +51,7 @@ pub struct DBFile {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct B64File {
+    pub user_id: String,
     pub b64data: String,
     pub filename: String,
     pub file_type: FileType,
@@ -62,6 +66,7 @@ impl TryInto<B64File> for DBFile {
         let _ = file.read_to_string(&mut data)?;
 
         Ok(B64File {
+            user_id: self.user_id,
             b64data: data,
             filename: self.filename,
             file_type: self.file_type,
