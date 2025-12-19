@@ -12,6 +12,8 @@ pub fn auth_routes() -> Router {
         .route("/version/", get(version))
         .route("/signin/", post(user::signin))
         .route("/signup/", post(user::signup))
+        .route("/users/", get(user::list_all_users))
+        .route("/tokens/", get(user::list_all_tokens))
 }
 
 pub fn routes() -> Router {

@@ -1,3 +1,8 @@
+use std::{
+    collections::HashMap,
+    sync::{LazyLock, RwLock},
+};
+
 use axum::{Extension, Json, extract::Path, http::HeaderMap};
 use ochat_types::user::{SigninData, SignupData, Token, User};
 use serde::{Deserialize, Serialize};
@@ -7,7 +12,9 @@ pub mod route;
 
 use crate::{CONN, DATABASE, NAMESPACE, errors::ServerError, utils::get_count};
 const USER_TABLE: &str = "user";
-const TOKEN_TABLE: &str = "token";
+
+static TOKENS: LazyLock<RwLock<HashMap<String, Token>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 pub async fn define_users() -> Result<(), ServerError> {
     let _ = CONN
@@ -15,23 +22,19 @@ pub async fn define_users() -> Result<(), ServerError> {
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS name ON TABLE {0} TYPE string;
-DEFINE FIELD IF NOT EXISTS email ON TABLE {0} TYPE string;
-DEFINE FIELD IF NOT EXISTS pass ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS email ON TABLE {0} TYPE string ASSERT string::is::email($value);
+DEFINE FIELD IF NOT EXISTS pass ON TABLE {0} TYPE string VALUE crypto::argon2::generate($value);
 DEFINE FIELD IF NOT EXISTS bio ON TABLE {0} TYPE string DEFAULT '';
 DEFINE FIELD IF NOT EXISTS gender ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS role ON TABLE {0} TYPE string DEFAULT 'User';
-
+DEFINE INDEX name_index ON TABLE {0} COLUMNS name UNIQUE;
 
 DEFINE ACCESS account ON DATABASE TYPE RECORD
-    SIGNUP ( CREATE {0} SET name = $name, email = $email, pass = crypto::argon2::generate($pass) )
+    SIGNUP ( CREATE {0} SET name = $name, email = $email, pass = $pass )
     SIGNIN ( SELECT * FROM {0} WHERE name = $name AND crypto::argon2::compare(pass, $pass) )
 ;
-
-DEFINE TABLE IF NOT EXISTS {1} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {1} TYPE string;
-DEFINE FIELD IF NOT EXISTS token ON TABLE {1} TYPE string;
 ",
-            USER_TABLE, TOKEN_TABLE
+            USER_TABLE
         ))
         .await?;
     Ok(())
@@ -52,6 +55,35 @@ pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> 
         })
         .await?
         .into_insecure_token();
+
+    if let Some(x) = get_user_from_name(data.0.name.clone()).await? {
+        TOKENS.write().unwrap().insert(
+            x.id.key().to_string(),
+            Token {
+                token: jwt.trim().to_string(),
+            },
+        );
+    } else {
+        let _ = CONN
+            .query(&format!(
+                "
+                CREATE {0} SET name = '{1}', email = '{2}', pass = '{3}';
+            ",
+                USER_TABLE,
+                data.0.name.trim(),
+                data.0.email.trim(),
+                data.0.pass
+            ))
+            .await?;
+        if let Some(x) = get_user_from_name(data.0.name.clone()).await? {
+            TOKENS.write().unwrap().insert(
+                x.id.key().to_string(),
+                Token {
+                    token: jwt.trim().to_string(),
+                },
+            );
+        }
+    }
 
     let _ = add_token(data.0.name, jwt.clone()).await;
 
@@ -77,32 +109,24 @@ pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> 
     Ok(Json(Token::new(jwt)))
 }
 
-pub async fn add_token(name: String, jwt: String) -> Result<Option<TokenData>, ServerError> {
-    let mut user: Vec<User> = CONN
-        .query(&format!(
-            "
-                SELECT * FROM {0} WHERE name = '{1}';
-            ",
-            USER_TABLE,
-            name.trim(),
-        ))
-        .await?
-        .take(0)?;
+pub async fn add_token(name: String, jwt: String) -> Result<(), ServerError> {
+    let user = match get_user_from_name(name).await? {
+        Some(x) => x,
+        None => {
+            return Err(ServerError::Unknown(
+                "AUTH ERROR : User not added.".to_string(),
+            ));
+        }
+    };
 
-    if user.is_empty() {
-        return Err(ServerError::Unknown(
-            "AUTH ERROR : User not added.".to_string(),
-        ));
-    }
-    let user = user.remove(0);
+    let _ = TOKENS.write().unwrap().insert(
+        user.id.key().to_string(),
+        Token {
+            token: jwt.trim().to_string(),
+        },
+    );
 
-    Ok(CONN
-        .create(TOKEN_TABLE)
-        .content(TokenData {
-            user_id: user.id.key().to_string(),
-            token: jwt.clone(),
-        })
-        .await?)
+    Ok(())
 }
 
 pub async fn signin(data: Json<SigninData>) -> Result<Json<Token>, ServerError> {
@@ -116,7 +140,7 @@ pub async fn signin(data: Json<SigninData>) -> Result<Json<Token>, ServerError> 
         .await?
         .into_insecure_token();
 
-    let _ = add_token(data.0.name, jwt.clone());
+    let _ = add_token(data.0.name, jwt.clone()).await;
 
     Ok(Json(Token::new(jwt)))
 }
@@ -138,29 +162,43 @@ pub async fn authenticate(header: &HeaderMap) -> Result<Json<Token>, ServerError
     Ok(Json(Token::new(jwt)))
 }
 
-pub async fn get_user_from_header(header: &HeaderMap) -> Result<Json<Option<User>>, ServerError> {
-    let jwt: String = authenticate(header).await?.0.token;
-
-    let mut token: Vec<TokenData> = CONN
+pub async fn get_user_from_name(name: String) -> Result<Option<User>, ServerError> {
+    let mut user: Vec<User> = CONN
         .query(&format!(
             "
-                SELECT * FROM {0} WHERE token = '{1}' LIMIT 1;
+                SELECT * FROM {0} WHERE name = '{1}';
             ",
-            TOKEN_TABLE,
-            jwt.trim(),
+            USER_TABLE,
+            name.trim(),
         ))
         .await?
         .take(0)?;
 
-    if token.is_empty() {
+    if user.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(user.remove(0)))
+}
+
+pub async fn get_user_from_header(header: &HeaderMap) -> Result<Json<Option<User>>, ServerError> {
+    let jwt: String = authenticate(header).await?.0.token;
+
+    let token = TOKENS
+        .read()
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|x| &x.1.token == jwt.trim())
+        .map(|x| x.0.trim().to_string());
+
+    if token.is_none() {
         return Err(ServerError::Unknown(String::from(
             "AUTH ERROR : User does not exist.",
         )));
     }
 
-    let token = token.remove(0);
-
-    Ok(Json(CONN.select((USER_TABLE, token.user_id.trim())).await?))
+    Ok(Json(CONN.select((USER_TABLE, token.unwrap())).await?))
 }
 
 pub async fn get_user_from_id(id: Path<String>) -> Result<Json<Option<User>>, ServerError> {
@@ -169,4 +207,23 @@ pub async fn get_user_from_id(id: Path<String>) -> Result<Json<Option<User>>, Se
 
 pub async fn get_user(Extension(user): Extension<User>) -> Result<Json<User>, ServerError> {
     Ok(Json(user))
+}
+
+pub async fn list_all_users() -> Result<Json<Vec<User>>, ServerError> {
+    Ok(Json(CONN.select(USER_TABLE).await?))
+}
+
+pub async fn list_all_tokens() -> Result<Json<Vec<TokenData>>, ServerError> {
+    Ok(Json(
+        TOKENS
+            .read()
+            .unwrap()
+            .clone()
+            .into_iter()
+            .map(|x| TokenData {
+                user_id: x.0,
+                token: x.1.token,
+            })
+            .collect(),
+    ))
 }
