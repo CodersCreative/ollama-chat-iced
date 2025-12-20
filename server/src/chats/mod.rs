@@ -3,14 +3,9 @@ pub mod previews;
 pub mod relationships;
 pub mod route;
 
-use axum::{Extension, Json, extract::Path};
-use ochat_types::{
-    chats::{Chat, ChatData, previews::Preview},
-    surreal::Datetime,
-    user::User,
-};
-
 use crate::{CONN, chats::previews::PREVIEW_TABLE, errors::ServerError};
+use axum::{Json, extract::Path};
+use ochat_types::chats::{Chat, ChatData, previews::Preview};
 
 const CHAT_TABLE: &str = "chats";
 
@@ -19,10 +14,11 @@ pub async fn define_chats() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
             "
-DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string;
+DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS
+    PERMISSIONS FOR select, update, delete WHERE user_id = meta::id($auth.id);
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string DEFAULT meta::id($auth.id);
 DEFINE FIELD IF NOT EXISTS root ON TABLE {0} TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string DEFAULT <string>time::now();
 ",
             CHAT_TABLE,
         ))
@@ -30,14 +26,7 @@ DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string;
     Ok(())
 }
 
-pub async fn create_chat(
-    Extension(user): Extension<User>,
-    Json(mut chat): Json<ChatData>,
-) -> Result<Json<Option<Chat>>, ServerError> {
-    chat.user_id = Some(user.id.key().to_string());
-    if chat.time.is_none() {
-        chat.time = Some(Datetime::default());
-    }
+pub async fn create_chat(Json(chat): Json<ChatData>) -> Result<Json<Option<Chat>>, ServerError> {
     Ok(Json(CONN.create(CHAT_TABLE).content(chat).await?))
 }
 
@@ -61,14 +50,9 @@ pub async fn set_chat_root(
 }
 
 pub async fn update_chat(
-    Extension(user): Extension<User>,
     id: Path<String>,
-    Json(mut chat): Json<ChatData>,
+    Json(chat): Json<ChatData>,
 ) -> Result<Json<Option<Chat>>, ServerError> {
-    chat.user_id = Some(user.id.key().to_string());
-    if chat.time.is_none() {
-        chat.time = Some(Datetime::default())
-    }
     Ok(Json(
         CONN.update((CHAT_TABLE, id.trim())).content(chat).await?,
     ))

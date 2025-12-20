@@ -18,7 +18,7 @@ use crate::{
     prompts::define_prompts,
     providers::{define_providers, ollama::models::define_ollama_models},
     settings::define_settings,
-    user::{define_users, get_user_from_header},
+    user::{authenticate, define_users},
     utils::get_path_settings,
 };
 use axum::{Router, body::Body, middleware};
@@ -75,19 +75,10 @@ async fn main() {
 }
 
 pub async fn guard(
-    mut req: axum::http::Request<Body>,
+    req: axum::http::Request<Body>,
     next: axum::middleware::Next,
 ) -> Result<axum::response::Response, ServerError> {
-    let user = match get_user_from_header(req.headers()).await?.0 {
-        Some(x) => x,
-        None => {
-            return Err(ServerError::Unknown(String::from(
-                "AUTH ERROR : Not Logged In.",
-            )));
-        }
-    };
-
-    req.extensions_mut().insert(user);
+    let _ = authenticate(req.headers()).await?;
     Ok(next.run(req).await)
 }
 

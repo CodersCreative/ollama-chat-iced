@@ -2,11 +2,8 @@ pub mod relationships;
 pub mod route;
 
 use crate::{CONN, errors::ServerError};
-use axum::{Extension, Json, extract::Path};
-use ochat_types::{
-    options::{GenOptions, GenOptionsData},
-    user::User,
-};
+use axum::{Json, extract::Path};
+use ochat_types::options::{GenOptions, GenOptionsData};
 
 pub const GEN_OPTIONS_TABLE: &str = "gen_options";
 
@@ -14,8 +11,9 @@ pub async fn define_gen_options() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
             "
-DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string;
+DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS
+    PERMISSIONS FOR select, update, delete WHERE user_id = meta::id($auth.id);
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string DEFAULT meta::id($auth.id);
 DEFINE FIELD IF NOT EXISTS name ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS data ON TABLE {0} TYPE array<object, 16>;
 
@@ -29,19 +27,15 @@ DEFINE INDEX name_index ON TABLE {0} COLUMNS name SEARCH ANALYZER options_analyz
 }
 
 pub async fn add_gen_options(
-    Extension(user): Extension<User>,
-    Json(mut options): Json<GenOptionsData>,
+    Json(options): Json<GenOptionsData>,
 ) -> Result<Json<Option<GenOptions>>, ServerError> {
-    options.user_id = Some(user.id.key().to_string());
     Ok(Json(CONN.create(GEN_OPTIONS_TABLE).content(options).await?))
 }
 
 pub async fn update_gen_options(
-    Extension(user): Extension<User>,
     id: Path<String>,
-    Json(mut options): Json<GenOptionsData>,
+    Json(options): Json<GenOptionsData>,
 ) -> Result<Json<Option<GenOptions>>, ServerError> {
-    options.user_id = Some(user.id.key().to_string());
     Ok(Json(
         CONN.update((GEN_OPTIONS_TABLE, id.trim()))
             .content(options)

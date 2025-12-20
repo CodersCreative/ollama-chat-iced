@@ -35,8 +35,10 @@ pub async fn reset_settings() -> Result<Json<Option<Settings>>, ServerError> {
             .find(|x| x.provider_type == ProviderType::Ollama)
         {
             Some(x.clone())
-        } else {
+        } else if providers.len() > 0 {
             Some(providers.remove(0))
+        } else {
+            None
         };
 
         if let Some(provider) = provider {
@@ -81,7 +83,12 @@ pub async fn get_settings() -> Result<Json<Settings>, ServerError> {
     let mut settings: Vec<Settings> = CONN.select(SETTINGS_TABLE).await?;
 
     Ok(Json(if settings.is_empty() {
-        reset_settings().await?.0.unwrap()
+        reset_settings().await?.0.unwrap_or(Settings {
+            previews_provider: None,
+            use_llama_cpp: true,
+            models_path: PathBuf::from_str(&get_path_local("models/".to_string())).unwrap(),
+            id: (SETTINGS_TABLE, "unknown").into(),
+        })
     } else {
         settings.remove(0)
     }))

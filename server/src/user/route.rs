@@ -13,11 +13,10 @@ pub fn auth_routes() -> Router {
         .route("/signin/", post(user::signin))
         .route("/signup/", post(user::signup))
         .route("/users/", get(user::list_all_users))
-        .route("/tokens/", get(user::list_all_tokens))
 }
 
 pub fn routes() -> Router {
     Router::new()
         .route("/user/{id}", get(user::get_user_from_id))
-        .route("/user/", get(user::get_user))
+        .route("/user/", get(user::get_current_user))
 }

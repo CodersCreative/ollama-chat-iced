@@ -1,9 +1,6 @@
 use crate::{CONN, errors::ServerError};
-use axum::{Extension, Json, extract::Path};
-use ochat_types::{
-    prompts::{Prompt, PromptData},
-    user::User,
-};
+use axum::{Json, extract::Path};
+use ochat_types::prompts::{Prompt, PromptData};
 const PROMPTS_TABLE: &str = "prompts";
 
 pub mod route;
@@ -12,8 +9,9 @@ pub async fn define_prompts() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
             "
-DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string;
+DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS
+    PERMISSIONS FOR select, update, delete WHERE user_id = meta::id($auth.id);
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string DEFAULT meta::id($auth.id);
 DEFINE FIELD IF NOT EXISTS title ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS command ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS content ON TABLE {0} TYPE string;
@@ -34,19 +32,15 @@ DEFINE INDEX content_index ON TABLE {0} COLUMNS content SEARCH ANALYZER prompts_
 }
 
 pub async fn add_prompt(
-    Extension(user): Extension<User>,
-    Json(mut prompts): Json<PromptData>,
+    Json(prompts): Json<PromptData>,
 ) -> Result<Json<Option<Prompt>>, ServerError> {
-    prompts.user_id = Some(user.id.key().to_string());
     Ok(Json(CONN.create(PROMPTS_TABLE).content(prompts).await?))
 }
 
 pub async fn update_prompt(
-    Extension(user): Extension<User>,
     id: Path<String>,
-    Json(mut prompts): Json<PromptData>,
+    Json(prompts): Json<PromptData>,
 ) -> Result<Json<Option<Prompt>>, ServerError> {
-    prompts.user_id = Some(user.id.key().to_string());
     Ok(Json(
         CONN.update((PROMPTS_TABLE, id.trim()))
             .content(prompts)

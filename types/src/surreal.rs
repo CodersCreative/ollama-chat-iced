@@ -33,6 +33,36 @@ impl Deref for RecordIdOnly {
 #[allow(non_snake_case)]
 pub struct RecordIdKey(Id);
 
+impl From<&str> for RecordIdKey {
+    fn from(value: &str) -> Self {
+        Self(Id::String(value.to_string()))
+    }
+}
+
+impl From<String> for RecordIdKey {
+    fn from(value: String) -> Self {
+        Self(Id::String(value))
+    }
+}
+
+impl From<(&str, &str)> for RecordId {
+    fn from(value: (&str, &str)) -> Self {
+        Self {
+            tb: value.0.to_string(),
+            id: value.1.into(),
+        }
+    }
+}
+
+impl From<(String, String)> for RecordId {
+    fn from(value: (String, String)) -> Self {
+        Self {
+            tb: value.0,
+            id: value.1.into(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Id {
     String(String),

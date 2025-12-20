@@ -58,8 +58,8 @@ impl AuthMessage {
                 Task::none()
             }
             Self::SignedIn(x) => {
+                app.popups.clear();
                 *JWT.write().unwrap() = Some(x.clone());
-                println!("{}", x);
                 unsafe { std::env::set_var(JWT_ENV_VAR, x.clone()) };
 
                 Task::future(async {
@@ -85,7 +85,7 @@ impl AuthMessage {
                     Page::Signin => {
                         let data = SigninData {
                             name: view.name.clone(),
-                            pass: view.pass.clone(),
+                            password: view.pass.clone(),
                         };
 
                         Task::future(async move {
@@ -123,7 +123,7 @@ impl AuthMessage {
                         let data = SignupData {
                             name: view.name.clone(),
                             email: view.email.clone(),
-                            pass: view.pass.clone(),
+                            password: view.pass.clone(),
                         };
 
                         Task::future(async move {
