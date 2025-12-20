@@ -36,7 +36,7 @@ impl Display for Gender {
 pub struct SignupData {
     pub name: String,
     pub email: String,
-    pub pass: String,
+    pub password: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -68,5 +68,5 @@ pub struct User {
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct SigninData {
     pub name: String,
-    pub pass: String,
+    pub password: String,
 }

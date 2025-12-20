@@ -90,12 +90,22 @@ pub async fn guard(
     req.extensions_mut().insert(user);
     Ok(next.run(req).await)
 }
-pub async fn init_db() -> Result<(), ServerError> {
+
+pub async fn connect_db() -> Result<(), ServerError> {
     let _ = CONN
         .connect::<RocksDb>(&get_path_settings("database".to_string()))
         .await?;
+    Ok(())
+}
 
+pub async fn set_db() -> Result<(), ServerError> {
     let _ = CONN.use_ns(NAMESPACE).use_db(DATABASE).await?;
+    Ok(())
+}
+
+pub async fn init_db() -> Result<(), ServerError> {
+    let _ = connect_db().await?;
+    let _ = set_db().await?;
 
     let _ = tokio::try_join![
         define_settings(),

@@ -6874,6 +6874,7 @@ dependencies = [
  "async-openai",
  "axum",
  "axum-streams",
+ "base64 0.22.1",
  "clap 4.5.53",
  "futures",
  "kalosm",

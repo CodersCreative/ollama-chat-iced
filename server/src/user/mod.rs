@@ -1,20 +1,17 @@
-use std::{
-    collections::HashMap,
-    sync::{LazyLock, RwLock},
-};
-
 use axum::{Extension, Json, extract::Path, http::HeaderMap};
-use ochat_types::user::{SigninData, SignupData, Token, User};
+use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
+use ochat_types::{
+    surreal::RecordId,
+    user::{SigninData, SignupData, Token, User},
+};
 use serde::{Deserialize, Serialize};
 use surrealdb::opt::auth::Record;
 
 pub mod route;
 
-use crate::{CONN, DATABASE, NAMESPACE, errors::ServerError, utils::get_count};
+use crate::{CONN, DATABASE, NAMESPACE, errors::ServerError, set_db, utils::get_count};
 const USER_TABLE: &str = "user";
-
-static TOKENS: LazyLock<RwLock<HashMap<String, Token>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
+const TOKEN_TABLE: &str = "token";
 
 pub async fn define_users() -> Result<(), ServerError> {
     let _ = CONN
@@ -23,26 +20,39 @@ pub async fn define_users() -> Result<(), ServerError> {
 DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
 DEFINE FIELD IF NOT EXISTS name ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS email ON TABLE {0} TYPE string ASSERT string::is::email($value);
-DEFINE FIELD IF NOT EXISTS pass ON TABLE {0} TYPE string VALUE crypto::argon2::generate($value);
+DEFINE FIELD IF NOT EXISTS email ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS password ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS bio ON TABLE {0} TYPE string DEFAULT '';
 DEFINE FIELD IF NOT EXISTS gender ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS role ON TABLE {0} TYPE string DEFAULT 'User';
+DEFINE FIELD IF NOT EXISTS enabled ON TABLE {0} TYPE bool DEFAULT true;
 DEFINE INDEX name_index ON TABLE {0} COLUMNS name UNIQUE;
+DEFINE INDEX email_index ON TABLE {0} COLUMNS email UNIQUE;
 
-DEFINE ACCESS account ON DATABASE TYPE RECORD
-    SIGNUP ( CREATE {0} SET name = $name, email = $email, pass = $pass )
-    SIGNIN ( SELECT * FROM {0} WHERE name = $name AND crypto::argon2::compare(pass, $pass) )
+DEFINE TABLE IF NOT EXISTS {1} SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {1} TYPE string;
+DEFINE FIELD IF NOT EXISTS exp ON TABLE {1} TYPE string;
+
+DEFINE ACCESS IF NOT EXISTS {0} ON DATABASE TYPE RECORD
+    SIGNUP ( CREATE {0} SET name = $name, email = $email, password = crypto::argon2::generate($password) )
+    SIGNIN ( SELECT * FROM {0} WHERE name = $name AND crypto::argon2::compare(password, $password) )
+    AUTHENTICATE {{
+        INSERT INTO {1} {{ id: $token.jti, user_id : <string>meta::id($auth.id), exp: <string>$token.exp}};
+        RETURN $auth;
+    }}
+    DURATION FOR TOKEN 15m, FOR SESSION 12h
 ;
 ",
-            USER_TABLE
+            USER_TABLE, TOKEN_TABLE
         ))
         .await?;
     Ok(())
 }
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TokenData {
+    pub id: RecordId,
     pub user_id: String,
-    pub token: String,
+    pub exp: String,
 }
 
 pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> {
@@ -50,42 +60,13 @@ pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> 
         .signup(Record {
             namespace: NAMESPACE,
             database: DATABASE,
-            access: "account",
+            access: USER_TABLE,
             params: data.0.clone(),
         })
         .await?
         .into_insecure_token();
 
-    if let Some(x) = get_user_from_name(data.0.name.clone()).await? {
-        TOKENS.write().unwrap().insert(
-            x.id.key().to_string(),
-            Token {
-                token: jwt.trim().to_string(),
-            },
-        );
-    } else {
-        let _ = CONN
-            .query(&format!(
-                "
-                CREATE {0} SET name = '{1}', email = '{2}', pass = '{3}';
-            ",
-                USER_TABLE,
-                data.0.name.trim(),
-                data.0.email.trim(),
-                data.0.pass
-            ))
-            .await?;
-        if let Some(x) = get_user_from_name(data.0.name.clone()).await? {
-            TOKENS.write().unwrap().insert(
-                x.id.key().to_string(),
-                Token {
-                    token: jwt.trim().to_string(),
-                },
-            );
-        }
-    }
-
-    let _ = add_token(data.0.name, jwt.clone()).await;
+    let _ = set_db().await?;
 
     let count = get_count(&format!(
         "
@@ -109,38 +90,18 @@ pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> 
     Ok(Json(Token::new(jwt)))
 }
 
-pub async fn add_token(name: String, jwt: String) -> Result<(), ServerError> {
-    let user = match get_user_from_name(name).await? {
-        Some(x) => x,
-        None => {
-            return Err(ServerError::Unknown(
-                "AUTH ERROR : User not added.".to_string(),
-            ));
-        }
-    };
-
-    let _ = TOKENS.write().unwrap().insert(
-        user.id.key().to_string(),
-        Token {
-            token: jwt.trim().to_string(),
-        },
-    );
-
-    Ok(())
-}
-
 pub async fn signin(data: Json<SigninData>) -> Result<Json<Token>, ServerError> {
     let jwt = CONN
         .signin(Record {
             namespace: NAMESPACE,
             database: DATABASE,
-            access: "account",
+            access: USER_TABLE,
             params: data.0.clone(),
         })
         .await?
         .into_insecure_token();
 
-    let _ = add_token(data.0.name, jwt.clone()).await;
+    let _ = set_db().await?;
 
     Ok(Json(Token::new(jwt)))
 }
@@ -158,7 +119,8 @@ pub async fn authenticate(header: &HeaderMap) -> Result<Json<Token>, ServerError
     .map_err(|e| ServerError::Unknown(e.to_string()))?
     .to_string();
 
-    let _ = CONN.authenticate(jwt.clone()).await?;
+    let jwt: String = get_jti_raw(&jwt).unwrap();
+
     Ok(Json(Token::new(jwt)))
 }
 
@@ -184,13 +146,7 @@ pub async fn get_user_from_name(name: String) -> Result<Option<User>, ServerErro
 pub async fn get_user_from_header(header: &HeaderMap) -> Result<Json<Option<User>>, ServerError> {
     let jwt: String = authenticate(header).await?.0.token;
 
-    let token = TOKENS
-        .read()
-        .as_ref()
-        .unwrap()
-        .iter()
-        .find(|x| &x.1.token == jwt.trim())
-        .map(|x| x.0.trim().to_string());
+    let token: Option<TokenData> = CONN.select((TOKEN_TABLE, jwt)).await?;
 
     if token.is_none() {
         return Err(ServerError::Unknown(String::from(
@@ -198,7 +154,10 @@ pub async fn get_user_from_header(header: &HeaderMap) -> Result<Json<Option<User
         )));
     }
 
-    Ok(Json(CONN.select((USER_TABLE, token.unwrap())).await?))
+    Ok(Json(
+        CONN.select((USER_TABLE, token.unwrap().user_id.trim()))
+            .await?,
+    ))
 }
 
 pub async fn get_user_from_id(id: Path<String>) -> Result<Json<Option<User>>, ServerError> {
@@ -214,16 +173,18 @@ pub async fn list_all_users() -> Result<Json<Vec<User>>, ServerError> {
 }
 
 pub async fn list_all_tokens() -> Result<Json<Vec<TokenData>>, ServerError> {
-    Ok(Json(
-        TOKENS
-            .read()
-            .unwrap()
-            .clone()
-            .into_iter()
-            .map(|x| TokenData {
-                user_id: x.0,
-                token: x.1.token,
-            })
-            .collect(),
-    ))
+    Ok(Json(CONN.select(TOKEN_TABLE).await?))
+}
+
+fn get_jti_raw(token: &str) -> Option<String> {
+    let parts: Vec<&str> = token.split('.').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let payload_b64 = parts[1];
+    let decoded = BASE64_URL_SAFE_NO_PAD.decode(payload_b64).ok()?;
+    let json: serde_json::Value = serde_json::from_slice(&decoded).ok()?;
+
+    json.get("jti")?.as_str().map(|s| s.to_string())
 }
