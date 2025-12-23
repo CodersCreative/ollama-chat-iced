@@ -21,8 +21,10 @@ use crate::backend::{
     user::{authenticate, define_users},
     utils::get_path_settings,
 };
-use axum::body::Body;
+use axum::{Router, body::Body, middleware};
 use chats::messages;
+use clap::Parser;
+use ochat_types::WORD_ART;
 use std::sync::LazyLock;
 use surrealdb::{
     Surreal,
@@ -32,6 +34,48 @@ use surrealdb::{
 static CONN: LazyLock<Surreal<Db>> = LazyLock::new(Surreal::init);
 const DATABASE: &str = "test";
 const NAMESPACE: &str = "test";
+
+#[derive(Parser, Debug, Clone)]
+#[command(version, about, long_about = None)]
+pub struct Arguments {
+    #[arg(short, long)]
+    url: Option<String>,
+}
+
+pub async fn start_server<F: FnOnce(String) -> Router>(router_fn: F) {
+    let args = Arguments::parse();
+    init_db().await.unwrap();
+    let api = Router::new().merge(user::route::auth_routes());
+
+    let api_protected = Router::new()
+        .merge(user::route::routes())
+        .merge(chats::route::routes())
+        .merge(files::route::routes())
+        .merge(generation::route::routes())
+        .merge(options::route::routes())
+        .merge(prompts::route::routes())
+        .merge(providers::route::routes())
+        .merge(settings::route::routes())
+        .route_layer(middleware::from_fn(guard));
+
+    let mut url = args.url.unwrap_or("localhost:1212".to_string());
+
+    if url.is_empty() {
+        url = "localhost:1212".to_string();
+    }
+
+    url = url.replace("localhost", "127.0.0.1");
+
+    let app = router_fn(url.clone()).nest("/api", Router::new().merge(api).merge(api_protected));
+
+    println!("{}", WORD_ART);
+    println!("Starting server at '{}'.", url);
+
+    let listener = tokio::net::TcpListener::bind(url).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
+}
 
 pub async fn guard(
     req: axum::http::Request<Body>,

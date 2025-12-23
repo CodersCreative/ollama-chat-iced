@@ -1,5 +1,5 @@
 pub mod app;
-#[cfg(feature = "ssr")]
+#[cfg(feature = "normal")]
 pub mod backend;
 
 #[cfg(feature = "hydrate")]

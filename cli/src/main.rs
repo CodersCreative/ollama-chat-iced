@@ -221,7 +221,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("{}", WORD_ART);
 
-    let url = args.url.clone().unwrap_or("localhost:1212".to_string());
+    let url = args.url.clone().unwrap_or("localhost:1212/api".to_string());
 
     if args.serve || (args.action.is_none() && !args.gui) {
         println!("Starting server at '{}'.", url);

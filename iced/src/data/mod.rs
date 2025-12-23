@@ -39,7 +39,7 @@ impl Data {
     pub async fn get(instance: Option<String>) -> Result<Data, Box<dyn Error>> {
         let instance = match instance {
             Some(x) => x,
-            _ => String::from("http://localhost:1212"),
+            _ => String::from("http://localhost:1212/api"),
         };
 
         let providers: Vec<Provider> = request_ochat_server(

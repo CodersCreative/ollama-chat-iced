@@ -21,10 +21,17 @@ hydrate = [
     "dep:wasm-bindgen",
 ]
 ssr = [
+    "dep:leptos_axum",
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "normal"
+]
+
+normal = [
     "dep:axum",
     "dep:axum-streams",
     "dep:tokio",
-    "dep:leptos_axum",
     "dep:async-openai",
     "dep:futures",
     "dep:surrealdb",
@@ -34,9 +41,6 @@ ssr = [
     "dep:reqwest",
     "dep:kalosm",
     "dep:llama-cpp-2",
-    "leptos/ssr",
-    "leptos_meta/ssr",
-    "leptos_router/ssr",
 ]
 
 voice = ["kalosm/sound", "dep:rodio", "sound"]
@@ -46,7 +50,7 @@ cuda = ["llama-cpp-2/cuda", "kalosm/cuda"]
 vulkan = ["llama-cpp-2/vulkan"]
 metal = ["llama-cpp-2/metal", "kalosm/metal"]
 full = ["python", "voice"]
-default = ["ssr"]
+default = ["normal"]
 
 [dependencies]
 async-openai = {version = "0.30.1", optional = true}

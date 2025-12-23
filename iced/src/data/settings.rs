@@ -17,7 +17,7 @@ pub struct ClientSettings {
 impl Default for ClientSettings {
     fn default() -> Self {
         ClientSettings {
-            instance_url: String::from("http://localhost:1212"),
+            instance_url: String::from("http://localhost:1212/api"),
             default_provider: None,
             use_panes: true,
             theme: 11,
