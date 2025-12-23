@@ -182,7 +182,7 @@ impl From<GenOptionKey> for GenOption {
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct GenOptionsData {
     #[builder(default = "None")]
-    pub user_id: Option<String>,
+    pub user_id: Option<RecordId>,
     pub name: String,
     #[builder(default = "GenOption::get_all()")]
     #[serde(default = "GenOption::get_all")]
@@ -211,7 +211,7 @@ impl From<GenOptions> for GenOptionsData {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GenOptions {
-    pub user_id: String,
+    pub user_id: RecordId,
     pub name: String,
     pub data: [GenOption; 16],
     pub id: RecordId,
@@ -225,7 +225,7 @@ pub mod relationships {
     #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
     pub struct GenModelRelationshipData {
         #[builder(default = "None")]
-        pub user_id: Option<String>,
+        pub user_id: Option<RecordId>,
         pub provider: String,
         pub model: String,
         pub option: String,
@@ -239,7 +239,7 @@ pub mod relationships {
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct GenModelRelationship {
-        pub user_id: String,
+        pub user_id: RecordId,
         pub provider: String,
         pub model: String,
         pub option: String,

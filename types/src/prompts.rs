@@ -6,7 +6,7 @@ use std::fmt::Display;
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct PromptData {
     #[builder(default = "None")]
-    pub user_id: Option<String>,
+    pub user_id: Option<RecordId>,
     pub command: String,
     pub title: String,
     pub content: String,
@@ -43,7 +43,7 @@ impl Into<PromptData> for Prompt {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Prompt {
-    pub user_id: String,
+    pub user_id: RecordId,
     pub command: String,
     pub title: String,
     pub content: String,

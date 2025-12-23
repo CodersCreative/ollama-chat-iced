@@ -1,54 +1,28 @@
-pub mod chats;
-pub mod errors;
-pub mod files;
-pub mod generation;
-pub mod options;
-pub mod prompts;
-pub mod providers;
-pub mod settings;
-pub mod user;
-pub mod utils;
-
-use crate::{
-    chats::{define_chats, previews::define_previews, relationships::define_message_relationships},
-    errors::ServerError,
-    files::define_files,
-    messages::define_messages,
-    options::{define_gen_options, relationships::define_gen_models},
-    prompts::define_prompts,
-    providers::{define_providers, ollama::models::define_ollama_models},
-    settings::define_settings,
-    user::{authenticate, define_users},
-    utils::get_path_settings,
-};
-use axum::{Router, body::Body, middleware};
-use chats::messages;
-use clap::Parser;
-use ochat_types::WORD_ART;
-use std::sync::LazyLock;
-use surrealdb::{
-    Surreal,
-    engine::local::{Db, RocksDb},
-};
-
-static CONN: LazyLock<Surreal<Db>> = LazyLock::new(Surreal::init);
-const DATABASE: &str = "test";
-const NAMESPACE: &str = "test";
-
-#[derive(Parser, Debug, Clone)]
-#[command(version, about, long_about = None)]
-struct Arguments {
-    #[arg(short, long)]
-    url: Option<String>,
-}
-
+#[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
+    use axum::{Router, middleware};
+    use clap::Parser;
+    use leptos::prelude::*;
+    use leptos_axum::{LeptosRoutes, generate_route_list};
+    use ochat_server::app::*;
+    use ochat_server::backend::*;
+    use ochat_types::WORD_ART;
+    use std::net::SocketAddrV4;
+    use std::str::FromStr;
+
+    #[derive(Parser, Debug, Clone)]
+    #[command(version, about, long_about = None)]
+    struct Arguments {
+        #[arg(short, long)]
+        url: Option<String>,
+    }
+
     let args = Arguments::parse();
     init_db().await.unwrap();
-    let app = Router::new().merge(user::route::auth_routes());
+    let api = Router::new().merge(user::route::auth_routes());
 
-    let protected = Router::new()
+    let api_protected = Router::new()
         .merge(user::route::routes())
         .merge(chats::route::routes())
         .merge(files::route::routes())
@@ -59,60 +33,42 @@ async fn main() {
         .merge(settings::route::routes())
         .route_layer(middleware::from_fn(guard));
 
-    let app = Router::new().merge(app).merge(protected);
-
     let mut url = args.url.unwrap_or("localhost:1212".to_string());
 
     if url.is_empty() {
         url = "localhost:1212".to_string();
     }
 
+    url = url.replace("localhost", "127.0.0.1");
+
+    let mut conf = get_configuration(None).unwrap();
+    conf.leptos_options.site_addr = std::net::SocketAddr::V4(SocketAddrV4::from_str(&url).unwrap());
+    let leptos_options = conf.leptos_options;
+
+    // Generate the list of routes in your Leptos App
+    let routes = generate_route_list(App);
+
+    let app = Router::new()
+        .leptos_routes(&leptos_options, routes, {
+            let leptos_options = leptos_options.clone();
+            move || shell(leptos_options.clone())
+        })
+        .fallback(leptos_axum::file_and_error_handler(shell))
+        .with_state(leptos_options)
+        .nest("/api", Router::new().merge(api).merge(api_protected));
+
     println!("{}", WORD_ART);
     println!("Starting server at '{}'.", url);
 
     let listener = tokio::net::TcpListener::bind(url).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
 }
 
-pub async fn guard(
-    req: axum::http::Request<Body>,
-    next: axum::middleware::Next,
-) -> Result<axum::response::Response, ServerError> {
-    let _ = authenticate(req.headers()).await?;
-    Ok(next.run(req).await)
-}
-
-pub async fn connect_db() -> Result<(), ServerError> {
-    let _ = CONN
-        .connect::<RocksDb>(&get_path_settings("database".to_string()))
-        .await?;
-    Ok(())
-}
-
-pub async fn set_db() -> Result<(), ServerError> {
-    let _ = CONN.use_ns(NAMESPACE).use_db(DATABASE).await?;
-    Ok(())
-}
-
-pub async fn init_db() -> Result<(), ServerError> {
-    let _ = connect_db().await?;
-    let _ = set_db().await?;
-
-    let _ = tokio::try_join![
-        define_settings(),
-        define_messages(),
-        define_chats(),
-        define_message_relationships(),
-        define_ollama_models(),
-        define_previews(),
-        define_files(),
-        define_prompts(),
-        define_gen_options(),
-        define_gen_models(),
-        define_providers(),
-        define_chats(),
-        define_users(),
-    ]?;
-
-    Ok(())
+#[cfg(not(feature = "ssr"))]
+pub fn main() {
+    // no client-side main function
+    // unless we want this to work with e.g., Trunk for pure client-side testing
+    // see lib.rs for hydration function instead
 }
