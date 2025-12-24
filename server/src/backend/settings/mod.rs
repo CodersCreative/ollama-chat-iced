@@ -15,7 +15,7 @@ pub async fn define_settings() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
             "
-DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL PERMISSIONS FULL;
+DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS PERMISSIONS FULL;
 DEFINE FIELD IF NOT EXISTS previews_provider ON TABLE {0} TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS models_path ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS use_llama_cpp ON TABLE {0} TYPE bool;

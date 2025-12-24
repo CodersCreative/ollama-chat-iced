@@ -32,7 +32,7 @@ pub struct SetupPage {
 impl Default for SetupPage {
     fn default() -> Self {
         Self {
-            instance_url: String::from("http://localhost:1212"),
+            instance_url: String::from("http://localhost:1212/api"),
             provider_inputs: Vec::new(),
         }
     }

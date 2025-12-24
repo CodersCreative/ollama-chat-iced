@@ -1,4 +1,7 @@
-use crate::backend::{CONN, DATABASE, NAMESPACE, errors::ServerError, utils::get_count};
+use crate::backend::{
+    CONN, DATABASE, NAMESPACE, define_starting_data, errors::ServerError,
+    providers::ollama::models::OLLAMA_MODELS_TABLE, utils::get_count,
+};
 use axum::{Json, extract::Path, http::HeaderMap};
 use ochat_types::{
     surreal::RecordId,
@@ -58,8 +61,11 @@ pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> 
             access: AUTH_TABLE,
             params: data.0.clone(),
         })
-        .await?
-        .into_insecure_token();
+        .await?;
+
+    CONN.authenticate(jwt.clone()).await?;
+
+    reset_persistent_db_data_if_required().await?;
 
     let count = get_count(&format!(
         "
@@ -80,7 +86,23 @@ pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> 
             .await;
     }
 
-    Ok(Json(Token::new(jwt)))
+    Ok(Json(Token::new(jwt.into_insecure_token())))
+}
+
+pub async fn reset_persistent_db_data_if_required() -> Result<(), ServerError> {
+    let count = get_count(&format!(
+        "
+                SELECT count() FROM {0} GROUP ALL;
+            ",
+        OLLAMA_MODELS_TABLE,
+    ))
+    .await?;
+
+    if count == 0 {
+        define_starting_data().await?;
+    }
+
+    Ok(())
 }
 
 pub async fn signin(data: Json<SigninData>) -> Result<Json<Token>, ServerError> {
@@ -91,10 +113,13 @@ pub async fn signin(data: Json<SigninData>) -> Result<Json<Token>, ServerError> 
             access: AUTH_TABLE,
             params: data.0.clone(),
         })
-        .await?
-        .into_insecure_token();
+        .await?;
 
-    Ok(Json(Token::new(jwt)))
+    CONN.authenticate(jwt.clone()).await?;
+
+    reset_persistent_db_data_if_required().await?;
+
+    Ok(Json(Token::new(jwt.into_insecure_token())))
 }
 
 pub async fn authenticate(header: &HeaderMap) -> Result<(), ServerError> {
@@ -110,7 +135,7 @@ pub async fn authenticate(header: &HeaderMap) -> Result<(), ServerError> {
     .map_err(|e| ServerError::Unknown(e.to_string()))?
     .to_string();
 
-    let _ = CONN.authenticate(jwt).await?;
+    CONN.authenticate(jwt).await?;
 
     Ok(())
 }
@@ -119,7 +144,7 @@ pub async fn get_current_user() -> Result<Json<Option<User>>, ServerError> {
     let mut user: Vec<User> = CONN
         .query(&format!(
             "
-                SELECT * FROM type::record('{0}', <string>meta::id($auth.id));
+                SELECT * FROM type::thing('{0}', meta::id($auth.id));
             ",
             USER_TABLE,
         ))
@@ -130,7 +155,7 @@ pub async fn get_current_user() -> Result<Json<Option<User>>, ServerError> {
         user = CONN
             .query(&format!(
                 "
-                CREATE type::record('{0}', <string>meta::id($auth.id));
+                CREATE type::thing('{0}', meta::id($auth.id));
             ",
                 USER_TABLE,
             ))

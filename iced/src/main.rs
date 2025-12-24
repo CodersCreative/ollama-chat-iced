@@ -253,7 +253,7 @@ impl Application {
             _ => None,
         };
 
-        let url = url.unwrap_or("http://localhost:1212".to_string());
+        let url = url.unwrap_or("http://localhost:1212/api".to_string());
         let get_default_data = |jwt: Option<String>| -> Data {
             tokio::runtime::Runtime::new()
                 .unwrap()

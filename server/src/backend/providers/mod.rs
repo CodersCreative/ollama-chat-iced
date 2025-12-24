@@ -36,7 +36,7 @@ pub async fn define_providers() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
             "
-DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS;
+DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD IF NOT EXISTS name ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS url ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS api_key ON TABLE {0} TYPE string;
@@ -46,6 +46,10 @@ DEFINE FIELD IF NOT EXISTS provider_type ON TABLE {0} TYPE string;
         ))
         .await?;
 
+    Ok(())
+}
+
+pub async fn add_default_providers() -> Result<(), ServerError> {
     if match list_all_providers().await {
         Ok(x) => x.is_empty(),
         _ => true,

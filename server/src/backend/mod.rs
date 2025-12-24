@@ -16,7 +16,10 @@ use crate::backend::{
     messages::define_messages,
     options::{define_gen_options, relationships::define_gen_models},
     prompts::define_prompts,
-    providers::{define_providers, ollama::models::define_ollama_models},
+    providers::{
+        add_default_providers, define_providers,
+        ollama::models::{add_all_ollama_models, define_ollama_models},
+    },
     settings::define_settings,
     user::{authenticate, define_users},
     utils::get_path_settings,
@@ -82,25 +85,31 @@ pub async fn guard(
     req: axum::http::Request<Body>,
     next: axum::middleware::Next,
 ) -> Result<axum::response::Response, ServerError> {
-    let _ = authenticate(req.headers()).await?;
+    authenticate(req.headers()).await?;
     Ok(next.run(req).await)
 }
 
 pub async fn connect_db() -> Result<(), ServerError> {
-    let _ = CONN
-        .connect::<RocksDb>(&get_path_settings("database".to_string()))
+    CONN.connect::<RocksDb>(&get_path_settings("database".to_string()))
         .await?;
     Ok(())
 }
 
 pub async fn set_db() -> Result<(), ServerError> {
-    let _ = CONN.use_ns(NAMESPACE).use_db(DATABASE).await?;
+    CONN.use_ns(NAMESPACE).use_db(DATABASE).await?;
     Ok(())
 }
 
 pub async fn init_db() -> Result<(), ServerError> {
-    let _ = connect_db().await?;
-    let _ = set_db().await?;
+    connect_db().await?;
+    set_db().await?;
+    define_tables().await?;
+    define_starting_data().await
+}
+
+pub async fn define_tables() -> Result<(), ServerError> {
+    define_providers().await?;
+    add_default_providers().await?;
 
     let _ = tokio::try_join![
         define_settings(),
@@ -113,10 +122,15 @@ pub async fn init_db() -> Result<(), ServerError> {
         define_prompts(),
         define_gen_options(),
         define_gen_models(),
-        define_providers(),
         define_chats(),
         define_users(),
     ]?;
+
+    Ok(())
+}
+
+pub async fn define_starting_data() -> Result<(), ServerError> {
+    let _ = tokio::try_join![add_all_ollama_models(), add_default_providers()]?;
 
     Ok(())
 }

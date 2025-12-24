@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::backend::{CONN, errors::ServerError};
 
-const OLLAMA_MODELS_TABLE: &str = "ollama_models";
+pub const OLLAMA_MODELS_TABLE: &str = "ollama_models";
 
 pub async fn define_ollama_models() -> Result<(), ServerError> {
     let _ = CONN
@@ -23,16 +23,6 @@ DEFINE FIELD IF NOT EXISTS description ON TABLE {0} TYPE string;
         ))
         .await?;
 
-    if let Ok(models) = get_all_ollama_models().await {
-        let _ = CONN
-            .query(&format!("DELETE {};", OLLAMA_MODELS_TABLE))
-            .await?;
-        for model in models {
-            let _: Option<OllamaModelsInfo> =
-                CONN.create(OLLAMA_MODELS_TABLE).content(model).await?;
-        }
-    }
-
     let _ = CONN
         .query(&format!(
             "
@@ -44,6 +34,18 @@ DEFINE INDEX author_index ON TABLE {0} COLUMNS author SEARCH ANALYZER ollama_ana
             OLLAMA_MODELS_TABLE,
         ))
         .await?;
+    Ok(())
+}
+
+pub async fn add_all_ollama_models() -> Result<(), ServerError> {
+    let models = get_all_ollama_models().await?;
+    let _ = CONN
+        .query(&format!("DELETE {};", OLLAMA_MODELS_TABLE))
+        .await?;
+    for model in models {
+        let _: Option<OllamaModelsInfo> = CONN.create(OLLAMA_MODELS_TABLE).content(model).await?;
+    }
+
     Ok(())
 }
 

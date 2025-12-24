@@ -15,7 +15,7 @@ pub async fn define_messages() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
             "
-DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL PERMISSIONS FULL;
+DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS PERMISSIONS FULL;
 DEFINE FIELD IF NOT EXISTS content ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS thinking ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS model ON TABLE {0} TYPE option<object>;

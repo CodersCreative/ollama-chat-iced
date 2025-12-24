@@ -11,7 +11,7 @@ pub async fn define_prompts() -> Result<(), ServerError> {
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL
     PERMISSIONS FOR select, update, delete WHERE user_id = $auth.id FOR create FULL;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE record DEFAULT $auth.id;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE record DEFAULT ALWAYS $auth.id;
 DEFINE FIELD IF NOT EXISTS title ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS command ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS content ON TABLE {0} TYPE string;

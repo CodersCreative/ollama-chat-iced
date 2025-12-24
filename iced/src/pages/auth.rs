@@ -168,7 +168,7 @@ impl Default for AuthPage {
     fn default() -> Self {
         Self {
             page: Page::Signin,
-            instance_url: String::from("http://localhost:1212"),
+            instance_url: String::from("http://localhost:1212/api"),
             email: String::new(),
             name: String::new(),
             pass: String::new(),

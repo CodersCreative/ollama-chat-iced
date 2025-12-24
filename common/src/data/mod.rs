@@ -134,7 +134,7 @@ impl Data {
             url: self
                 .instance_url
                 .clone()
-                .unwrap_or(String::from("http://localhost:1212")),
+                .unwrap_or(String::from("http://localhost:1212/api")),
             jwt: self.jwt.clone(),
         }
     }
