@@ -15,6 +15,7 @@ license = "MIT"
 [dependencies]
 clap = { version = "4.5.53", features = ["derive"] }
 ochat-types = {path = "../types"}
+ochat-common = {path = "../common"}
 tokio = { version = "1.48.0", features = ["full"] }
 reqwest = { version = "0.12.24", features = ["json", "stream"] }
 tabled = "0.20.0"

@@ -1,8 +1,10 @@
-pub mod data;
-
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use futures::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
+use ochat_common::{
+    data::{Request, RequestType, versions::Versions},
+    load_token, save_token,
+};
 use ochat_types::{
     WORD_ART,
     generation::text::{
@@ -12,6 +14,7 @@ use ochat_types::{
         Provider, ProviderData, ProviderDataBuilder, ProviderType,
         ollama::{OllamaModelsInfo, OllamaPullModelStreamResult},
     },
+    user::{SigninData, SignupData, Token},
 };
 use rustyline::{DefaultEditor, error::ReadlineError};
 use serde_json::Value;
@@ -26,10 +29,8 @@ use tabled::{
     settings::{Alignment, Style},
 };
 
-use crate::data::{REQWEST_CLIENT, RequestType};
-
 #[derive(Parser, Debug, Clone)]
-#[command(version, about, long_about = None)]
+#[command(about, long_about = None)]
 struct Arguments {
     #[command(subcommand)]
     action: Option<Action>,
@@ -39,6 +40,8 @@ struct Arguments {
     serve: bool,
     #[arg(long)]
     gui: bool,
+    #[arg(long)]
+    version: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -73,6 +76,15 @@ enum Action {
         url: String,
         r#type: ClapProviderType,
     },
+    SignIn {
+        name: String,
+        password: String,
+    },
+    SignUp {
+        name: String,
+        email: String,
+        password: String,
+    },
     List,
 }
 
@@ -94,17 +106,58 @@ impl Into<ProviderType> for ClapProviderType {
 }
 
 fn spawn_iced() -> Result<std::process::Child, std::io::Error> {
-    return Command::new("ochat-iced").spawn();
+    Command::new("ochat-iced").spawn()
 }
 
 fn spawn_server(url: String) -> Result<std::process::Child, std::io::Error> {
-    return Command::new("ochat-server").arg("--url").arg(url).spawn();
+    Command::new("ochat-server").arg("--url").arg(url).spawn()
 }
 
-async fn run_action(url: String, action: Action) -> Result<(), Box<dyn Error>> {
-    let req = data::Request(url);
-
+async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>> {
     match action {
+        Action::SignIn { name, password } => {
+            match req
+                .make_request::<Token, SigninData>(
+                    "signin/",
+                    &SigninData {
+                        name: name.clone(),
+                        password,
+                    },
+                    RequestType::Post,
+                )
+                .await
+            {
+                Ok(jwt) => {
+                    save_token(&jwt);
+                    println!("Logged In as '{}'.", name);
+                }
+                Err(e) => eprintln!("{}", e),
+            }
+        }
+        Action::SignUp {
+            name,
+            email,
+            password,
+        } => {
+            match req
+                .make_request::<Token, SignupData>(
+                    "signup/",
+                    &SignupData {
+                        name: name.clone(),
+                        email,
+                        password,
+                    },
+                    RequestType::Post,
+                )
+                .await
+            {
+                Ok(jwt) => {
+                    save_token(&jwt);
+                    println!("Logged In as '{}'.", name);
+                }
+                Err(e) => eprintln!("{}", e),
+            }
+        }
         Action::Ollama { action } => match action {
             OllamaAction::All { search } => {
                 let models = req
@@ -219,15 +272,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let args = Arguments::parse();
     let mut server_handle = None;
 
-    println!("{}", WORD_ART);
-
     let url = args.url.clone().unwrap_or("localhost:1212/api".to_string());
 
-    if args.serve || (args.action.is_none() && !args.gui) {
-        println!("Starting server at '{}'.", url);
+    let req = Request {
+        url: url.clone(),
+        jwt: match load_token() {
+            Ok(x) => Some(x.token),
+            Err(_) => None,
+        },
+    };
+
+    if args.serve || (args.action.is_none() && !args.gui && !args.version) {
         server_handle = Some(spawn_server(url.clone())?);
         std::thread::sleep(Duration::from_secs(5));
         println!("Server successfully started at '{}'", url);
+    } else {
+        println!("{}", WORD_ART);
+    }
+
+    if args.version {
+        let versions = Versions::get(req.clone()).await;
+        println!("latest : {}", versions.latest);
+        println!("server : {}", versions.server);
+        println!("ochat  : {}", versions.this);
+
+        if let Some(server) = &mut server_handle {
+            println!("Closing server.");
+            let _ = server.kill()?;
+        }
+
+        return Ok(());
     }
 
     if args.gui || (args.action.is_none() && !args.serve) {
@@ -248,7 +322,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if let Some(action) = args.action {
-        let res = run_action(url, action).await;
+        let res = run_action(&req, action).await;
         if let Some(server) = &mut server_handle {
             println!("Closing server.");
             let _ = server.kill()?;
@@ -263,7 +337,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn repl(req: &data::Request, provider: String, model: String) -> Result<(), Box<dyn Error>> {
+async fn repl(req: &Request, provider: String, model: String) -> Result<(), Box<dyn Error>> {
     if let Ok(Some(_)) = req
         .make_request::<Option<Value>, ()>(
             &format!("provider/{0}/model/{1}", provider, model),
@@ -293,8 +367,9 @@ async fn repl(req: &data::Request, provider: String, model: String) -> Result<()
                         .unwrap(),
                 );
 
-                let mut response = REQWEST_CLIENT
-                    .get(&format!("{0}/generation/text/stream/", req.0,))
+                let mut response = req
+                    .get_client()
+                    .get(&format!("{0}/generation/text/stream/", req.url,))
                     .json(
                         &ChatQueryDataBuilder::default()
                             .provider(provider.clone())
@@ -355,7 +430,7 @@ async fn repl(req: &data::Request, provider: String, model: String) -> Result<()
     Ok(())
 }
 
-async fn pull_model(req: &data::Request, provider: &str, model: &str) {
+async fn pull_model(req: &Request, provider: &str, model: &str) {
     let pb = ProgressBar::new(1000000);
 
     pb.set_style(
@@ -366,10 +441,11 @@ async fn pull_model(req: &data::Request, provider: &str, model: &str) {
         .progress_chars("#>-"),
     );
 
-    let mut response = REQWEST_CLIENT
+    let mut response = req
+        .get_client()
         .post(&format!(
             "{0}/provider/{1}/model/{2}",
-            req.0, provider, model
+            req.url, provider, model
         ))
         .send()
         .await

@@ -1,6 +1,14 @@
-use std::collections::HashMap;
-
+use crate::{
+    Application, CacheMessage, DATA, Message, PopUp,
+    pages::home::sidebar::PreviewMk,
+    subscriptions::{
+        hf_pull::{HFPull, HFPullUpdate},
+        message::{MessageGen, MessageGenUpdate},
+        ollama_pull::{OllamaPull, OllamaPullUpdate},
+    },
+};
 use iced::{Subscription, Task, widget::markdown, window};
+use ochat_common::data::{Data, RequestType};
 use ochat_types::{
     chats::{messages::MessageData, previews::Preview},
     generation::text::{ChatQueryData, ChatStreamResult},
@@ -10,17 +18,7 @@ use ochat_types::{
     },
     settings::SettingsProvider,
 };
-
-use crate::{
-    Application, CacheMessage, DATA, Message, PopUp,
-    data::{Data, RequestType},
-    pages::home::sidebar::PreviewMk,
-    subscriptions::{
-        hf_pull::{HFPull, HFPullUpdate},
-        message::{MessageGen, MessageGenUpdate},
-        ollama_pull::{OllamaPull, OllamaPullUpdate},
-    },
-};
+use std::collections::HashMap;
 
 pub mod hf_pull;
 pub mod message;
@@ -222,7 +220,8 @@ impl SubMessage {
                 };
 
                 Task::future(async {
-                    match Data::get_models(url, providers).await {
+                    let jwt = DATA.read().unwrap().jwt.clone();
+                    match Data::get_models(&jwt, url, providers).await {
                         Ok(x) => {
                             DATA.write().unwrap().models = x;
                             Message::None
@@ -284,7 +283,8 @@ impl SubMessage {
                 };
 
                 Task::future(async {
-                    match Data::get_models(url, providers).await {
+                    let jwt = DATA.read().unwrap().jwt.clone();
+                    match Data::get_models(&jwt, url, providers).await {
                         Ok(x) => {
                             DATA.write().unwrap().models = x;
                             Message::None

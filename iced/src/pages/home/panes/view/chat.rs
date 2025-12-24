@@ -1,9 +1,5 @@
 use crate::{
     Application, CacheMessage, DATA, Message, PopUp,
-    data::{
-        RequestType,
-        start::{self, Section},
-    },
     font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE, get_bold_font},
     pages::home::panes::{
         data::{MessageMk, PromptsData, ViewFile},
@@ -11,7 +7,7 @@ use crate::{
     },
     style,
     subscriptions::SubMessage,
-    utils::{self, get_path_assets},
+    utils::get_path_assets,
 };
 use base64_stream::base64::{Engine, prelude::BASE64_STANDARD};
 use iced::{
@@ -21,6 +17,13 @@ use iced::{
     widget::{
         button, center, column, container, image, lazy, markdown, mouse_area, pick_list, row, rule,
         scrollable, space, stack, svg, text, text_editor,
+    },
+};
+use ochat_common::{
+    convert_image,
+    data::{
+        RequestType,
+        start::{self, Section},
     },
 };
 use ochat_types::{
@@ -207,7 +210,7 @@ impl ChatsViewMessage {
                 let mut files = Vec::new();
                 for path in paths {
                     let file = Path::new(&path);
-                    let file = match utils::convert_image(&file) {
+                    let file = match convert_image(&file) {
                         Ok(x) => B64FileDataBuilder::default()
                             .file_type(FileType::Image)
                             .filename(path.rsplit_once("/").unwrap().1.to_string())

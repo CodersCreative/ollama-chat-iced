@@ -3,14 +3,17 @@ use iced::{
     alignment::Vertical,
     widget::{button, center, column, container, row, rule, scrollable, space, text, text_input},
 };
+use ochat_common::{
+    data::{Data, RequestType},
+    save_token,
+};
 use ochat_types::{
     WORD_ART,
     user::{SigninData, SignupData, Token},
 };
 
 use crate::{
-    Application, DATA, InputMessage, JWT, JWT_ENV_VAR, Message,
-    data::{Data, RequestType},
+    Application, DATA, InputMessage, Message,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
     style,
 };
@@ -59,11 +62,15 @@ impl AuthMessage {
             }
             Self::SignedIn(x) => {
                 app.popups.clear();
-                *JWT.write().unwrap() = Some(x.clone());
-                unsafe { std::env::set_var(JWT_ENV_VAR, x.clone()) };
+                let url = {
+                    let mut data = DATA.write().unwrap();
+                    data.jwt = Some(x.clone());
+                    data.instance_url.clone()
+                };
+                save_token(&Token { token: x.clone() });
 
                 Task::future(async {
-                    if let Ok(x) = Data::get(Some(x)).await {
+                    if let Ok(x) = Data::get(url, Some(x)).await {
                         *DATA.write().unwrap() = x;
                     }
                     Message::None

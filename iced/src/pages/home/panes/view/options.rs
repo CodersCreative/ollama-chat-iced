@@ -16,6 +16,7 @@ use iced::{
         space, text, text_input, toggler,
     },
 };
+use ochat_common::data::RequestType;
 use ochat_types::{
     options::{
         GenOption, GenOptions, GenOptionsData,
@@ -248,7 +249,7 @@ impl OptionsViewMessage {
                         .make_request::<GenOptions, GenOptionsData>(
                             &format!("option/{}", option_id),
                             &option,
-                            crate::data::RequestType::Put,
+                            RequestType::Put,
                         )
                         .await
                     {
@@ -265,7 +266,7 @@ impl OptionsViewMessage {
                                 .make_request::<Option<GenModelRelationship>, GenModelRelationshipData>(
                                     &format!("option/relationship/{}", id),
                                     &relationship,
-                                    crate::data::RequestType::Put,
+                                    RequestType::Put,
                                 )
                                 .await
                         } else {
@@ -273,7 +274,7 @@ impl OptionsViewMessage {
                                 .make_request::<Option<GenModelRelationship>, GenModelRelationshipData>(
                                     "option/relationship/",
                                     &relationship,
-                                    crate::data::RequestType::Post,
+                                    RequestType::Post,
                                 )
                                 .await
                         } {
@@ -287,7 +288,7 @@ impl OptionsViewMessage {
                             .make_request::<Option<GenModelRelationship>, ()>(
                                 &format!("option/relationship/{}", relationship),
                                 &(),
-                                crate::data::RequestType::Delete,
+                                RequestType::Delete,
                             )
                             .await
                         {
@@ -300,7 +301,7 @@ impl OptionsViewMessage {
                         .make_request::<Vec<GenModelRelationship>, ()>(
                             &format!("option/{}/all/", option_id),
                             &(),
-                            crate::data::RequestType::Get,
+                            RequestType::Get,
                         )
                         .await
                     {
@@ -395,7 +396,7 @@ impl OptionsViewMessage {
                             name: String::from("New Options"),
                             ..Default::default()
                         },
-                        crate::data::RequestType::Post,
+                        RequestType::Post,
                     )
                     .await
                 {
@@ -423,7 +424,7 @@ impl OptionsViewMessage {
                         .make_request::<GenOptions, ()>(
                             &format!("option/{}", x),
                             &(),
-                            crate::data::RequestType::Delete,
+                            RequestType::Delete,
                         )
                         .await
                     {

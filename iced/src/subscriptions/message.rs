@@ -1,4 +1,4 @@
-use crate::{DATA, get_client};
+use crate::DATA;
 use iced::{
     Task,
     futures::StreamExt,
@@ -51,11 +51,12 @@ impl MessageGen {
 }
 
 pub fn gen_stream(query: ChatQueryData) -> impl Straw<(), ChatStreamResult, String> {
-    let url = DATA.read().unwrap().instance_url.clone().unwrap();
+    let req = DATA.read().unwrap().to_request();
 
     sipper(async move |mut output| {
-        let mut response = get_client()
-            .get(&format!("{}/generation/text/stream/", url))
+        let mut response = req
+            .get_client()
+            .get(&format!("{}/generation/text/stream/", req.url))
             .json(&query)
             .send()
             .await

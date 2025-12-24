@@ -1,5 +1,5 @@
-pub mod data;
 pub mod pages;
+pub mod settings;
 pub mod style;
 pub mod subscriptions;
 pub mod utils;
@@ -15,12 +15,15 @@ use iced::{
     },
     window::{self},
 };
+use ochat_common::{
+    data::{Data, RequestType, versions::Versions},
+    load_token,
+};
 use ochat_types::{
     chats::previews::Preview,
     providers::{hf::HFPullModelStreamResult, ollama::OllamaPullModelStreamResult},
     settings::{Settings, SettingsData},
 };
-use reqwest::header::{HeaderMap, HeaderValue};
 use std::{
     collections::BTreeMap,
     fmt::Debug,
@@ -29,7 +32,6 @@ use std::{
 };
 
 use crate::{
-    data::{Data, settings::ClientSettings, versions::Versions},
     font::{BODY_SIZE, SUB_HEADING_SIZE, get_iced_font},
     pages::{
         Pages,
@@ -48,6 +50,7 @@ use crate::{
         },
         setup::SetupPage,
     },
+    settings::ClientSettings,
     subscriptions::{SubMessage, Subscriptions},
     windows::{Window, message::WindowMessage},
 };
@@ -81,22 +84,7 @@ pub mod font {
     pub const SMALL_SIZE: u32 = 8;
 }
 
-const JWT_ENV_VAR: &str = "OCHAT_JWT";
-static JWT: LazyLock<RwLock<Option<String>>> = LazyLock::new(|| RwLock::new(None));
-static DATA: LazyLock<RwLock<data::Data>> = LazyLock::new(|| RwLock::new(data::Data::default()));
-
-pub fn get_client() -> reqwest::Client {
-    if let Some(jwt) = JWT.read().unwrap().as_ref() {
-        let mut headers = HeaderMap::new();
-        headers.append("Authorization", HeaderValue::from_str(jwt).unwrap());
-        reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .unwrap()
-    } else {
-        reqwest::Client::new()
-    }
-}
+static DATA: LazyLock<RwLock<Data>> = LazyLock::new(|| RwLock::new(Data::default()));
 
 #[derive(Debug, Clone)]
 pub struct Application {
@@ -243,10 +231,9 @@ impl CacheMessage {
                 }
                 app.cache.client_settings.instance_url = x.clone();
                 app.cache.client_settings.save();
-                *JWT.write().unwrap() = None;
 
                 return Task::future(async {
-                    if let Ok(x) = Data::get(Some(x)).await {
+                    if let Ok(x) = Data::get(Some(x), None).await {
                         *DATA.write().unwrap() = x;
                     }
                     Message::None
@@ -261,16 +248,16 @@ impl CacheMessage {
 
 impl Application {
     pub fn new(url: Option<String>) -> (Self, Task<Message>) {
-        *JWT.write().unwrap() = match std::env::var(JWT_ENV_VAR) {
-            Ok(x) => Some(x),
+        let jwt = match load_token() {
+            Ok(x) => Some(x.token),
             _ => None,
         };
 
         let url = url.unwrap_or("http://localhost:1212".to_string());
-        let get_default_data = || -> Data {
+        let get_default_data = |jwt: Option<String>| -> Data {
             tokio::runtime::Runtime::new()
                 .unwrap()
-                .block_on(Data::get(Some(url.clone())))
+                .block_on(Data::get(Some(url.clone()), jwt))
                 .unwrap_or_default()
         };
 
@@ -280,14 +267,14 @@ impl Application {
             if &x.instance_url != &url && !x.instance_url.is_empty() {
                 *DATA.write().unwrap() = tokio::runtime::Runtime::new()
                     .unwrap()
-                    .block_on(Data::get(Some(x.instance_url.clone())))
-                    .unwrap_or(get_default_data());
+                    .block_on(Data::get(Some(x.instance_url.clone()), jwt.clone()))
+                    .unwrap_or(get_default_data(jwt));
             } else {
-                *DATA.write().unwrap() = get_default_data();
+                *DATA.write().unwrap() = get_default_data(jwt);
             }
             cache.client_settings = x;
         } else {
-            *DATA.write().unwrap() = get_default_data();
+            *DATA.write().unwrap() = get_default_data(jwt);
         }
 
         let (_, open) = window::open(window::Settings::default());
@@ -309,7 +296,7 @@ impl Application {
             Task::future(async {
                 let req = DATA.read().unwrap().to_request();
                 match req
-                    .make_request::<Vec<Preview>, ()>("preview/all/", &(), data::RequestType::Get)
+                    .make_request::<Vec<Preview>, ()>("preview/all/", &(), RequestType::Get)
                     .await
                 {
                     Ok(x) => Message::Cache(CacheMessage::SetPreviews(
@@ -321,7 +308,7 @@ impl Application {
             Task::future(async {
                 let req = DATA.read().unwrap().to_request();
                 match req
-                    .make_request::<Settings, ()>("settings/", &(), data::RequestType::Get)
+                    .make_request::<Settings, ()>("settings/", &(), RequestType::Get)
                     .await
                 {
                     Ok(x) => Message::Cache(CacheMessage::SetSettings(x.into())),
@@ -329,10 +316,8 @@ impl Application {
                 }
             }),
             Task::future(async {
-                match Versions::get().await {
-                    Ok(x) => Message::Cache(CacheMessage::SetVersions(x)),
-                    Err(e) => Message::Err(e),
-                }
+                let req = DATA.read().unwrap().to_request();
+                Message::Cache(CacheMessage::SetVersions(Versions::get(req).await))
             }),
             Task::future(async {
                 match PromptsData::get(None).await {
@@ -394,7 +379,7 @@ impl Application {
     }
 
     pub fn view<'a>(&'a self, window_id: window::Id) -> Element<'a, Message> {
-        if JWT.read().unwrap().is_none() {
+        if DATA.read().unwrap().jwt.is_none() {
             return self.view_data.auth.view(self);
         }
         let mut body = if let Some(window) = self.windows.get(&window_id) {

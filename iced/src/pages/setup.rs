@@ -1,6 +1,5 @@
 use crate::{
     Application, CacheMessage, DATA, InputMessage, Message,
-    data::RequestType,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
     pages::{PageMessage, Pages, home::HomePage},
     style,
@@ -16,6 +15,7 @@ use iced::{
     },
     window,
 };
+use ochat_common::data::RequestType;
 use ochat_types::{
     providers::{Provider, ProviderData, ProviderDataBuilder, ProviderType},
     settings::{SettingsData, SettingsProvider, SettingsProviderBuilder},

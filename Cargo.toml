@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cli", "iced","server", "types"]
+members = ["cli", "common", "iced","server", "types"]
 
 # Defines a size-optimized profile for the WASM bundle in release mode
 [profile.wasm-release]

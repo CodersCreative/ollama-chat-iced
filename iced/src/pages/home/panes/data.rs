@@ -1,4 +1,4 @@
-use crate::{DATA, data::RequestType};
+use crate::{DATA, RequestType};
 use base64_stream::base64::{Engine, prelude::BASE64_STANDARD};
 use iced::widget::markdown;
 use ochat_types::{
@@ -214,7 +214,7 @@ pub struct OptionData {
 
 #[derive(Debug, Clone)]
 pub struct OptionRelationshipData {
-    pub user_id: Option<String>,
+    pub user_id: Option<RecordId>,
     pub model: Option<SettingsProvider>,
     pub option: String,
     pub id: Option<RecordId>,

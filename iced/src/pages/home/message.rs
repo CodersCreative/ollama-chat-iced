@@ -1,6 +1,5 @@
 use crate::{
     Application, DATA, InputMessage, Message,
-    data::RequestType,
     pages::{
         PageMessage, Pages,
         home::{HomePaneType, panes::PaneMessage, sidebar::PreviewMk},
@@ -8,6 +7,7 @@ use crate::{
     windows::message::WindowMessage,
 };
 use iced::{Task, window};
+use ochat_common::data::RequestType;
 use ochat_types::chats::{Chat, ChatData, previews::Preview};
 
 #[derive(Debug, Clone)]

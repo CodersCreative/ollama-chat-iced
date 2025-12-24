@@ -18,7 +18,7 @@ pub fn view<'a>(app: &'a Application) -> Element<'a, Message> {
         .font(Font::MONOSPACE)
         .style(style::text::primary);
 
-    let iced_version = text(format!("ochat-iced version: {}", app.cache.versions.iced))
+    let iced_version = text(format!("ochat-iced version: {}", app.cache.versions.this))
         .size(BODY_SIZE)
         .style(style::text::text);
 

@@ -7371,6 +7371,7 @@ dependencies = [
  "clap 4.5.53",
  "futures",
  "indicatif 0.18.3",
+ "ochat-common",
  "ochat-types",
  "reqwest 0.12.24",
  "rustyline",
@@ -7379,6 +7380,19 @@ dependencies = [
  "tabled",
  "tokio",
  "tokio-stream",
+]
+
+[[package]]
+name = "ochat-common"
+version = "0.5.0"
+dependencies = [
+ "base64-stream",
+ "image 0.25.8",
+ "ochat-types",
+ "reqwest 0.12.24",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -7391,6 +7405,7 @@ dependencies = [
  "iced",
  "iced_split",
  "image 0.25.8",
+ "ochat-common",
  "ochat-types",
  "open",
  "rand 0.9.2",
@@ -7420,6 +7435,7 @@ dependencies = [
  "leptos_router",
  "llama-cpp-2",
  "natural-tts",
+ "ochat-common",
  "ochat-types",
  "pyo3",
  "pythonize",

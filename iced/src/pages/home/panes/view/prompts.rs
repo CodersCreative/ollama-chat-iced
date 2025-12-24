@@ -3,7 +3,7 @@ use crate::{
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE},
     pages::home::panes::{data::PromptsData, view::HomePaneViewMessage},
     style,
-    utils::{get_path_assets, load_from_file},
+    utils::get_path_assets,
 };
 use iced::{
     Element, Length, Task,
@@ -14,6 +14,7 @@ use iced::{
         space, svg, text, text_editor, text_input,
     },
 };
+use ochat_common::{data::RequestType, load_from_file};
 use ochat_types::prompts::{Prompt, PromptData, PromptDataBuilder};
 use std::collections::HashMap;
 
@@ -170,7 +171,7 @@ impl PromptsViewMessage {
                         .make_request::<Prompt, PromptData>(
                             &format!("prompt/{}", prompt_id),
                             &prompt,
-                            crate::data::RequestType::Put,
+                            RequestType::Put,
                         )
                         .await
                     {
@@ -256,7 +257,7 @@ impl PromptsViewMessage {
                                     .make_request::<Prompt, PromptData>(
                                         "prompt/",
                                         &prompt,
-                                        crate::data::RequestType::Post,
+                                        RequestType::Post,
                                     )
                                     .await
                                 {
@@ -289,7 +290,7 @@ impl PromptsViewMessage {
                             .content(String::new())
                             .build()
                             .unwrap(),
-                        crate::data::RequestType::Post,
+                        RequestType::Post,
                     )
                     .await
                 {
@@ -314,7 +315,7 @@ impl PromptsViewMessage {
                         .make_request::<Prompt, ()>(
                             &format!("prompt/{}", x),
                             &(),
-                            crate::data::RequestType::Delete,
+                            RequestType::Delete,
                         )
                         .await
                     {

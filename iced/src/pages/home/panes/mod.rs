@@ -1,6 +1,5 @@
 use crate::{
     Application, CacheMessage, DATA, Message,
-    data::RequestType,
     pages::{
         PageMessage, Pages,
         home::{
@@ -23,6 +22,7 @@ use iced::{
     widget::{pane_grid, text_editor},
     window,
 };
+use ochat_common::data::RequestType;
 use ochat_types::chats::{Chat, ChatData, previews::Preview};
 use std::collections::HashMap;
 

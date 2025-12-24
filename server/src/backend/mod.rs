@@ -65,6 +65,7 @@ pub async fn start_server<F: FnOnce(String) -> Router>(router_fn: F) {
     }
 
     url = url.replace("localhost", "127.0.0.1");
+    url = url.trim_end_matches("/api").to_string();
 
     let app = router_fn(url.clone()).nest("/api", Router::new().merge(api).merge(api_protected));
 

@@ -1,6 +1,5 @@
 use crate::{
     Application, DATA, InputMessage, Message,
-    data::RequestType,
     font::{BODY_SIZE, SUB_HEADING_SIZE},
     pages::home::panes::view::HomePaneViewMessage,
     style::{self},
@@ -14,6 +13,7 @@ use iced::{
         right_center, row, scrollable, space, stack, text, text_input,
     },
 };
+use ochat_common::data::RequestType;
 use ochat_types::{
     providers::{Provider, ProviderData, ProviderDataBuilder, ProviderType},
     settings::{SettingsData, SettingsProvider, SettingsProviderBuilder},

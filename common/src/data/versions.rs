@@ -1,30 +1,16 @@
-use crate::{DATA, data};
+use crate::data::{Request, RequestType};
+use ochat_types::version::Version;
 use serde_json::Value;
-use std::fmt::Display;
 
-#[derive(Debug, Clone)]
-pub struct Version {
-    pub major: String,
-    pub minor: String,
-    pub patch: String,
-}
-
-impl Default for Version {
-    fn default() -> Self {
-        Self::get_iced()
-    }
-}
-
-impl Version {
-    pub async fn get_server() -> Result<Self, String> {
-        let req = DATA.read().unwrap().to_request();
+impl Versions {
+    pub async fn get_server(req: Request) -> Result<Version, String> {
         let version = req
-            .make_request::<String, ()>("version/", &(), data::RequestType::Get)
+            .make_request::<String, ()>("version/", &(), RequestType::Get)
             .await?;
         let version: Vec<String> = version.split(".").map(|x| x.to_string()).collect();
-        Ok(Self {
+        Ok(Version {
             major: version
-                .get(0)
+                .first()
                 .unwrap_or(&"0".to_string())
                 .trim()
                 .to_string(),
@@ -41,14 +27,14 @@ impl Version {
         })
     }
 
-    pub fn get_iced() -> Self {
+    pub fn get_this() -> Version {
         let version: Vec<String> = env!("CARGO_PKG_VERSION")
             .split(".")
             .map(|x| x.to_string())
             .collect();
-        Self {
+        Version {
             major: version
-                .get(0)
+                .first()
                 .unwrap_or(&"0".to_string())
                 .trim()
                 .to_string(),
@@ -65,7 +51,7 @@ impl Version {
         }
     }
 
-    pub async fn get_latest() -> Result<Self, String> {
+    pub async fn get_latest() -> Result<Version, String> {
         let version: Value = reqwest::Client::builder()
             .user_agent(format!(
                 "{}/{}",
@@ -94,9 +80,9 @@ impl Version {
 
         let version: Vec<String> = version.split(".").map(|x| x.to_string()).collect();
 
-        Ok(Self {
+        Ok(Version {
             major: version
-                .get(0)
+                .first()
                 .unwrap_or(&"0".to_string())
                 .trim()
                 .to_string(),
@@ -114,25 +100,20 @@ impl Version {
     }
 }
 
-impl Display for Version {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct Versions {
     pub server: Version,
-    pub iced: Version,
+    pub this: Version,
     pub latest: Version,
 }
 
 impl Versions {
-    pub async fn get() -> Result<Self, String> {
-        Ok(Self {
-            server: Version::get_server().await?,
-            iced: Version::get_iced(),
-            latest: Version::get_latest().await?,
-        })
+    pub async fn get(req: Request) -> Self {
+        let this_ver = Self::get_this();
+        Self {
+            server: Self::get_server(req).await.unwrap_or(this_ver.clone()),
+            latest: Self::get_latest().await.unwrap_or(this_ver.clone()),
+            this: this_ver,
+        }
     }
 }

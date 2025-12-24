@@ -4,7 +4,7 @@ use crate::{
     pages::home::panes::{data::ModelsData, view::HomePaneViewMessage},
     style,
     subscriptions::SubMessage,
-    utils::{get_path_assets, print_data_size},
+    utils::get_path_assets,
 };
 use iced::{
     Element, Length, Task, Theme,
@@ -15,6 +15,7 @@ use iced::{
         space, svg, text, text_input,
     },
 };
+use ochat_common::{data::RequestType, print_data_size};
 use ochat_types::{
     providers::{
         Provider, ProviderType,
@@ -181,7 +182,7 @@ impl ModelsViewMessage {
                             .make_request(
                                 &format!("provider/hf/model/{}", x),
                                 &(),
-                                crate::data::RequestType::Get,
+                                RequestType::Get,
                             )
                             .await
                         {
