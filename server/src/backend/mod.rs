@@ -1,6 +1,7 @@
 pub mod chats;
 pub mod errors;
 pub mod files;
+pub mod folders;
 pub mod generation;
 pub mod options;
 pub mod prompts;
@@ -13,6 +14,7 @@ use crate::backend::{
     chats::{define_chats, previews::define_previews, relationships::define_message_relationships},
     errors::ServerError,
     files::define_files,
+    folders::define_folders,
     messages::define_messages,
     options::{define_gen_options, relationships::define_gen_models},
     prompts::define_prompts,
@@ -59,6 +61,7 @@ pub async fn start_server<F: FnOnce(String) -> Router>(router_fn: F) {
         .merge(prompts::route::routes())
         .merge(providers::route::routes())
         .merge(settings::route::routes())
+        .merge(folders::route::routes())
         .route_layer(middleware::from_fn(guard));
 
     let mut url = args.url.unwrap_or("localhost:1212".to_string());
@@ -124,6 +127,7 @@ pub async fn define_tables() -> Result<(), ServerError> {
         define_gen_models(),
         define_chats(),
         define_users(),
+        define_folders(),
     ]?;
 
     Ok(())

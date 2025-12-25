@@ -1,6 +1,6 @@
 use crate::{
     Application, CacheMessage, DATA, Message, PopUp,
-    font::{BODY_SIZE, HEADER_SIZE, SMALL_SIZE, SUB_HEADING_SIZE, get_bold_font},
+    font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
     pages::home::panes::{
         data::{MessageMk, PromptsData, ViewFile},
         view::HomePaneViewMessage,
@@ -51,6 +51,7 @@ pub struct ChatsView {
     pub expanded_messages: Vec<String>,
     pub prompts: PromptsData,
     pub selected_prompt: Option<String>,
+    pub tools: Vec<String>,
     pub messages: Vec<String>,
     pub path: Vec<i8>,
     pub chat: Chat,
@@ -150,7 +151,7 @@ impl ChatsViewMessage {
                     }
                     _ => {
                         if let Some(selected) = index {
-                            if selected < (view.prompts.0.len() - 2) {
+                            if view.prompts.0.len() > 2 && selected < (view.prompts.0.len() - 2) {
                                 Some(selected.clone() + 1)
                             } else {
                                 Some(0)
@@ -383,11 +384,12 @@ impl ChatsViewMessage {
                     .collect();
 
                 let req = DATA.read().unwrap().to_request();
-
+                let tools = app.get_chats_view(&id).unwrap().tools.clone();
                 Task::batch(app.get_chats_view(&id).unwrap().models.clone().into_iter().map(|x| {
                     let user_message = user_message.base.id.key().to_string();
                     let messages = messages.clone();
                     let req = req.clone();
+                    let tools = tools.clone();
                     let id = id.clone();
                     Task::future(async move {
                         let message = MessageDataBuilder::default()
@@ -407,7 +409,7 @@ impl ChatsViewMessage {
                         {
                             Ok(message) => Message::HomePaneView(HomePaneViewMessage::Chats(
                                 id,
-                                ChatsViewMessage::AIMessageUploaded(MessageMk::get(message).await, Some(ChatQueryData { provider: x.provider.trim().to_string(), model: x.model, messages }))
+                                ChatsViewMessage::AIMessageUploaded(MessageMk::get(message).await, Some(ChatQueryData { provider: x.provider.trim().to_string(), model: x.model, tools, messages }))
                             )),
                             Err(e) => Message::Err(e)
                         }
@@ -518,7 +520,7 @@ impl ChatsViewMessage {
             }
             Self::Regenerate(message_id) => {
                 let messages = app.get_chats_view(&id).unwrap().messages.clone();
-
+                let tools = app.get_chats_view(&id).unwrap().tools.clone();
                 let index = messages.iter().position(|x| x == &message_id).unwrap();
 
                 let parent = messages[index - 1].clone();
@@ -568,6 +570,7 @@ impl ChatsViewMessage {
                                 Some(ChatQueryData {
                                     provider: model.provider,
                                     model: model.model,
+                                    tools,
                                     messages,
                                 }),
                             ),
@@ -990,14 +993,22 @@ impl ChatsView {
         .align_y(Vertical::Center)
         .style(style::container::bottom_input_back);
 
-        let input = container(
-            if self.files.is_empty() {
-                column![models, self.view_commands(id.clone()), bottom,]
-            } else {
-                column![files, models, self.view_commands(id.clone()), bottom,]
+        let input = container({
+            let mut col = column![].spacing(10);
+            if !self.files.is_empty() {
+                col = col.push(files);
             }
-            .spacing(10),
-        )
+            col = col.push(models);
+            col = col.push(
+                column![
+                    Self::view_commands(&self.prompts, id, &self.selected_prompt,),
+                    bottom
+                ]
+                .padding(0),
+            );
+
+            col
+        })
         .width(Length::Fill)
         .padding(Padding::from([10, 20]))
         .style(style::container::input_back_opaque);
@@ -1034,27 +1045,31 @@ impl ChatsView {
         container(stack([body, column![space::vertical(), input].into()])).into()
     }
 
-    fn view_commands<'a>(&'a self, id: u32) -> Element<'a, Message> {
+    fn view_commands<'a>(
+        prompts: &'a PromptsData,
+        id: u32,
+        selected: &Option<String>,
+    ) -> Element<'a, Message> {
         container(
-            scrollable::Scrollable::new(row(self.prompts.0.iter().map(|x| {
-                let chosen = if let Some(y) = &self.selected_prompt {
+            scrollable::Scrollable::new(row(prompts.0.iter().map(|x| {
+                let chosen = if let Some(y) = &selected {
                     y == &x.id.key().to_string()
                 } else {
                     false
                 };
 
-                button(text(&x.command).size(SMALL_SIZE))
+                button(text(&x.command).size(BODY_SIZE))
                     .width(Length::Fill)
                     .style(if chosen {
                         style::button::chosen_chat
                     } else {
-                        style::button::not_chosen_chat
+                        style::button::not_chosen_prompt
                     })
                     .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
                         id,
                         ChatsViewMessage::ApplyPrompt(Some(x.id.key().to_string())),
                     )))
-                    .padding(10)
+                    .padding(5)
                     .into()
             })))
             .width(Length::Fill),

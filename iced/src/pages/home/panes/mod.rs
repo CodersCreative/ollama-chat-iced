@@ -12,7 +12,6 @@ use crate::{
                     prompts::PromptsView, pulls::PullsView, settings::SettingsView,
                 },
             },
-            sidebar::PreviewMk,
         },
     },
     windows::message::WindowMessage,
@@ -161,7 +160,12 @@ impl PaneMessage {
         id: window::Id,
         pane: pane_grid::Pane,
     ) -> Task<Message> {
-        if let Some(x) = app.cache.previews.first().map(|x| x.id.key().to_string()) {
+        if let Some(x) = app
+            .cache
+            .side_bar_items
+            .get_first_preview()
+            .map(|x| x.id.key().to_string())
+        {
             Task::done(Message::Window(WindowMessage::Page(
                 id,
                 PageMessage::Home(HomeMessage::Pane(PaneMessage::ReplaceChat(pane, x))),
@@ -186,9 +190,8 @@ impl PaneMessage {
                                     RequestType::Put,
                                 )
                                 .await
-                                .map(|x| {
-                                    Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x)))
-                                }) {
+                                .map(|_| Message::Cache(CacheMessage::ResetSideBarItems))
+                            {
                                 Ok(x) => x,
                                 Err(e) => Message::Err(e),
                             },
@@ -220,7 +223,7 @@ impl PaneMessage {
                             )
                             .await
                         {
-                            Ok(x) => Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))),
+                            Ok(_) => Message::Cache(CacheMessage::ResetSideBarItems),
                             Err(e) => Message::Err(e),
                         },
                         Message::Window(WindowMessage::Page(
@@ -422,6 +425,7 @@ impl PaneMessage {
                         } else {
                             Vec::new()
                         },
+                        tools: app.cache.client_settings.default_tools.clone(),
                         files: Vec::new(),
                         path: Vec::new(),
                         start: 0,

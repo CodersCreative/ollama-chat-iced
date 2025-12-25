@@ -9,6 +9,7 @@ pub const SETTINGS_PATH: &str = "settings.json";
 pub struct ClientSettings {
     pub instance_url: String,
     pub default_provider: Option<SettingsProvider>,
+    pub default_tools: Vec<String>,
     pub use_panes: bool,
     pub theme: usize,
 }
@@ -17,6 +18,7 @@ impl Default for ClientSettings {
         ClientSettings {
             instance_url: String::from("http://localhost:1212/api"),
             default_provider: None,
+            default_tools: Vec::new(),
             use_panes: true,
             theme: 11,
         }

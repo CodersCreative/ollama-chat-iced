@@ -25,7 +25,7 @@ use crate::{
 use iced::{
     Element, Padding, Task,
     alignment::{Horizontal, Vertical},
-    widget::{center, container, pane_grid, row, text},
+    widget::{center, column, container, pane_grid, row, text},
     window,
 };
 use std::{collections::HashMap, fmt::Display};
@@ -248,11 +248,14 @@ impl HomePaneTypeWithId {
             Self::Settings(x) => app.view_data.home.settings.get(x).unwrap().view(app, *x),
             Self::Chat(x) => app.view_data.home.chats.get(x).unwrap().view(app, *x),
             Self::Loading => center(
-                container(
+                container(column![
                     text("Loading...")
                         .style(style::text::primary)
                         .size(HEADER_SIZE),
-                )
+                    text("If its taking an extended period of time ( > 1 minute) then:\ntry clicking on 'New Chat' or on a pre-existing chat")
+                        .style(style::text::translucent::text)
+                        .size(BODY_SIZE),
+                ])
                 .max_width(800)
                 .padding(Padding::new(20.0))
                 .style(style::container::neutral_back),

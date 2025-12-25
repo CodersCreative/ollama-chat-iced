@@ -146,6 +146,24 @@ pub enum GenOptionValue {
     Int(i32),
 }
 
+impl GenOptionValue {
+    pub fn as_f32(&self) -> f32 {
+        match self {
+            Self::Float(x) => *x,
+            Self::Int(x) => *x as f32,
+            Self::Text(x) => x.parse().unwrap_or_default(),
+        }
+    }
+
+    pub fn as_i32(&self) -> i32 {
+        match self {
+            Self::Float(x) => *x as i32,
+            Self::Int(x) => *x,
+            Self::Text(x) => x.parse().unwrap_or_default(),
+        }
+    }
+}
+
 impl Display for GenOptionValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

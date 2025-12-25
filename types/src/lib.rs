@@ -1,5 +1,6 @@
 pub mod chats;
 pub mod files;
+pub mod folders;
 pub mod generation;
 pub mod options;
 pub mod prompts;

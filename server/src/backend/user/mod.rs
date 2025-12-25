@@ -1,6 +1,7 @@
 use crate::backend::{
     CONN, DATABASE, NAMESPACE, define_starting_data, errors::ServerError,
-    providers::ollama::models::OLLAMA_MODELS_TABLE, utils::get_count,
+    folders::create_default_user_folders, providers::ollama::models::OLLAMA_MODELS_TABLE,
+    utils::get_count,
 };
 use axum::{Json, extract::Path, http::HeaderMap};
 use ochat_types::{
@@ -34,6 +35,8 @@ DEFINE TABLE IF NOT EXISTS {1} SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD IF NOT EXISTS name ON TABLE {1} TYPE string;
 DEFINE FIELD IF NOT EXISTS email ON TABLE {1} TYPE string ASSERT string::is::email($value);
 DEFINE FIELD IF NOT EXISTS password ON TABLE {1} TYPE string;
+DEFINE INDEX name_index ON TABLE {1} COLUMNS name UNIQUE;
+DEFINE INDEX email_index ON TABLE {1} COLUMNS email UNIQUE;
 
 DEFINE ACCESS IF NOT EXISTS {1} ON DATABASE TYPE RECORD
     SIGNUP ( CREATE {1} SET name = $name, email = $email, password = crypto::argon2::generate($password) )
@@ -66,6 +69,7 @@ pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> 
     CONN.authenticate(jwt.clone()).await?;
 
     reset_persistent_db_data_if_required().await?;
+    let _ = get_current_user().await;
 
     let count = get_count(&format!(
         "
@@ -90,6 +94,8 @@ pub async fn signup(data: Json<SignupData>) -> Result<Json<Token>, ServerError> 
 }
 
 pub async fn reset_persistent_db_data_if_required() -> Result<(), ServerError> {
+    let _ = create_default_user_folders().await?;
+
     let count = get_count(&format!(
         "
                 SELECT count() FROM {0} GROUP ALL;

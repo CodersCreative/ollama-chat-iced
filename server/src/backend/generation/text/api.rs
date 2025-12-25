@@ -11,6 +11,7 @@ use ochat_types::{
     chats::messages::Role,
     files::FileType,
     generation::text::{ChatQueryData, ChatResponse, ChatStreamResult},
+    options::GenOptionKey,
     providers::Provider,
 };
 use std::{thread, time::Duration};
@@ -21,6 +22,7 @@ use crate::backend::{
     errors::ServerError,
     files::get_file,
     generation::text::split_text_into_thinking,
+    options::relationships::get_default_gen_options_from_model,
     providers::{PROVIDER_TABLE, provider_into_config},
 };
 
@@ -86,11 +88,27 @@ async fn get_chat_completion_request(
         })
     }
 
-    CreateChatCompletionRequestArgs::default()
-        .model(query.model.trim().to_string())
-        .messages(messages)
-        .build()
-        .map_err(|e| e.into())
+    let mut a = CreateChatCompletionRequestArgs::default();
+    let mut args = a.model(query.model.trim().to_string()).messages(messages);
+
+    if let Ok(Json(Some(options))) = get_default_gen_options_from_model(axum::extract::Path((
+        query.provider.clone(),
+        query.model.clone(),
+    )))
+    .await
+    {
+        for option in options.data.iter().filter(|x| x.activated) {
+            args = match option.key {
+                GenOptionKey::TopP => args.top_p(option.value.as_f32()),
+                GenOptionKey::Temperature => args.temperature(option.value.as_f32()),
+                GenOptionKey::Seed => args.seed(option.value.as_i32()),
+                GenOptionKey::RepeatPenalty => args.frequency_penalty(option.value.as_f32()),
+                _ => continue,
+            };
+        }
+    }
+
+    args.build().map_err(|e| e.into())
 }
 
 pub async fn run(data: ChatQueryData) -> Result<Json<ChatResponse>, ServerError> {

@@ -1,14 +1,17 @@
 use crate::{
     Application, DATA, InputMessage, Message,
     pages::{
-        PageMessage, Pages,
-        home::{HomePaneType, panes::PaneMessage, sidebar::PreviewMk},
+        PageMessage,
+        home::{HomePaneType, panes::PaneMessage, sidebar::SideBarItems},
     },
     windows::message::WindowMessage,
 };
 use iced::{Task, window};
 use ochat_common::data::RequestType;
-use ochat_types::chats::{Chat, ChatData, previews::Preview};
+use ochat_types::{
+    chats::{Chat, ChatData, previews::Preview},
+    folders::{Folder, FolderData, FolderDataBuilder},
+};
 
 #[derive(Debug, Clone)]
 pub enum HomePickingType {
@@ -18,11 +21,19 @@ pub enum HomePickingType {
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
-    SearchPreviews(InputMessage),
-    SetPreviews(Vec<Preview>),
+    SearchItems(InputMessage),
+    SetItems(SideBarItems),
+    ExpandItem(String),
     NewChat,
+    NewChatToFolder(String),
+    NewFolderToFolder(String),
+    FavChat(String),
+    ArchiveChat(String),
+    RemoveChatFromFolder(String, String),
+    RemoveFolderFromFolder(String),
+    NewFolder,
     SplitDrag(f32),
-    DeleteChat(String),
+    DeleteItem(String),
     Pane(PaneMessage),
     CollapseSideBar,
 }
@@ -30,10 +41,19 @@ pub enum HomeMessage {
 impl HomeMessage {
     pub fn handle(self, app: &mut Application, id: window::Id) -> Task<Message> {
         match self {
-            Self::SearchPreviews(InputMessage::Update(x)) => {
+            Self::ExpandItem(x) => {
+                let page = app.get_home_page(&id).unwrap();
+                if page.side_bar.expanded.contains(&x) {
+                    page.side_bar.expanded.retain(|y| y != &x);
+                } else {
+                    page.side_bar.expanded.push(x);
+                }
+                Task::none()
+            }
+            Self::SearchItems(InputMessage::Update(x)) => {
                 let page = app.get_home_page(&id).unwrap();
                 if x.is_empty() {
-                    page.side_bar.previews.clear();
+                    page.side_bar.items.0.clear();
                 }
                 page.side_bar.search = x;
                 Task::none()
@@ -43,26 +63,20 @@ impl HomeMessage {
                     app.windows.get(&id).unwrap().get_size_from_split(x);
                 Task::none()
             }
-            Self::SearchPreviews(_) => {
+            Self::SearchItems(_) => {
                 let search = app.get_home_page(&id).unwrap().side_bar.search.clone();
                 Task::future(async move {
-                    let req = DATA.read().unwrap().to_request();
-
-                    match req
-                        .make_request(&format!("preview/search/{}", search), &(), RequestType::Get)
-                        .await
-                    {
-                        Ok(previews) => Message::Window(WindowMessage::Page(
+                    match SideBarItems::get(Some(search)).await {
+                        Ok(items) => Message::Window(WindowMessage::Page(
                             id,
-                            PageMessage::Home(HomeMessage::SetPreviews(previews)),
+                            PageMessage::Home(HomeMessage::SetItems(items)),
                         )),
                         Err(e) => Message::Err(e),
                     }
                 })
             }
-            Self::SetPreviews(previews) => {
-                app.get_home_page(&id).unwrap().side_bar.previews =
-                    previews.into_iter().map(|x| x.into()).collect();
+            Self::SetItems(items) => {
+                app.get_home_page(&id).unwrap().side_bar.items = items;
                 Task::none()
             }
             Self::CollapseSideBar => {
@@ -70,26 +84,30 @@ impl HomeMessage {
                 page.side_bar.is_collapsed = !page.side_bar.is_collapsed;
                 Task::none()
             }
-            Self::DeleteChat(x) => {
-                app.cache.previews.retain(|x| x.id != x.id);
-
-                for window in app.windows.iter_mut() {
-                    if let Pages::Home(x) = &mut window.1.page {
-                        x.side_bar.previews.retain(|x| x.id != x.id);
-                    }
-                }
-
-                Task::future(async move {
-                    let req = DATA.read().unwrap().to_request();
-                    let res: Result<Option<Preview>, String> = req
-                        .make_request(&format!("chat/{}", x), &(), RequestType::Delete)
-                        .await;
-                    match res {
-                        Ok(_) => Message::None,
+            Self::DeleteItem(x) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Option<Preview>, ()>(
+                        &format!("chat/{}", x),
+                        &(),
+                        RequestType::Delete,
+                    )
+                    .await
+                {
+                    Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                    Err(_) => match req
+                        .make_request::<Option<Folder>, ()>(
+                            &format!("folder/{}", x),
+                            &(),
+                            RequestType::Delete,
+                        )
+                        .await
+                    {
+                        Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
                         Err(e) => Message::Err(e),
-                    }
-                })
-            }
+                    },
+                }
+            }),
             Self::Pane(x) => x.handle(app, id),
             Self::NewChat => Task::future(async move {
                 let req = DATA.read().unwrap().to_request();
@@ -110,9 +128,7 @@ impl HomeMessage {
                             )
                             .await
                         {
-                            Ok(x) => {
-                                Message::Cache(crate::CacheMessage::AddPreview(PreviewMk::from(x)))
-                            }
+                            Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
                             Err(e) => Message::Err(e),
                         },
                         Message::Window(WindowMessage::Page(
@@ -122,6 +138,132 @@ impl HomeMessage {
                             ))),
                         )),
                     ]),
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Self::FavChat(x) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Folder, ()>(
+                        &format!("folder/fav/chat/{}", x),
+                        &(),
+                        RequestType::Put,
+                    )
+                    .await
+                {
+                    Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Self::ArchiveChat(x) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Folder, ()>(
+                        &format!("folder/archive/chat/{}", x),
+                        &(),
+                        RequestType::Put,
+                    )
+                    .await
+                {
+                    Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Self::RemoveChatFromFolder(folder, chat) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Folder, ()>(
+                        &format!("folder/{}/chat/{}", folder, chat),
+                        &(),
+                        RequestType::Delete,
+                    )
+                    .await
+                {
+                    Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Self::RemoveFolderFromFolder(folder) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Folder, ()>(
+                        &format!("folder/{}/parent/none", folder),
+                        &(),
+                        RequestType::Put,
+                    )
+                    .await
+                {
+                    Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Self::NewChatToFolder(x) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Chat, ChatData>(
+                        "chat/",
+                        &ChatData::default(),
+                        RequestType::Post,
+                    )
+                    .await
+                {
+                    Ok(chat) => Message::Batch(vec![
+                        match req
+                            .make_request::<Option<Folder>, ()>(
+                                &format!("folder/{}/chat/{}", x, chat.id.key().to_string()),
+                                &(),
+                                RequestType::Put,
+                            )
+                            .await
+                        {
+                            Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                            Err(e) => Message::Err(e),
+                        },
+                        Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                                HomePickingType::ReplaceChat(chat.id.key().to_string()),
+                            ))),
+                        )),
+                    ]),
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Self::NewFolderToFolder(x) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Folder, FolderData>(
+                        "folder/",
+                        &FolderDataBuilder::default().build().unwrap_or_default(),
+                        RequestType::Post,
+                    )
+                    .await
+                {
+                    Ok(folder) => match req
+                        .make_request::<Option<Folder>, ()>(
+                            &format!("folder/{}/parent/{}", folder.id.key().to_string(), x),
+                            &(),
+                            RequestType::Put,
+                        )
+                        .await
+                    {
+                        Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                        Err(e) => Message::Err(e),
+                    },
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Self::NewFolder => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Folder, FolderData>(
+                        "folder/",
+                        &FolderDataBuilder::default().build().unwrap_or_default(),
+                        RequestType::Post,
+                    )
+                    .await
+                {
+                    Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
                     Err(e) => Message::Err(e),
                 }
             }),

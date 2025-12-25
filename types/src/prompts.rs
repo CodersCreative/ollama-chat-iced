@@ -56,6 +56,8 @@ pub struct Prompt {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OpenWebUIUser {
+    #[serde(default = "Default::default")]
     pub username: String,
+    #[serde(default = "Default::default")]
     pub verified: bool,
 }

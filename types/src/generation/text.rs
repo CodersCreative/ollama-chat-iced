@@ -103,5 +103,8 @@ pub struct ChatQueryData {
     pub model: String,
     #[serde(default = "Vec::new")]
     #[builder(default = "Vec::new()")]
+    pub tools: Vec<String>,
+    #[serde(default = "Vec::new")]
+    #[builder(default = "Vec::new()")]
     pub messages: Vec<ChatQueryMessage>,
 }

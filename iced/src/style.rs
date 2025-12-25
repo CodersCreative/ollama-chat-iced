@@ -804,6 +804,47 @@ pub mod button {
             },
         }
     }
+
+    pub fn not_chosen_prompt(theme: &Theme, status: Status) -> Style {
+        match status {
+            Status::Active => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.01,
+                ))),
+                text_color: change_alpha(theme.palette().text.clone(), 0.4),
+                border: iced::Border::default()
+                    .rounded(5)
+                    .width(1)
+                    .color(darken_colour(theme.palette().background.clone(), 0.04)),
+                ..Default::default()
+            },
+            Status::Hovered => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                text_color: change_alpha(theme.palette().text.clone(), 0.6),
+                border: iced::Border::default()
+                    .rounded(5)
+                    .width(1)
+                    .color(darken_colour(theme.palette().background.clone(), 0.06)),
+                ..Default::default()
+            },
+            _ => Style {
+                background: Some(iced::Background::Color(darken_colour(
+                    theme.palette().background.clone(),
+                    0.05,
+                ))),
+                text_color: change_alpha(theme.palette().text.clone(), 0.8),
+                border: iced::Border::default()
+                    .rounded(5)
+                    .width(1)
+                    .color(darken_colour(theme.palette().background.clone(), 0.08)),
+                ..Default::default()
+            },
+        }
+    }
 }
 
 pub mod markdown {

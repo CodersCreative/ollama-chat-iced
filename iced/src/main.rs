@@ -20,7 +20,6 @@ use ochat_common::{
     load_token,
 };
 use ochat_types::{
-    chats::previews::Preview,
     providers::{hf::HFPullModelStreamResult, ollama::OllamaPullModelStreamResult},
     settings::{Settings, SettingsData},
 };
@@ -46,7 +45,7 @@ use crate::{
                     settings::SettingsView,
                 },
             },
-            sidebar::PreviewMk,
+            sidebar::SideBarItems,
         },
         setup::SetupPage,
     },
@@ -97,7 +96,7 @@ pub struct Application {
 
 #[derive(Debug, Clone, Default)]
 pub struct AppCache {
-    pub previews: Vec<PreviewMk>,
+    pub side_bar_items: SideBarItems,
     pub versions: Versions,
     pub expanded_image: Option<Vec<u8>>,
     pub settings: SettingsData,
@@ -163,12 +162,12 @@ pub enum Message {
 
 #[derive(Debug, Clone)]
 pub enum CacheMessage {
-    AddPreview(PreviewMk),
+    ResetSideBarItems,
     AddMessage(MessageMk),
     SetModels(ModelsData),
     SetPrompts(PromptsData),
     SetOptions(OptionsData),
-    SetPreviews(Vec<PreviewMk>),
+    SetSideBarItems(SideBarItems),
     SetSettings(SettingsData),
     ExpandImage(Vec<u8>),
     CloseExpandedImage,
@@ -181,10 +180,6 @@ pub enum CacheMessage {
 impl CacheMessage {
     pub fn handle(self, app: &mut Application) -> Task<Message> {
         match self {
-            Self::AddPreview(x) => {
-                app.cache.previews.retain(|y| y.id != x.id);
-                app.cache.previews.push(x);
-            }
             Self::AddMessage(x) => {
                 app.cache
                     .home_shared
@@ -204,8 +199,16 @@ impl CacheMessage {
             Self::SetOptions(x) => {
                 app.cache.home_shared.options = x;
             }
-            Self::SetPreviews(x) => {
-                app.cache.previews = x;
+            Self::ResetSideBarItems => {
+                return Task::future(async {
+                    match SideBarItems::get(None).await {
+                        Ok(x) => Message::Cache(Self::SetSideBarItems(x)),
+                        Err(e) => Message::Err(e),
+                    }
+                });
+            }
+            Self::SetSideBarItems(x) => {
+                app.cache.side_bar_items = x;
             }
             Self::ExpandImage(x) => {
                 app.cache.expanded_image = Some(x);
@@ -293,18 +296,7 @@ impl Application {
 
     pub fn update_data_cache() -> Task<Message> {
         Task::batch([
-            Task::future(async {
-                let req = DATA.read().unwrap().to_request();
-                match req
-                    .make_request::<Vec<Preview>, ()>("preview/all/", &(), RequestType::Get)
-                    .await
-                {
-                    Ok(x) => Message::Cache(CacheMessage::SetPreviews(
-                        x.into_iter().map(|x| x.into()).collect(),
-                    )),
-                    Err(e) => Message::Err(e),
-                }
-            }),
+            Task::done(Message::Cache(CacheMessage::ResetSideBarItems)),
             Task::future(async {
                 let req = DATA.read().unwrap().to_request();
                 match req

@@ -15,6 +15,7 @@ use ochat_types::{
 use crate::{
     Application, DATA, InputMessage, Message,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
+    pages::home::panes::PaneMessage,
     style,
 };
 
@@ -68,14 +69,38 @@ impl AuthMessage {
                     data.instance_url.clone()
                 };
                 save_token(&Token { token: x.clone() });
+                let windows = app
+                    .windows
+                    .iter()
+                    .filter_map(|x| {
+                        if let crate::pages::Pages::Home(page) = &x.1.page {
+                            Some((
+                                x.0.clone(),
+                                page.panes.panes.panes.first_key_value().unwrap().0.clone(),
+                            ))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
 
-                Task::future(async {
-                    if let Ok(x) = Data::get(url, Some(x)).await {
-                        *DATA.write().unwrap() = x;
-                    }
-                    Message::None
-                })
-                .chain(Application::update_data_cache())
+                let mut tasks = Vec::new();
+
+                for window in windows.into_iter() {
+                    tasks.push(PaneMessage::handle_new_chat(app, window.0, window.1));
+                }
+
+                tasks.push(
+                    Task::future(async {
+                        if let Ok(x) = Data::get(url, Some(x)).await {
+                            *DATA.write().unwrap() = x;
+                        }
+                        Message::None
+                    })
+                    .chain(Application::update_data_cache()),
+                );
+
+                Task::batch(tasks)
             }
             Self::Submit => {
                 let view = &app.view_data.auth;

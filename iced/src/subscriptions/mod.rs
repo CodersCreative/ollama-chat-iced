@@ -1,6 +1,5 @@
 use crate::{
     Application, CacheMessage, DATA, Message, PopUp,
-    pages::home::sidebar::PreviewMk,
     subscriptions::{
         hf_pull::{HFPull, HFPullUpdate},
         message::{MessageGen, MessageGenUpdate},
@@ -88,7 +87,7 @@ impl SubMessage {
                             )
                             .await
                         {
-                            Ok(x) => Message::Cache(CacheMessage::AddPreview(PreviewMk::from(x))),
+                            Ok(_) => Message::Cache(CacheMessage::ResetSideBarItems),
                             Err(e) => Message::Err(e),
                         }
                     } else {
