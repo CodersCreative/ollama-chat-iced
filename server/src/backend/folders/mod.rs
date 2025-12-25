@@ -27,20 +27,24 @@ DEFINE INDEX name_index ON TABLE {0} COLUMNS name SEARCH ANALYZER folders_analyz
 }
 
 pub async fn create_default_user_folders() -> Result<(), ServerError> {
-    let _ = create_folder(Json(FolderData {
-        user_id: None,
-        chats: Vec::new(),
-        parent: None,
-        name: String::from("Archived"),
-    }))
-    .await?;
-    let _ = create_folder(Json(FolderData {
-        user_id: None,
-        chats: Vec::new(),
-        parent: None,
-        name: String::from("Favourites"),
-    }))
-    .await?;
+    if get_folder_from_name("Archived").await?.is_none() {
+        let _ = create_folder(Json(FolderData {
+            user_id: None,
+            chats: Vec::new(),
+            parent: None,
+            name: String::from("Archived"),
+        }))
+        .await?;
+    }
+    if get_folder_from_name("Favourites").await?.is_none() {
+        let _ = create_folder(Json(FolderData {
+            user_id: None,
+            chats: Vec::new(),
+            parent: None,
+            name: String::from("Favourites"),
+        }))
+        .await?;
+    }
     Ok(())
 }
 
