@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     Application, DATA, InputMessage, Message,
     font::{HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
@@ -117,6 +119,18 @@ impl SideBarItem {
         }
     }
 
+    pub fn is_builtin(&self) -> bool {
+        if let Self::Folder {
+            folder,
+            children: _,
+        } = self
+        {
+            ["Favourites", "Archived"].contains(&folder.name.trim())
+        } else {
+            false
+        }
+    }
+
     pub fn get_markdown(&self) -> &[markdown::Item] {
         match self {
             Self::Preview(x) => &x.markdown,
@@ -151,7 +165,10 @@ impl SideBarItem {
         all_previews: &[Preview],
     ) -> Vec<Self> {
         let (current_id, chat_ids) = match self {
-            Self::Folder { folder, .. } => (folder.id.key().to_string(), &folder.chats),
+            Self::Folder { folder, .. } => (
+                folder.id.key().to_string().trim().to_string(),
+                &folder.chats,
+            ),
             _ => return Vec::new(),
         };
 
@@ -173,7 +190,7 @@ impl SideBarItem {
 
         let mut preview_children: Vec<Self> = all_previews
             .iter()
-            .filter(|p| chat_ids.contains(&p.id.key().to_string()))
+            .filter(|p| chat_ids.contains(&p.id.key().to_string().trim().to_string()))
             .map(|p| Self::Preview(p.clone().into()))
             .collect();
 
@@ -271,9 +288,9 @@ impl SideBarItems {
                 .make_request::<Vec<Folder>, ()>("folder/all/", &(), RequestType::Get)
                 .await?;
 
-            for folder_data in folders.iter().filter(|x| x.parent.is_none()) {
+            for folder_data in folders.iter().filter(|x| x.parent.is_none()).cloned() {
                 let mut folder_item = SideBarItem::Folder {
-                    folder: folder_data.clone().into(),
+                    folder: folder_data.into(),
                     children: Vec::new(),
                 };
 
@@ -295,7 +312,8 @@ impl SideBarItems {
                 .filter(|x| {
                     folders
                         .iter()
-                        .position(|y| y.chats.contains(&x.id.key().to_string()))
+                        .filter(|x| !["Favourites"].contains(&x.name.as_str()))
+                        .position(|y| y.chats.contains(&x.id.key().to_string().trim().to_string()))
                         .is_none()
                 })
                 .map(|x| SideBarItem::Preview(x.into()))
@@ -347,7 +365,14 @@ pub struct HomeSideBar {
     pub is_collapsed: bool,
     pub items: SideBarItems,
     pub expanded: Vec<String>,
+    pub editing: HashMap<String, String>,
     pub search: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum IsInSpecial {
+    Fav,
+    Archive,
+    None,
 }
 
 impl Default for HomeSideBar {
@@ -356,6 +381,7 @@ impl Default for HomeSideBar {
             split: NORMAL_SIZE,
             is_collapsed: false,
             expanded: Vec::new(),
+            editing: HashMap::new(),
             items: SideBarItems::default(),
             search: String::new(),
         }
@@ -375,122 +401,181 @@ impl HomeSideBar {
     }
 
     fn view_item<'a>(
-        &self,
+        &'a self,
         id: window::Id,
         item: &'a SideBarItem,
         parent: Option<String>,
         expanded: bool,
+        edit: Option<&'a String>,
+        is_in_special: IsInSpecial,
         theme: &Theme,
     ) -> Element<'a, Message> {
-        let title = button(markdown::view_with(
-            item.get_markdown().iter(),
-            style::markdown::main(theme),
-            &style::markdown::CustomViewer,
-        ))
-        .clip(true)
-        .on_press({
-            if item.is_folder() {
-                Message::Window(WindowMessage::Page(
+        let title: Element<'a, Message> = if let Some(edit) = edit {
+            text_input("Input folder title...", edit)
+                .on_input(move |x| {
+                    Message::Window(WindowMessage::Page(
+                        id,
+                        PageMessage::Home(HomeMessage::EditFolderMessage(
+                            item.get_record_id().key().to_string(),
+                            InputMessage::Update(x),
+                        )),
+                    ))
+                })
+                .on_submit(Message::Window(WindowMessage::Page(
                     id,
-                    PageMessage::Home(HomeMessage::ExpandItem(
+                    PageMessage::Home(HomeMessage::EditFolderMessage(
                         item.get_record_id().key().to_string(),
-                    )),
-                ))
-            } else {
-                Message::Window(WindowMessage::Page(
-                    id,
-                    PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                        HomePickingType::ReplaceChat(item.get_record_id().key().to_string()),
-                    ))),
-                ))
-            }
-        })
-        .style(style::button::transparent_back_white_text)
-        .width(Length::Fill);
-
-        let mut hover_buttons = row![
-            style::svg_button::text("close.svg", SUB_HEADING_SIZE)
-                .height(Length::Fill)
-                .on_press(Message::Window(WindowMessage::Page(
-                    id,
-                    PageMessage::Home(HomeMessage::DeleteItem(
-                        item.get_record_id().key().to_string(),
+                        InputMessage::Submit,
                     )),
                 )))
-        ]
-        .align_y(Vertical::Center)
-        .spacing(5);
-
-        if item.is_folder() {
-            if parent.is_some() {
-                hover_buttons = hover_buttons.push(
-                    style::svg_button::text("folder_upload.svg", SUB_HEADING_SIZE)
-                        .height(Length::Fill)
-                        .on_press(Message::Window(WindowMessage::Page(
-                            id,
-                            PageMessage::Home(HomeMessage::RemoveFolderFromFolder(
-                                item.get_record_id().key().to_string(),
-                            )),
-                        ))),
-                );
-            }
-            hover_buttons = hover_buttons.push(
-                style::svg_button::text("folder_new.svg", SUB_HEADING_SIZE)
-                    .height(Length::Fill)
-                    .on_press(Message::Window(WindowMessage::Page(
+                .style(style::text_input::input)
+                .width(Length::Fill)
+                .into()
+        } else {
+            button(markdown::view_with(
+                item.get_markdown().iter(),
+                style::markdown::main(theme),
+                &style::markdown::CustomViewer,
+            ))
+            .clip(true)
+            .on_press({
+                if item.is_folder() {
+                    Message::Window(WindowMessage::Page(
                         id,
-                        PageMessage::Home(HomeMessage::NewFolderToFolder(
+                        PageMessage::Home(HomeMessage::ExpandItem(
                             item.get_record_id().key().to_string(),
                         )),
-                    ))),
-            );
+                    ))
+                } else {
+                    Message::Window(WindowMessage::Page(
+                        id,
+                        PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                            HomePickingType::ReplaceChat(item.get_record_id().key().to_string()),
+                        ))),
+                    ))
+                }
+            })
+            .style(style::button::transparent_back_white_text)
+            .width(Length::Fill)
+            .into()
+        };
 
+        let mut hover_buttons = row![].align_y(Vertical::Center).spacing(5);
+
+        if edit.is_some() {
             hover_buttons = hover_buttons.push(
-                style::svg_button::text("add.svg", SUB_HEADING_SIZE)
+                style::svg_button::text("close.svg", SUB_HEADING_SIZE)
                     .height(Length::Fill)
                     .on_press(Message::Window(WindowMessage::Page(
                         id,
-                        PageMessage::Home(HomeMessage::NewChatToFolder(
+                        PageMessage::Home(HomeMessage::EditFolder(
                             item.get_record_id().key().to_string(),
                         )),
                     ))),
             );
         } else {
-            if let Some(parent) = parent {
+            if !item.is_builtin() {
                 hover_buttons = hover_buttons.push(
-                    style::svg_button::text("folder_upload.svg", SUB_HEADING_SIZE)
+                    style::svg_button::text("delete.svg", SUB_HEADING_SIZE)
                         .height(Length::Fill)
                         .on_press(Message::Window(WindowMessage::Page(
                             id,
-                            PageMessage::Home(HomeMessage::RemoveChatFromFolder(
-                                parent,
+                            PageMessage::Home(HomeMessage::DeleteItem(
                                 item.get_record_id().key().to_string(),
                             )),
                         ))),
                 );
             }
 
-            hover_buttons = hover_buttons.push(
-                style::svg_button::text("zip.svg", SUB_HEADING_SIZE)
-                    .height(Length::Fill)
-                    .on_press(Message::Window(WindowMessage::Page(
-                        id,
-                        PageMessage::Home(HomeMessage::ArchiveChat(
-                            item.get_record_id().key().to_string(),
-                        )),
-                    ))),
-            );
+            if item.is_folder() {
+                if parent.is_some() {
+                    hover_buttons = hover_buttons.push(
+                        style::svg_button::text("folder_upload.svg", SUB_HEADING_SIZE)
+                            .height(Length::Fill)
+                            .on_press(Message::Window(WindowMessage::Page(
+                                id,
+                                PageMessage::Home(HomeMessage::RemoveFolderFromFolder(
+                                    item.get_record_id().key().to_string(),
+                                )),
+                            ))),
+                    );
+                }
 
-            hover_buttons = hover_buttons.push(
-                style::svg_button::text("thumbs_up.svg", SUB_HEADING_SIZE)
-                    .height(Length::Fill)
-                    .on_press(Message::Window(WindowMessage::Page(
-                        id,
-                        PageMessage::Home(HomeMessage::FavChat(
-                            item.get_record_id().key().to_string(),
-                        )),
-                    ))),
-            );
+                if !item.is_builtin() {
+                    hover_buttons = hover_buttons.push(
+                        style::svg_button::text("edit.svg", SUB_HEADING_SIZE)
+                            .height(Length::Fill)
+                            .on_press(Message::Window(WindowMessage::Page(
+                                id,
+                                PageMessage::Home(HomeMessage::EditFolder(
+                                    item.get_record_id().key().to_string(),
+                                )),
+                            ))),
+                    );
+                }
+
+                hover_buttons = hover_buttons.push(
+                    style::svg_button::text("folder_new.svg", SUB_HEADING_SIZE)
+                        .height(Length::Fill)
+                        .on_press(Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::NewFolderToFolder(
+                                item.get_record_id().key().to_string(),
+                            )),
+                        ))),
+                );
+
+                hover_buttons = hover_buttons.push(
+                    style::svg_button::text("add.svg", SUB_HEADING_SIZE)
+                        .height(Length::Fill)
+                        .on_press(Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::NewChatToFolder(
+                                item.get_record_id().key().to_string(),
+                            )),
+                        ))),
+                );
+            } else {
+                if let Some(parent) = parent {
+                    hover_buttons = hover_buttons.push(
+                        style::svg_button::text("folder_upload.svg", SUB_HEADING_SIZE)
+                            .height(Length::Fill)
+                            .on_press(Message::Window(WindowMessage::Page(
+                                id,
+                                PageMessage::Home(HomeMessage::RemoveChatFromFolder(
+                                    parent,
+                                    item.get_record_id().key().to_string(),
+                                )),
+                            ))),
+                    );
+                }
+
+                if is_in_special != IsInSpecial::Archive {
+                    hover_buttons = hover_buttons.push(
+                        style::svg_button::text("zip.svg", SUB_HEADING_SIZE)
+                            .height(Length::Fill)
+                            .on_press(Message::Window(WindowMessage::Page(
+                                id,
+                                PageMessage::Home(HomeMessage::ArchiveChat(
+                                    item.get_record_id().key().to_string(),
+                                )),
+                            ))),
+                    );
+                }
+
+                if is_in_special == IsInSpecial::None {
+                    hover_buttons = hover_buttons.push(
+                        style::svg_button::text("thumbs_up.svg", SUB_HEADING_SIZE)
+                            .height(Length::Fill)
+                            .on_press(Message::Window(WindowMessage::Page(
+                                id,
+                                PageMessage::Home(HomeMessage::FavChat(
+                                    item.get_record_id().key().to_string(),
+                                )),
+                            ))),
+                    );
+                }
+            }
         }
 
         let mut body = column![
@@ -521,11 +606,7 @@ impl HomeSideBar {
         .spacing(10);
 
         if expanded {
-            if let SideBarItem::Folder {
-                folder: _,
-                children,
-            } = item
-            {
+            if let SideBarItem::Folder { folder, children } = item {
                 if !children.is_empty() {
                     body = body.push(
                         row![
@@ -536,6 +617,12 @@ impl HomeSideBar {
                                     x,
                                     Some(item.get_record_id().key().to_string()),
                                     self.expanded.contains(&x.get_record_id().key().to_string()),
+                                    self.editing.get(&x.get_record_id().key().to_string()),
+                                    match folder.name.as_str() {
+                                        "Archived" => IsInSpecial::Archive,
+                                        "Favourites" => IsInSpecial::Fav,
+                                        _ => is_in_special.clone(),
+                                    },
                                     theme,
                                 )
                             }))
@@ -624,6 +711,8 @@ impl HomeSideBar {
                     x,
                     None,
                     self.expanded.contains(&x.get_record_id().key().to_string()),
+                    self.editing.get(&x.get_record_id().key().to_string()),
+                    IsInSpecial::None,
                     &app.theme(),
                 )
             }),

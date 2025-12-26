@@ -2,7 +2,7 @@ pub mod route;
 
 use crate::backend::{CONN, errors::ServerError};
 use axum::{Json, extract::Path};
-use ochat_types::folders::{Folder, FolderData};
+use ochat_types::folders::{Folder, FolderData, FolderNameData};
 
 const FOLDER_TABLE: &str = "folders";
 
@@ -86,6 +86,21 @@ pub async fn add_folder_chat(
     ))
 }
 
+pub async fn update_folder_name(
+    Path(id): Path<String>,
+    Json(data): Json<FolderNameData>,
+) -> Result<Json<Option<Folder>>, ServerError> {
+    Ok(Json(
+        CONN.query(&format!(
+            "UPDATE {0}:{1} SET name = '{2}';",
+            FOLDER_TABLE,
+            id.trim(),
+            data.name.trim(),
+        ))
+        .await?
+        .take(0)?,
+    ))
+}
 pub async fn remove_folder_chat(
     Path((id, chat)): Path<(String, String)>,
 ) -> Result<Json<Option<Folder>>, ServerError> {
@@ -115,11 +130,19 @@ pub async fn unparent_folder(Path(id): Path<String>) -> Result<Json<Option<Folde
 
 pub async fn fav_chat(Path(chat): Path<String>) -> Result<Json<Option<Folder>>, ServerError> {
     let folder = get_folder_from_name("Favourites").await?.unwrap();
+
+    let action = if folder.chats.contains(&chat.trim().to_string()) {
+        "-"
+    } else {
+        "+"
+    };
+
     Ok(Json(
         CONN.query(&format!(
-            "UPDATE {0}:{1} SET chats += '{2}';",
+            "UPDATE {0}:{1} SET chats {2}= '{3}';",
             FOLDER_TABLE,
             folder.id.key(),
+            action,
             chat.trim()
         ))
         .await?
@@ -137,11 +160,18 @@ pub async fn archive_chat(Path(chat): Path<String>) -> Result<Json<Option<Folder
 
     let folder = get_folder_from_name("Archived").await?.unwrap();
 
+    let action = if folder.chats.contains(&chat.trim().to_string()) {
+        "-"
+    } else {
+        "+"
+    };
+
     Ok(Json(
         CONN.query(&format!(
-            "UPDATE {0}:{1} SET chats += '{2}';",
+            "UPDATE {0}:{1} SET chats {2}= '{3}';",
             FOLDER_TABLE,
             folder.id.key(),
+            action,
             chat.trim()
         ))
         .await?

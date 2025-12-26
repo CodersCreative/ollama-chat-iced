@@ -17,6 +17,11 @@ pub struct FolderData {
     pub name: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
+pub struct FolderNameData {
+    pub name: String,
+}
+
 fn new_name() -> String {
     String::from("New Folder")
 }

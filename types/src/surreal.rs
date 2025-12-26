@@ -19,6 +19,12 @@ impl RecordId {
     }
 }
 
+impl Display for RecordId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.tb, self.id)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RecordIdOnly(RecordId);
 
@@ -71,7 +77,7 @@ pub enum Id {
 impl Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::String(x) => writeln!(f, "{}", x),
+            Self::String(x) => writeln!(f, "{}", x.trim()),
         }
     }
 }

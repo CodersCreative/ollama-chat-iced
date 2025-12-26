@@ -24,6 +24,7 @@ pub fn routes() -> Router {
             "/folder/{id}/chat/{chat}",
             put(folders::add_folder_chat).delete(folders::remove_folder_chat),
         )
+        .route("/folder/{id}/name/", put(folders::update_folder_name))
         .route("/folder/archive/chat/{chat}", put(folders::archive_chat))
         .route("/folder/fav/chat/{chat}", put(folders::fav_chat))
 }

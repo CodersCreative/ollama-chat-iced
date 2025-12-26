@@ -10,7 +10,7 @@ use iced::{Task, window};
 use ochat_common::data::RequestType;
 use ochat_types::{
     chats::{Chat, ChatData, previews::Preview},
-    folders::{Folder, FolderData, FolderDataBuilder},
+    folders::{Folder, FolderData, FolderDataBuilder, FolderNameData},
 };
 
 #[derive(Debug, Clone)]
@@ -24,6 +24,8 @@ pub enum HomeMessage {
     SearchItems(InputMessage),
     SetItems(SideBarItems),
     ExpandItem(String),
+    EditFolder(String),
+    EditFolderMessage(String, InputMessage),
     NewChat,
     NewChatToFolder(String),
     NewFolderToFolder(String),
@@ -49,6 +51,48 @@ impl HomeMessage {
                     page.side_bar.expanded.push(x);
                 }
                 Task::none()
+            }
+            Self::EditFolder(x) => {
+                let page = app.get_home_page(&id).unwrap();
+                if page.side_bar.editing.contains_key(&x) {
+                    page.side_bar.editing.retain(|y, _| y != &x);
+                } else {
+                    page.side_bar.editing.insert(x, String::new());
+                }
+                Task::none()
+            }
+            Self::EditFolderMessage(folder_id, InputMessage::Update(x)) => {
+                app.get_home_page(&id)
+                    .unwrap()
+                    .side_bar
+                    .editing
+                    .iter_mut()
+                    .filter(|x| x.0 == &folder_id)
+                    .for_each(|y| *y.1 = x.clone());
+                Task::none()
+            }
+            Self::EditFolderMessage(folder_id, _) => {
+                let value = app
+                    .get_home_page(&id)
+                    .unwrap()
+                    .side_bar
+                    .editing
+                    .remove(&folder_id)
+                    .unwrap_or(String::from("New Folder"));
+                Task::future(async move {
+                    let req = DATA.read().unwrap().to_request();
+                    match req
+                        .make_request::<Folder, FolderNameData>(
+                            &format!("folder/{}/name/", folder_id),
+                            &FolderNameData { name: value },
+                            RequestType::Put,
+                        )
+                        .await
+                    {
+                        Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                        Err(e) => Message::Err(e),
+                    }
+                })
             }
             Self::SearchItems(InputMessage::Update(x)) => {
                 let page = app.get_home_page(&id).unwrap();
@@ -94,8 +138,8 @@ impl HomeMessage {
                     )
                     .await
                 {
-                    Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
-                    Err(_) => match req
+                    Ok(Some(_)) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                    _ => match req
                         .make_request::<Option<Folder>, ()>(
                             &format!("folder/{}", x),
                             &(),

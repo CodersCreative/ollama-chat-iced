@@ -7,6 +7,7 @@ pub mod prompts;
 pub mod providers;
 pub mod settings;
 pub mod surreal;
+pub mod tools;
 pub mod user;
 pub mod version;
 
