@@ -24,6 +24,7 @@ pub enum HomeMessage {
     SearchItems(InputMessage),
     SetItems(SideBarItems),
     ExpandItem(String),
+    ButtonExpandItem(String),
     EditFolder(String),
     EditFolderMessage(String, InputMessage),
     NewChat,
@@ -49,6 +50,15 @@ impl HomeMessage {
                     page.side_bar.expanded.retain(|y| y != &x);
                 } else {
                     page.side_bar.expanded.push(x);
+                }
+                Task::none()
+            }
+            Self::ButtonExpandItem(x) => {
+                let page = app.get_home_page(&id).unwrap();
+                if page.side_bar.buttons_expanded.contains(&x) {
+                    page.side_bar.buttons_expanded.retain(|y| y != &x);
+                } else {
+                    page.side_bar.buttons_expanded.push(x);
                 }
                 Task::none()
             }

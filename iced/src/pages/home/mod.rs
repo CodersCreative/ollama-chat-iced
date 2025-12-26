@@ -19,6 +19,8 @@ pub mod sidebar;
 pub const COLLAPSED_SIZE: f32 = 50.0;
 pub const COLLAPSED_CUT_OFF: f32 = 100.0;
 pub const NORMAL_SIZE: f32 = 350.0;
+pub const BUTTON_COLLAPSE_CUT_OFF: f32 = 265.0;
+pub const BUTTONS_EXPAND_CUT_OFF: f32 = 450.0;
 
 #[derive(Debug, Clone)]
 pub struct HomePage {

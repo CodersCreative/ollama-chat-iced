@@ -220,11 +220,48 @@ pub mod container {
             ..Default::default()
         }
     }
+
     pub fn bottom_input_back(_theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
             ..Default::default()
         }
+    }
+    macro_rules! container_style {
+        ($iden:ident) => {
+            pub fn $iden(theme: &Theme) -> Style {
+                Style {
+                    background: Some(iced::Background::Color(theme.palette().$iden.clone())),
+                    ..Default::default()
+                }
+            }
+        };
+    }
+    container_style!(text);
+    container_style!(background);
+    container_style!(primary);
+    container_style!(danger);
+    pub mod translucent {
+        use super::*;
+
+        macro_rules! container_style {
+            ($iden:ident) => {
+                pub fn $iden(theme: &Theme) -> Style {
+                    Style {
+                        background: Some(iced::Background::Color(change_alpha(
+                            theme.palette().$iden.clone(),
+                            0.4,
+                        ))),
+                        ..Default::default()
+                    }
+                }
+            };
+        }
+
+        container_style!(text);
+        container_style!(background);
+        container_style!(primary);
+        container_style!(danger);
     }
 }
 

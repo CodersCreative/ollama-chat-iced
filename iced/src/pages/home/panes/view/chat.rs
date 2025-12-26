@@ -696,33 +696,42 @@ impl ChatsView {
                         space().into()
                     },
                     space::horizontal().into(),
+                ];
+
+                if message.base.role == Role::AI {
+                    widgets.append(&mut vec![
+                        style::svg_button::text("restart.svg", BODY_SIZE)
+                            .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::Regenerate(message.base.id.key().to_string()),
+                            )))
+                            .into(),
+                        style::svg_button::text("branch.svg", BODY_SIZE)
+                            .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::Branch(message.base.id.key().to_string()),
+                            )))
+                            .into(),
+                    ]);
+                }
+
+                widgets.append(&mut vec![
                     style::svg_button::text("edit.svg", BODY_SIZE)
                         .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
                             id,
                             ChatsViewMessage::Edit(message.base.id.key().to_string()),
                         )))
                         .into(),
-                    style::svg_button::text("restart.svg", BODY_SIZE)
-                        .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
-                            id,
-                            ChatsViewMessage::Regenerate(message.base.id.key().to_string()),
-                        )))
-                        .into(),
-                    style::svg_button::text("branch.svg", BODY_SIZE)
-                        .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
-                            id,
-                            ChatsViewMessage::Branch(message.base.id.key().to_string()),
-                        )))
-                        .into(),
                     style::svg_button::text("copy.svg", BODY_SIZE)
                         .on_press(Message::SaveToClipboard(message.base.content.clone()))
                         .into(),
-                ];
+                ]);
 
                 if message.can_change {
-                    widgets.push(style::svg_button::text("back_arrow.svg", BODY_SIZE).into());
-
-                    widgets.push(style::svg_button::text("forward_arrow.svg", BODY_SIZE).into());
+                    widgets.append(&mut vec![
+                        style::svg_button::text("back_arrow.svg", BODY_SIZE).into(),
+                        style::svg_button::text("forward_arrow.svg", BODY_SIZE).into(),
+                    ]);
                 }
 
                 widgets

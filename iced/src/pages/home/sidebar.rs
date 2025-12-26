@@ -6,7 +6,8 @@ use crate::{
     pages::{
         PageMessage,
         home::{
-            COLLAPSED_CUT_OFF, HomePaneType, NORMAL_SIZE,
+            BUTTON_COLLAPSE_CUT_OFF, BUTTONS_EXPAND_CUT_OFF, COLLAPSED_CUT_OFF, HomePaneType,
+            NORMAL_SIZE,
             message::{HomeMessage, HomePickingType},
             panes::PaneMessage,
         },
@@ -19,8 +20,8 @@ use iced::{
     Element, Length, Padding, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        Button, button, column, container, hover, markdown, right, row, rule, space, svg, text,
-        text_input,
+        Button, button, center_x, column, container, hover, markdown, right, row, rule, space, svg,
+        text, text_input,
     },
     window,
 };
@@ -365,6 +366,7 @@ pub struct HomeSideBar {
     pub is_collapsed: bool,
     pub items: SideBarItems,
     pub expanded: Vec<String>,
+    pub buttons_expanded: Vec<String>,
     pub editing: HashMap<String, String>,
     pub search: String,
 }
@@ -381,6 +383,7 @@ impl Default for HomeSideBar {
             split: NORMAL_SIZE,
             is_collapsed: false,
             expanded: Vec::new(),
+            buttons_expanded: Vec::new(),
             editing: HashMap::new(),
             items: SideBarItems::default(),
             search: String::new(),
@@ -406,6 +409,7 @@ impl HomeSideBar {
         item: &'a SideBarItem,
         parent: Option<String>,
         expanded: bool,
+        buttons_expanded: bool,
         edit: Option<&'a String>,
         is_in_special: IsInSpecial,
         theme: &Theme,
@@ -473,7 +477,31 @@ impl HomeSideBar {
                         )),
                     ))),
             );
+        } else if !buttons_expanded && self.split < BUTTONS_EXPAND_CUT_OFF {
+            hover_buttons = hover_buttons.push(
+                style::svg_button::text("panel_close.svg", SUB_HEADING_SIZE)
+                    .height(Length::Fill)
+                    .on_press(Message::Window(WindowMessage::Page(
+                        id,
+                        PageMessage::Home(HomeMessage::ButtonExpandItem(
+                            item.get_record_id().key().to_string(),
+                        )),
+                    ))),
+            );
         } else {
+            if self.split < BUTTONS_EXPAND_CUT_OFF {
+                hover_buttons = hover_buttons.push(
+                    style::svg_button::text("panel_open.svg", SUB_HEADING_SIZE)
+                        .height(Length::Fill)
+                        .on_press(Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::ButtonExpandItem(
+                                item.get_record_id().key().to_string(),
+                            )),
+                        ))),
+                );
+            }
+
             if !item.is_builtin() {
                 hover_buttons = hover_buttons.push(
                     style::svg_button::text("delete.svg", SUB_HEADING_SIZE)
@@ -592,10 +620,10 @@ impl HomeSideBar {
                         .style(style::svg::text)
                         .width(SUB_HEADING_SIZE)
                         .into(),
-                        title.into(),
+                        title,
                     ]
                 } else {
-                    vec![title.into()]
+                    vec![title]
                 })
                 .align_y(Vertical::Center)
                 .spacing(5),
@@ -610,14 +638,16 @@ impl HomeSideBar {
                 if !children.is_empty() {
                     body = body.push(
                         row![
-                            space(),
+                            space().width(10),
                             column(children.iter().map(|x| {
+                                let item_id = x.get_record_id().key().to_string();
                                 self.view_item(
                                     id.clone(),
                                     x,
                                     Some(item.get_record_id().key().to_string()),
-                                    self.expanded.contains(&x.get_record_id().key().to_string()),
-                                    self.editing.get(&x.get_record_id().key().to_string()),
+                                    self.expanded.contains(&item_id),
+                                    self.buttons_expanded.contains(&item_id),
+                                    self.editing.get(&item_id),
                                     match folder.name.as_str() {
                                         "Archived" => IsInSpecial::Archive,
                                         "Favourites" => IsInSpecial::Fav,
@@ -626,7 +656,7 @@ impl HomeSideBar {
                                     theme,
                                 )
                             }))
-                            .spacing(5)
+                            .spacing(0)
                         ]
                         .spacing(5),
                     );
@@ -658,20 +688,24 @@ impl HomeSideBar {
             ))),
         )));
 
-        let new_chat = button(
-            text("New Chat")
-                .font(get_bold_font())
-                .align_x(Horizontal::Center)
-                .align_y(Vertical::Center)
-                .width(Length::Fill)
-                .size(HEADER_SIZE),
-        )
+        let new_chat = if self.split < BUTTON_COLLAPSE_CUT_OFF {
+            style::svg_button::text("add.svg", HEADER_SIZE)
+        } else {
+            button(
+                text("New Chat")
+                    .font(get_bold_font())
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
+                    .width(Length::Fill)
+                    .size(HEADER_SIZE),
+            )
+            .width(Length::Fill)
+        }
         .on_press(Message::Window(WindowMessage::Page(
             id,
             PageMessage::Home(HomeMessage::NewChat),
         )))
         .style(style::button::rounded_primary_blend)
-        .width(Length::Fill)
         .padding(Padding::from(10));
 
         let new_folder = style::svg_button::text("folder_new.svg", HEADER_SIZE)
@@ -706,12 +740,14 @@ impl HomeSideBar {
             }
             .iter()
             .map(|x| {
+                let item_id = x.get_record_id().key().to_string();
                 self.view_item(
                     id.clone(),
                     x,
                     None,
-                    self.expanded.contains(&x.get_record_id().key().to_string()),
-                    self.editing.get(&x.get_record_id().key().to_string()),
+                    self.expanded.contains(&item_id),
+                    self.buttons_expanded.contains(&item_id),
+                    self.editing.get(&item_id),
                     IsInSpecial::None,
                     &app.theme(),
                 )
@@ -722,9 +758,11 @@ impl HomeSideBar {
         container(
             column![
                 name,
-                row![new_chat, new_folder]
-                    .spacing(10)
-                    .align_y(Vertical::Center),
+                center_x(
+                    row![new_chat, new_folder]
+                        .spacing(10)
+                        .align_y(Vertical::Center)
+                ),
                 search,
                 previews,
                 space::vertical()
