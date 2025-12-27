@@ -25,8 +25,12 @@ pub enum ServerError {
     IO(#[from] std::io::Error),
     #[error("Error : {0}")]
     Unknown(String),
-    #[error("TransmutationError : {0}")]
-    Transmutaion(#[from] transmutation::error::TransmutationError),
+}
+
+impl From<Box<dyn std::error::Error>> for ServerError {
+    fn from(value: Box<dyn std::error::Error>) -> Self {
+        Self::Unknown(value.to_string())
+    }
 }
 
 impl IntoResponse for ServerError {

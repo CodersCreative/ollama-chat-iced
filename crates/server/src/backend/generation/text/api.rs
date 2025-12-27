@@ -10,7 +10,7 @@ use futures::{Stream, StreamExt};
 use ochat_types::{
     chats::messages::Role,
     files::FileType,
-    generation::text::{ChatQueryData, ChatResponse, ChatStreamResult},
+    generation::text::{ChatQueryData, ChatResponse, ChatStreamResult, split_text_into_thinking},
     options::GenOptionKey,
     providers::Provider,
 };
@@ -120,7 +120,14 @@ pub async fn run(data: ChatQueryData) -> Result<Json<ChatResponse>, ServerError>
         let mut messages = request.1;
         request
             .0
-            .completion(messages.pop().unwrap(), messages)
+            .completion(
+                if messages.len() % 2 == 0 {
+                    rig::message::Message::user("Now generate from your previous instructions...")
+                } else {
+                    messages.pop().unwrap()
+                },
+                messages,
+            )
             .await?
             .send()
             .await?
@@ -141,12 +148,17 @@ pub async fn run(data: ChatQueryData) -> Result<Json<ChatResponse>, ServerError>
         }
     }
 
+    let (content, thinking2) = split_text_into_thinking(content);
+
     Ok(Json(ChatResponse {
         role: Role::AI,
         content,
         thinking: if thinking.is_empty() {
-            None
+            thinking2
         } else {
+            if let Some(thinking2) = thinking2 {
+                thinking.push_str(&thinking2);
+            }
             Some(thinking)
         },
         func_calls: Vec::new(),
@@ -162,7 +174,14 @@ pub async fn stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamResult>
         let mut messages = request.1;
         request
             .0
-            .stream_completion(messages.pop().unwrap(), messages)
+            .stream_completion(
+                if messages.len() % 2 == 0 {
+                    rig::message::Message::user("Now generate from your previous instructions...")
+                } else {
+                    messages.pop().unwrap()
+                },
+                messages,
+            )
             .await
             .unwrap()
             .stream()
@@ -211,13 +230,16 @@ pub async fn stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamResult>
                 }
             }
         }
-
+        let (content, thinking2) = split_text_into_thinking(content);
         let _ = tx.send(ChatStreamResult::Generated(ChatResponse {
             role: Role::AI,
             content,
             thinking: if thinking.is_empty() {
-                None
+                thinking2
             } else {
+                if let Some(thinking2) = thinking2 {
+                    thinking.push_str(&thinking2);
+                }
                 Some(thinking)
             },
             func_calls: Vec::new(),

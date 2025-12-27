@@ -37,7 +37,7 @@ normal = [
     "dep:rig-surrealdb",
     "dep:futures",
     "dep:surrealdb",
-    "dep:transmutation",
+    "dep:markdownify",
     "dep:thiserror",
     "dep:tokio-stream",
     "dep:schemars",
@@ -92,10 +92,10 @@ console_error_panic_hook = { version = "0.1", optional = true }
 leptos_axum = { version = "0.8.0", optional = true }
 leptos_meta = { version = "0.8.0" }
 wasm-bindgen = { version = "=0.2.105", optional = true }
-transmutation = { version = "0.3.1", optional = true}
 rig-core = { version = "0.27.0", features = ["derive"], optional = true}
 rig-surrealdb = { version = "0.1.25", optional = true}
 bytes = {version="1.11.0", optional = true}
+markdownify = {version = "0.2.1", optional = true}
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name

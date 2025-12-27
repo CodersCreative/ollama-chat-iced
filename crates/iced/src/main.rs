@@ -10,8 +10,8 @@ use iced::{
     alignment::Vertical,
     clipboard, exit,
     widget::{
-        center, column, container, image, markdown, mouse_area, progress_bar, right, row, stack,
-        text,
+        center, column, container, image, markdown, mouse_area, progress_bar, right, row,
+        scrollable, stack, text,
     },
     window::{self},
 };
@@ -390,11 +390,16 @@ impl Application {
                     .height(Length::Fill)
                     .width(Length::Fill)
                     .into(),
-                ViewFileType::Document(x) => markdown::view_with(
+                ViewFileType::Document(x) => scrollable::Scrollable::new(markdown::view_with(
                     x.mk.iter(),
                     style::markdown::main(&self.theme()),
                     &style::markdown::CustomViewer,
-                )
+                ))
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::default(),
+                ))
+                .height(Length::Fill)
+                .width(Length::Fill)
                 .into(),
                 _ => text("Sorry, unable to view file in app...")
                     .size(HEADER_SIZE)

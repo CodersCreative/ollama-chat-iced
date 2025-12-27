@@ -1,18 +1,10 @@
-use crate::backend::{
-    CONN,
-    errors::ServerError,
-    providers::{PROVIDER_TABLE, provider_into_config},
-    settings::get_settings,
-    utils::get_file_uploads_path,
-};
+use crate::backend::{CONN, errors::ServerError, utils::get_file_uploads_path};
 use axum::{Json, extract::Path};
 use base64::{Engine, prelude::BASE64_STANDARD};
 use ochat_types::{
     files::{B64File, B64FileData, DBFile, FileType},
-    providers::Provider,
     surreal::RecordId,
 };
-use rig::{client::EmbeddingsClient, embeddings::EmbeddingModel};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -33,53 +25,6 @@ struct DBFileData {
     filename: String,
 }
 
-pub async fn generate_embeddings(
-    converter: &transmutation::Converter,
-    path: &str,
-) -> Result<Vec<Vec<f64>>, ServerError> {
-    let settings = get_settings().await?.0;
-    if let Some(provider) = settings.embeddings_provider {
-        let result = converter
-            .convert(path)
-            .to(transmutation::OutputFormat::EmbeddingReady {
-                max_chunk_size: 512,
-                overlap: 128,
-            })
-            .with_options(transmutation::ConversionOptions {
-                optimize_for_llm: true,
-                split_pages: false,
-                ..Default::default()
-            })
-            .execute()
-            .await
-            .unwrap();
-
-        let data: Vec<Vec<u8>> = result.content.into_iter().map(|x| x.data).collect();
-
-        let request: Vec<String> = data
-            .into_iter()
-            .map(|x| String::from_utf8(x).unwrap_or_default())
-            .collect();
-
-        let model = provider.model.trim();
-        let embeddings = if let Some(provider) = CONN
-            .select::<Option<Provider>>((PROVIDER_TABLE, provider.provider.trim()))
-            .await?
-        {
-            let provider = provider_into_config(&provider);
-            provider.embedding_model(model).embed_texts(request).await?
-        } else {
-            panic!()
-        };
-
-        Ok(embeddings.into_iter().map(|x| x.vec).collect())
-    } else {
-        Err(ServerError::Unknown(String::from(
-            "No default embeddings model set",
-        )))
-    }
-}
-
 impl DBFileData {
     pub async fn save_file(value: B64FileData) -> Result<Self, ServerError> {
         let time = SystemTime::now()
@@ -92,38 +37,19 @@ impl DBFileData {
 
         match value.file_type {
             FileType::File => {
-                let mut tmp_path = get_file_uploads_path(format!("{}{}", time, value.filename));
-                let mut tmp_file = fs::File::create(&tmp_path)?;
-                tmp_file.write_all(&BASE64_STANDARD.decode(&value.b64data).unwrap())?;
-                let converter = transmutation::Converter::new()?;
-                if tmp_path.rsplit_once(".").unwrap().1 != "md" {
-                    let result = converter
-                        .convert(&tmp_path)
-                        .to(transmutation::OutputFormat::Markdown {
-                            split_pages: true,
-                            optimize_for_llm: true,
-                        })
-                        .with_options(transmutation::ConversionOptions {
-                            split_pages: true,
-                            optimize_for_llm: true,
-                            ..Default::default()
-                        })
-                        .execute()
-                        .await?;
-                    fs::remove_file(&tmp_path)?;
-                    tmp_path = format!("{}.md", tmp_path.rsplit_once(".").unwrap().0);
-                    result.save(&tmp_path).await?;
-                }
-
-                // Save the .md base64 data
+                let data = if !["md", "json"].contains(&value.filename.rsplit_once(".").unwrap().1)
                 {
-                    let data = fs::read_to_string(&tmp_path)?;
-                    file.write_all(BASE64_STANDARD.encode(data).as_bytes())?;
-                }
+                    let tmp_path = get_file_uploads_path(format!("{}{}", time, value.filename));
+                    let mut tmp_file = fs::File::create(&tmp_path)?;
+                    tmp_file.write_all(&BASE64_STANDARD.decode(&value.b64data).unwrap())?;
+                    let data = BASE64_STANDARD.encode(markdownify::convert(tmp_path.as_str())?);
+                    fs::remove_file(&tmp_path)?;
+                    data
+                } else {
+                    value.b64data
+                };
 
-                let _embeddings = generate_embeddings(&converter, &tmp_path).await;
-
-                fs::remove_file(&tmp_path)?;
+                file.write_all(data.as_bytes())?;
             }
             _ => {
                 file.write_all(value.b64data.as_bytes())?;
@@ -150,13 +76,12 @@ DEFINE FIELD IF NOT EXISTS file_type ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS filename ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS path ON TABLE {0} TYPE string;
 
-DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL
+DEFINE TABLE IF NOT EXISTS {1} SCHEMAFULL
     PERMISSIONS FOR select, update, delete WHERE user_id = $auth.id FOR create FULL;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE record DEFAULT ALWAYS $auth.id;
-DEFINE FIELD IF NOT EXISTS file_id ON TABLE {0} TYPE string;
-DEFINE FIELD IF NOT EXISTS path ON TABLE {0} TYPE string;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {1} TYPE record DEFAULT ALWAYS $auth.id;
+DEFINE FIELD IF NOT EXISTS file_id ON TABLE {1} TYPE string;
 ",
-            FILE_TABLE
+            FILE_TABLE, EMBEDDINGS_TABLE,
         ))
         .await?;
     Ok(())

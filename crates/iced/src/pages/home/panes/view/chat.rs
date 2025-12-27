@@ -41,6 +41,11 @@ const IMAGE_FORMATS: [&str; 15] = [
     "tiff", "webp",
 ];
 
+const DOC_FORMATS: [&str; 14] = [
+    "pdf", "docx", "doc", "xlsx", "ppt", "pptx", "html", "xml", "txt", "csv", "tsv", "rtf", "odt",
+    "md",
+];
+
 #[derive(Debug, Clone)]
 pub struct ChatsView {
     pub input: text_editor::Content,
@@ -637,6 +642,7 @@ impl ChatsViewMessage {
     async fn get_file_paths() -> Result<Vec<String>, String> {
         let files = rfd::AsyncFileDialog::new()
             .add_filter("Image", &IMAGE_FORMATS)
+            .add_filter("Document", &DOC_FORMATS)
             .pick_files()
             .await;
 
