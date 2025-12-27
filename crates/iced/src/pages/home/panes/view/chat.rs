@@ -433,7 +433,7 @@ impl ChatsViewMessage {
                         {
                             Ok(message) => Message::HomePaneView(HomePaneViewMessage::Chats(
                                 id,
-                                ChatsViewMessage::AIMessageUploaded(MessageMk::get(message).await, Some(ChatQueryData { provider: x.provider.trim().to_string(), model: x.model, tools, messages }))
+                                ChatsViewMessage::AIMessageUploaded(MessageMk::get(message).await, Some(ChatQueryData { force_disable_tools: false, provider: x.provider.trim().to_string(), model: x.model, tools, messages }))
                             )),
                             Err(e) => Message::Err(e)
                         }
@@ -592,6 +592,7 @@ impl ChatsViewMessage {
                             ChatsViewMessage::AIMessageUploaded(
                                 MessageMk::get(message).await,
                                 Some(ChatQueryData {
+                                    force_disable_tools: false,
                                     provider: model.provider,
                                     model: model.model,
                                     tools,

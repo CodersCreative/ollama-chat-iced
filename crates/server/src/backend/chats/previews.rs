@@ -101,6 +101,7 @@ Generate a **concise, 3 to 5 word title** for the previous messages.
     let provider = get_settings().await?.0.previews_provider.unwrap();
 
     let preview = crate::backend::generation::text::run(Json(ChatQueryData {
+        force_disable_tools: true,
         provider: provider.provider,
         model: provider.model,
         tools: Vec::new(),

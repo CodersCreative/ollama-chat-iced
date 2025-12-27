@@ -4,8 +4,8 @@ use rig::client::{
 use rig::http_client::{self, HttpClientExt};
 use rig::providers::ollama::{Message, ToolDefinition};
 use rig::providers::openai::{
-    CompletionResponse as Response, StreamingCompletionResponse as StreamingResponse,
-    send_compatible_streaming_request,
+    CompletionResponse as Response, EmbeddingResponse,
+    StreamingCompletionResponse as StreamingResponse, send_compatible_streaming_request,
 };
 use rig::{
     completion::{self, CompletionError, CompletionRequest},
@@ -75,18 +75,6 @@ enum ApiResponse<T> {
 
 // ---------- Embedding API ----------
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct EmbeddingResponse {
-    pub model: String,
-    pub embeddings: Vec<Vec<f64>>,
-    #[serde(default)]
-    pub total_duration: Option<u64>,
-    #[serde(default)]
-    pub load_duration: Option<u64>,
-    #[serde(default)]
-    pub prompt_eval_count: Option<u64>,
-}
-
 impl From<ApiErrorResponse> for EmbeddingError {
     fn from(err: ApiErrorResponse) -> Self {
         EmbeddingError::ProviderError(err.message)
@@ -136,24 +124,29 @@ where
     type Client = Client<T>;
 
     fn make(client: &Self::Client, model: impl Into<String>, dims: Option<usize>) -> Self {
-        Self::new(client.clone(), model, dims.unwrap())
+        Self::new(client.clone(), model, dims.unwrap_or_default())
     }
 
     const MAX_DOCUMENTS: usize = 1024;
     fn ndims(&self) -> usize {
         self.ndims
     }
-
     async fn embed_texts(
         &self,
         documents: impl IntoIterator<Item = String>,
     ) -> Result<Vec<embeddings::Embedding>, EmbeddingError> {
-        let docs: Vec<String> = documents.into_iter().collect();
+        let documents = documents.into_iter().collect::<Vec<_>>();
 
-        let body = serde_json::to_vec(&json!({
+        let mut body = json!({
             "model": self.model,
-            "input": docs
-        }))?;
+            "input": documents,
+        });
+
+        if self.ndims > 0 {
+            body["dimensions"] = json!(self.ndims);
+        }
+
+        let body = serde_json::to_vec(&body)?;
 
         let req = self
             .client
@@ -163,26 +156,34 @@ where
 
         let response = self.client.send(req).await?;
 
-        if !response.status().is_success() {
+        if response.status().is_success() {
+            let body: Vec<u8> = response.into_body().await?;
+            let body: ApiResponse<EmbeddingResponse> = serde_json::from_slice(&body)?;
+
+            match body {
+                ApiResponse::Ok(response) => {
+                    if response.data.len() != documents.len() {
+                        return Err(EmbeddingError::ResponseError(
+                            "Response data length does not match input length".into(),
+                        ));
+                    }
+
+                    Ok(response
+                        .data
+                        .into_iter()
+                        .zip(documents.into_iter())
+                        .map(|(embedding, document)| embeddings::Embedding {
+                            document,
+                            vec: embedding.embedding,
+                        })
+                        .collect())
+                }
+                ApiResponse::Err(err) => Err(EmbeddingError::ProviderError(err.message)),
+            }
+        } else {
             let text = http_client::text(response).await?;
-            return Err(EmbeddingError::ProviderError(text));
+            Err(EmbeddingError::ProviderError(text))
         }
-
-        let bytes: Vec<u8> = response.into_body().await?;
-
-        let api_resp: EmbeddingResponse = serde_json::from_slice(&bytes)?;
-
-        if api_resp.embeddings.len() != docs.len() {
-            return Err(EmbeddingError::ResponseError(
-                "Number of returned embeddings does not match input".into(),
-            ));
-        }
-        Ok(api_resp
-            .embeddings
-            .into_iter()
-            .zip(docs.into_iter())
-            .map(|(vec, document)| embeddings::Embedding { document, vec })
-            .collect())
     }
 }
 

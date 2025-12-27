@@ -4,6 +4,8 @@ use crate::backend::{
     files::get_file,
     options::relationships::get_default_gen_options_from_model,
     providers::{PROVIDER_TABLE, generic_rig, provider_into_config},
+    settings::get_settings,
+    tools::builtin::{WebScraper, WebSearch},
 };
 use axum::Json;
 use futures::{Stream, StreamExt};
@@ -15,8 +17,14 @@ use ochat_types::{
     providers::Provider,
 };
 use rig::{
-    OneOrMany, client::CompletionClient, completion::Completion, message::ImageMediaType,
+    OneOrMany,
+    client::{CompletionClient, EmbeddingsClient},
+    completion::{Completion, Prompt},
+    embeddings::{EmbeddingsBuilder, ToolSchema},
+    message::ImageMediaType,
     streaming::StreamingCompletion,
+    tool::ToolSet,
+    vector_store::in_memory_store::{InMemoryVectorIndex, InMemoryVectorStore},
 };
 use std::{thread, time::Duration};
 
@@ -110,7 +118,70 @@ async fn get_chat_completion_request(
         }
     }
 
-    Ok((agent.build(), messages))
+    Ok((
+        if query.force_disable_tools || query.tools.is_empty() {
+            agent.build()
+        } else {
+            match get_tools().await {
+                Ok(Some(tools))
+                    if check_tool_compatibality(&provider, query.model.trim()).await =>
+                {
+                    agent.dynamic_tools(tools.0, tools.1, tools.2).build()
+                }
+                _ => agent.build(),
+            }
+        },
+        messages,
+    ))
+}
+
+pub async fn check_tool_compatibality(client: &generic_rig::Client, model: &str) -> bool {
+    let agent = client.agent(model.trim());
+
+    match agent.tool(WebScraper).build().prompt("Hello").await {
+        Ok(_) => true,
+        _ => false,
+    }
+}
+
+pub async fn get_tools() -> Result<
+    Option<(
+        usize,
+        InMemoryVectorIndex<generic_rig::EmbeddingModel<reqwest::Client>, ToolSchema>,
+        ToolSet,
+    )>,
+    ServerError,
+> {
+    let toolset = ToolSet::builder()
+        .dynamic_tool(WebScraper)
+        .dynamic_tool(WebSearch)
+        .build();
+
+    let Some(provider) = get_settings().await?.0.embeddings_provider else {
+        return Ok(None);
+    };
+    let model = provider.model;
+
+    let Some(provider) = CONN
+        .select::<Option<Provider>>((PROVIDER_TABLE, provider.provider.trim()))
+        .await?
+    else {
+        panic!()
+    };
+
+    let client = provider_into_config(&provider);
+
+    let embedding_model = client.embedding_model(model);
+    let embeddings = EmbeddingsBuilder::new(embedding_model.clone())
+        .documents(toolset.schemas()?)?
+        .build()
+        .await?;
+
+    let vector_store =
+        InMemoryVectorStore::from_documents_with_id_f(embeddings, |tool| tool.name.clone());
+    let index = vector_store.index(embedding_model);
+
+    Ok(Some((2, index, toolset)))
 }
 
 pub async fn run(data: ChatQueryData) -> Result<Json<ChatResponse>, ServerError> {

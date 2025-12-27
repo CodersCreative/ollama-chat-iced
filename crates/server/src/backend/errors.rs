@@ -21,6 +21,8 @@ pub enum ServerError {
     RigEmbeddingError(#[from] rig::embeddings::EmbeddingError),
     #[error("Reqwest Error : {0}")]
     Reqwest(#[from] reqwest::Error),
+    #[error("Web Search Error : {0}")]
+    WebSearch(#[from] websearch::error::SearchError),
     #[error("IO Error : {0}")]
     IO(#[from] std::io::Error),
     #[error("Error : {0}")]

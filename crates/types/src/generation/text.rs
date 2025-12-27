@@ -101,6 +101,9 @@ impl Into<ChatQueryMessage> for ChatResponse {
 pub struct ChatQueryData {
     pub provider: String,
     pub model: String,
+    #[serde(default = "Default::default")]
+    #[builder(default = "Default::default()")]
+    pub force_disable_tools: bool,
     #[serde(default = "Vec::new")]
     #[builder(default = "Vec::new()")]
     pub tools: Vec<String>,

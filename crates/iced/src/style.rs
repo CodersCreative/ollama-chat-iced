@@ -894,16 +894,19 @@ pub mod markdown {
         },
     };
 
-    use crate::{font::get_iced_font, utils::darken_colour};
+    use crate::{font::get_iced_font, utils::change_alpha};
 
     pub fn main(theme: &Theme) -> markdown::Settings {
         markdown::Settings::with_style(Style {
             inline_code_highlight: Highlight {
-                background: iced::Background::Color(theme.palette().background.clone()),
-                border: iced::Border::default().rounded(10),
+                background: iced::Background::Color(change_alpha(
+                    theme.palette().primary.clone(),
+                    0.4,
+                )),
+                border: iced::Border::default().rounded(2),
             },
-            inline_code_padding: Padding::new(10.0),
-            inline_code_color: darken_colour(theme.palette().background.clone(), 0.01),
+            inline_code_padding: Padding::new(1.0),
+            inline_code_color: theme.palette().text.clone(),
             link_color: theme.palette().primary.clone(),
             font: get_iced_font(),
             inline_code_font: get_iced_font(),
