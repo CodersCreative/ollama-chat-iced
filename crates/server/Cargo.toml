@@ -1,0 +1,161 @@
+[package]
+name = "ochat-server"
+version = "0.5.0"
+edition = "2024"
+authors = ["Creative Coders <officialccoders@gmail.com>"]
+description = "A chatbot server used for ochat."
+repository = "https://github.com/CodersCreative/ollama-chat-iced"
+readme = "README.md"
+publish = true
+keywords = ["ai", "iced", "chat", "chatbot", "ollama"]
+categories = ["gui", "accessibility"]
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+hydrate = [
+    "leptos/hydrate",
+    "dep:console_error_panic_hook",
+    "dep:wasm-bindgen",
+]
+
+ssr = [
+    "dep:leptos_axum",
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "normal"
+]
+
+normal = [
+    "dep:axum",
+    "dep:axum-streams",
+    "dep:tokio",
+    "dep:rig-core",
+    "dep:rig-surrealdb",
+    "dep:futures",
+    "dep:surrealdb",
+    "dep:transmutation",
+    "dep:thiserror",
+    "dep:tokio-stream",
+    "dep:schemars",
+    "dep:reqwest",
+    "dep:kalosm",
+    "dep:llama-cpp-2",
+    "dep:ochat-common",
+    "dep:bytes"
+]
+
+voice = ["kalosm/sound", "dep:rodio", "sound"]
+sound = ["dep:text-splitter", "dep:natural-tts",  "normal"]
+python = ["dep:pyo3", "dep:pythonize", "normal"]
+cuda = ["llama-cpp-2/cuda", "kalosm/cuda", "normal"]
+vulkan = ["llama-cpp-2/vulkan", "normal"]
+metal = ["llama-cpp-2/metal", "kalosm/metal", "normal"]
+full = ["python", "voice"]
+default = ["normal"]
+
+[dependencies]
+axum = { version = "0.8.0", features = ["macros"], optional= true}
+axum-streams = { version = "0.24.0", features = ["json"], optional = true}
+futures = {version = "0.3.31", optional = true}
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = {version = "1.0.145"}
+serde_json_lenient = {version = "0.2.4"}
+surrealdb = { version = "2.4.0", features = ["kv-rocksdb"] , optional = true}
+thiserror = {version  = "2.0.17", optional = true}
+tokio = { version = "1.48.0", features = ["rt-multi-thread"] , optional = true}
+tokio-stream = { version = "0.1.17", optional = true}
+schemars = {version = "1.1.0", optional = true}
+ochat-types = {path = "../types"}
+ochat-common = {path = "../common", optional = true}
+reqwest = {version = "0.12.24", features = ["json", "stream"], optional = true}
+kalosm = { version = "0.4.0", features = [ "vision"] , optional = true}
+llama-cpp-2 = {version = "0.1.130", optional = true}
+clap = { version = "4.5.53", features = ["derive"]}
+
+# Python
+pyo3 = { version = "0.27.1", features = ["auto-initialize"] , optional = true}
+pythonize = {version = "0.27.0", optional = true}
+
+# Voice
+natural-tts = { version = "0.2.1", features = ["gtts", "tts-rs"], optional = true}
+rodio = {version = "0.21.1", optional = true}
+text-splitter = {version = "0.28.0", optional = true}
+base64 = "0.22.1"
+
+leptos = { version = "0.8.0" }
+leptos_router = { version = "0.8.0" }
+console_error_panic_hook = { version = "0.1", optional = true }
+leptos_axum = { version = "0.8.0", optional = true }
+leptos_meta = { version = "0.8.0" }
+wasm-bindgen = { version = "=0.2.105", optional = true }
+transmutation = { version = "0.3.1", optional = true}
+rig-core = { version = "0.27.0", features = ["derive"], optional = true}
+rig-surrealdb = { version = "0.1.25", optional = true}
+bytes = {version="1.11.0", optional = true}
+
+[package.metadata.leptos]
+# The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
+output-name = "ochat-server"
+
+# The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
+site-root = "target/site"
+
+# The site-root relative folder where all compiled output (JS, WASM and CSS) is written
+# Defaults to pkg
+site-pkg-dir = "pkg"
+
+# [Optional] The source CSS file. If it ends with .sass or .scss then it will be compiled by dart-sass into CSS. The CSS is optimized by Lightning CSS before being written to <site-root>/<site-pkg>/app.css
+style-file = "style/main.scss"
+# Assets source dir. All files found here will be copied and synchronized to site-root.
+# The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.
+#
+# Optional. Env: LEPTOS_ASSETS_DIR.
+assets-dir = "public"
+
+# The IP and port (ex: 127.0.0.1:3000) where the server serves the content. Use it in your server setup.
+site-addr = "127.0.0.1:1212"
+
+# The port to use for automatic reload monitoring
+reload-port = 1213
+
+# [Optional] Command to use when running end2end tests. It will run in the end2end dir.
+#   [Windows] for non-WSL use "npx.cmd playwright test"
+#   This binary name can be checked in Powershell with Get-Command npx
+end2end-cmd = "npx playwright test"
+end2end-dir = "end2end"
+
+#  The browserlist query used for optimizing the CSS.
+browserquery = "defaults"
+
+# The environment Leptos will run in, usually either "DEV" or "PROD"
+env = "DEV"
+
+# The features to use when compiling the bin target
+#
+# Optional. Can be over-ridden with the command line parameter --bin-features
+bin-features = ["ssr"]
+
+# If the --no-default-features flag should be used when compiling the bin target
+#
+# Optional. Defaults to false.
+bin-default-features = false
+
+# The features to use when compiling the lib target
+#
+# Optional. Can be over-ridden with the command line parameter --lib-features
+lib-features = ["hydrate"]
+
+# If the --no-default-features flag should be used when compiling the lib target
+#
+# Optional. Defaults to false.
+lib-default-features = false
+
+# The profile to use for the lib target when compiling for release
+#
+# Optional. Defaults to "release".
+lib-profile-release = "wasm-release"
+
