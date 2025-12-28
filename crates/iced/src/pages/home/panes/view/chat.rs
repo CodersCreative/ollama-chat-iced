@@ -46,6 +46,11 @@ use ochat_types::{
 };
 use std::{collections::HashMap, path::Path, sync::Arc};
 
+#[cfg(feature = "sound")]
+use crate::subscriptions::recorder::RecorderState;
+#[cfg(feature = "sound")]
+use std::rc::Rc;
+
 const IMAGE_FORMATS: [&str; 15] = [
     "bmp", "dds", "ff", "gif", "hdr", "ico", "jpeg", "jpg", "exr", "png", "pnm", "qoi", "tga",
     "tiff", "webp",
@@ -59,6 +64,7 @@ const DOC_FORMATS: [&str; 14] = [
 #[derive(Debug, Clone)]
 pub struct ChatsView {
     pub window_id: Option<window::Id>,
+    pub recording: Option<u32>,
     pub input: text_editor::Content,
     pub files: Vec<ViewFile>,
     pub models: Vec<SettingsProvider>,
@@ -100,6 +106,8 @@ pub enum ChatsViewMessage {
     ChangeModel(usize, SettingsProvider),
     RemoveModel(usize),
     ChangeStart(usize),
+    #[cfg(feature = "sound")]
+    Transcribe,
 }
 
 impl ChatsViewMessage {
@@ -745,6 +753,25 @@ impl ChatsViewMessage {
 
                 Task::none()
             }
+            #[cfg(feature = "sound")]
+            Self::Transcribe => {
+                let sub_id = app.subscriptions.counter;
+                app.get_chats_view(&id).unwrap().recording = Some(sub_id);
+
+                Task::done(Message::Subscription(SubMessage::Record(
+                    crate::subscriptions::recorder::RecorderFinish(Rc::new(move |app, txt| {
+                        let view = app.get_chats_view(&id).unwrap();
+                        if let Some(txt) = txt {
+                            view.input.perform(text_editor::Action::Edit(
+                                text_editor::Edit::Paste(Arc::new(txt)),
+                            ));
+                        }
+                        view.recording = None;
+
+                        Task::none()
+                    })),
+                )))
+            }
         }
     }
 
@@ -1041,7 +1068,7 @@ impl ChatsView {
             .find(|x| self.messages.contains(&x.1.id))
             .is_some();
 
-        let input: Element<Message> = if !is_generating {
+        let input: Element<Message> = if !is_generating && self.recording.is_none() {
             text_editor(&self.input)
                 .placeholder("Type your message here...")
                 .on_action(move |action| {
@@ -1088,9 +1115,26 @@ impl ChatsView {
                 .into()
         } else {
             container(
-                text("Awaiting Response...")
-                    .color(app.theme().palette().primary)
-                    .size(20),
+                text(
+                    #[allow(unused_variables)]
+                    if let Some(x) = &self.recording {
+                        #[cfg(feature = "sound")]
+                        match app.subscriptions.recordings.get(x).map(|x| &x.state) {
+                            Some(RecorderState::Idle) | None => "Starting to Record...",
+                            Some(RecorderState::Recording) => "Recording...",
+                            Some(RecorderState::Generating) => "Generating Text...",
+                            Some(RecorderState::Err(_)) => "Unknown Error Occured",
+                            _ => "Finishing up...",
+                        }
+
+                        #[cfg(not(feature = "sound"))]
+                        "Unknown State..."
+                    } else {
+                        "Awaiting Response..."
+                    },
+                )
+                .color(app.theme().palette().primary)
+                .size(20),
             )
             .padding(20)
             .width(Length::Fill)
@@ -1107,14 +1151,19 @@ impl ChatsView {
             ChatsViewMessage::SelectFiles,
         )));
 
-        let submit: Element<Message> = match is_generating {
-            true => btn("close.svg")
+        let submit: Element<Message> = match (is_generating, &self.recording) {
+            (true, _) => btn("close.svg")
                 .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
                     id,
                     ChatsViewMessage::CancelGenerating,
                 )))
                 .into(),
-            false => {
+            #[cfg(feature = "sound")]
+            (false, Some(x)) => btn("close.svg")
+                .on_press(Message::Subscription(SubMessage::StopRecording(*x)))
+                .into(),
+            #[allow(unreachable_patterns)]
+            (false, None) | (false, Some(_)) => {
                 let mut widgets = vec![
                     btn("send.svg")
                         .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
@@ -1132,7 +1181,14 @@ impl ChatsView {
                         .contains(&ochat_types::ServerFeatures::Voice)
                     {
                         widgets.push(btn("call.svg").into());
-                        widgets.push(btn("record.svg").into());
+                        widgets.push(
+                            btn("record.svg")
+                                .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                                    id,
+                                    ChatsViewMessage::Transcribe,
+                                )))
+                                .into(),
+                        );
                     }
                 }
 

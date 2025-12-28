@@ -4,11 +4,13 @@ use natural_tts::{
     NaturalTts, NaturalTtsBuilder,
     models::{Spec, gtts::GttsModel, tts_rs::TtsModel},
 };
-use ochat_types::generation::tts::{TtsQueryData, TtsResponse, TtsResponseSpec};
+use ochat_types::generation::{
+    SoundSpec,
+    tts::{TtsQueryData, TtsResponse},
+};
 use std::sync::{LazyLock, RwLock};
 use text_splitter::TextSplitter;
 
-pub mod stream;
 static NATURAL_TTS: LazyLock<RwLock<NaturalTts>> = LazyLock::new(|| {
     RwLock::new(
         NaturalTtsBuilder::default()
@@ -40,9 +42,8 @@ pub async fn run(Json(data): Json<TtsQueryData>) -> Result<Json<TtsResponse>, Se
         if spec.is_none() {
             let Spec::Wav(s) = audio.spec else { panic!() };
 
-            spec = Some(TtsResponseSpec {
+            spec = Some(SoundSpec {
                 sample_rate: s.sample_rate,
-                bits_per_sample: s.bits_per_sample,
             });
         }
     }
@@ -62,8 +63,8 @@ pub fn split_text_with_len(len: usize, text: String) -> Vec<String> {
 
     let chunks = splitter.chunks(&text).collect::<Vec<&str>>();
 
-    return chunks
+    chunks
         .iter()
         .map(|x| x.to_string())
-        .collect::<Vec<String>>();
+        .collect::<Vec<String>>()
 }

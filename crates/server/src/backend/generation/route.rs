@@ -8,16 +8,10 @@ pub fn routes() -> Router {
         .route("/generation/text/stream/", get(generation::text::stream));
 
     #[cfg(feature = "sound")]
-    let router = router
-        .route("/generation/speech/tts/run/", get(generation::tts::run))
-        .route(
-            "/generation/speech/tts/stream/",
-            get(generation::tts::stream::run),
-        );
+    let router = router.route("/generation/speech/tts/run/", get(generation::tts::run));
 
-    // TODO create stt endpoints
     #[cfg(feature = "voice")]
-    let router = router.route("/generation/speech/stt/run/", get(generation::text::run));
+    let router = router.route("/generation/speech/stt/run/", get(generation::stt::run));
 
     router
 }

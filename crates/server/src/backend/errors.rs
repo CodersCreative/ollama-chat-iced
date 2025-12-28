@@ -23,6 +23,9 @@ pub enum ServerError {
     Reqwest(#[from] reqwest::Error),
     #[error("Web Search Error : {0}")]
     WebSearch(#[from] websearch::error::SearchError),
+    #[error("STT Error : {0}")]
+    #[cfg(feature = "voice")]
+    Whisper(#[from] whisper_rs::WhisperError),
     #[error("IO Error : {0}")]
     IO(#[from] std::io::Error),
     #[error("Error : {0}")]

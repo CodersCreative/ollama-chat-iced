@@ -1,3 +1,5 @@
+#[cfg(feature = "sound")]
+use crate::subscriptions::{player::PlayerFinish, recorder::RecorderFinish};
 use crate::{
     Application, CacheMessage, DATA, Message, PopUp,
     subscriptions::{
@@ -8,6 +10,8 @@ use crate::{
 };
 use iced::{Subscription, Task, widget::markdown, window};
 use ochat_common::data::{Data, RequestType};
+#[cfg(feature = "sound")]
+use ochat_types::generation::tts::TtsResponse;
 use ochat_types::{
     chats::{messages::MessageData, previews::Preview},
     generation::text::{ChatQueryData, ChatStreamResult},
@@ -19,9 +23,20 @@ use ochat_types::{
 };
 use std::collections::HashMap;
 
+#[cfg(feature = "sound")]
+use crate::subscriptions::{
+    player::{Player, PlayerState, PlayerUpdate},
+    recorder::{Recorder, RecorderState, RecorderUpdate},
+};
+
 pub mod hf_pull;
 pub mod message;
 pub mod ollama_pull;
+
+#[cfg(feature = "sound")]
+pub mod player;
+#[cfg(feature = "sound")]
+pub mod recorder;
 
 #[derive(Debug, Clone)]
 pub enum SubMessage {
@@ -34,6 +49,19 @@ pub enum SubMessage {
     HFPull(HFModel, String),
     HFPulling(u32, HFPullModelStreamResult),
     HFStopPulling(u32),
+
+    #[cfg(feature = "sound")]
+    Record(RecorderFinish),
+    #[cfg(feature = "sound")]
+    Recording(u32, RecorderState),
+    #[cfg(feature = "sound")]
+    StopRecording(u32),
+    #[cfg(feature = "sound")]
+    Play(TtsResponse, PlayerFinish),
+    #[cfg(feature = "sound")]
+    Playing(PlayerState),
+    #[cfg(feature = "sound")]
+    StopPlaying,
 }
 
 impl SubMessage {
@@ -307,6 +335,126 @@ impl SubMessage {
                 app.cache.home_shared.downloads.hf.remove(&id);
                 Task::none()
             }
+            #[cfg(feature = "sound")]
+            Self::Play(data, on_finish) => {
+                app.subscriptions.player = Some(Player::new(data, on_finish));
+
+                app.subscriptions
+                    .player
+                    .as_mut()
+                    .unwrap()
+                    .start()
+                    .map(move |x| {
+                        let x = match x {
+                            PlayerUpdate::Playing(x) => x,
+                            PlayerUpdate::Finished(Ok(_)) => PlayerState::Finished,
+                            PlayerUpdate::Finished(Err(e)) => PlayerState::Err(e),
+                        };
+                        Message::Subscription(SubMessage::Playing(x))
+                    })
+            }
+            #[cfg(feature = "sound")]
+            Self::Playing(PlayerState::Finished) => {
+                let task = if let Some(x) = app
+                    .subscriptions
+                    .player
+                    .as_ref()
+                    .map(|x| x.on_finish.clone())
+                {
+                    x.0(app)
+                } else {
+                    Task::none()
+                };
+
+                app.subscriptions.player = None;
+
+                task
+            }
+            #[cfg(feature = "sound")]
+            Self::Playing(result) => {
+                if let PlayerState::Err(e) = &result {
+                    app.add_popup(PopUp::Err(e.to_string()));
+                }
+                if let Some(x) = &mut app.subscriptions.player {
+                    x.progress(result);
+                }
+
+                Task::none()
+            }
+            #[cfg(feature = "sound")]
+            Self::StopPlaying => {
+                let task = if let Some(x) = app
+                    .subscriptions
+                    .player
+                    .as_ref()
+                    .map(|x| x.on_finish.clone())
+                {
+                    x.0(app)
+                } else {
+                    Task::none()
+                };
+
+                app.subscriptions.player = None;
+
+                task
+            }
+            #[cfg(feature = "sound")]
+            Self::Record(on_finish) => {
+                let id = app.subscriptions.counter.clone();
+                app.subscriptions.counter += 1;
+                app.subscriptions
+                    .recordings
+                    .insert(id, Recorder::new(on_finish));
+
+                app.subscriptions
+                    .recordings
+                    .get_mut(&id)
+                    .unwrap()
+                    .start()
+                    .map(move |x| {
+                        let x = match x {
+                            RecorderUpdate::Generating(x) => x,
+                            RecorderUpdate::Finished(Ok(_)) => RecorderState::Finished,
+                            RecorderUpdate::Finished(Err(e)) => RecorderState::Err(e),
+                        };
+                        Message::Subscription(SubMessage::Recording(id, x))
+                    })
+            }
+            #[cfg(feature = "sound")]
+            Self::Recording(id, RecorderState::Finished) => {
+                if let Some(r) = app.subscriptions.recordings.remove(&id) {
+                    r.on_finish.0(app, None)
+                } else {
+                    Task::none()
+                }
+            }
+            #[cfg(feature = "sound")]
+            Self::Recording(id, RecorderState::Completed(txt)) => {
+                if let Some(r) = app.subscriptions.recordings.remove(&id) {
+                    r.on_finish.0(app, Some(txt))
+                } else {
+                    Task::none()
+                }
+            }
+            #[cfg(feature = "sound")]
+            Self::Recording(id, result) => {
+                if let RecorderState::Err(e) = &result {
+                    app.add_popup(PopUp::Err(e.to_string()));
+                }
+                if let Some(x) = app.subscriptions.recordings.get_mut(&id) {
+                    x.progress(result);
+                }
+
+                Task::none()
+            }
+            #[cfg(feature = "sound")]
+            Self::StopRecording(id) => {
+                if let Some(r) = app.subscriptions.recordings.remove(&id) {
+                    r.on_finish.0(app, None)
+                } else {
+                    Task::none()
+                }
+            }
         }
     }
 }
@@ -317,6 +465,10 @@ pub struct Subscriptions {
     pub ollama_pulls: HashMap<u32, OllamaPull>,
     pub hf_pulls: HashMap<u32, HFPull>,
     pub message_gens: HashMap<u32, MessageGen>,
+    #[cfg(feature = "sound")]
+    pub recordings: HashMap<u32, Recorder>,
+    #[cfg(feature = "sound")]
+    pub player: Option<Player>,
 }
 
 impl Subscriptions {

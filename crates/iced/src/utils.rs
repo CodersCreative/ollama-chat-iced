@@ -1,23 +1,6 @@
 use iced::Color;
 use std::fmt::Display;
 
-#[cfg(feature = "sound")]
-pub mod sound {
-    use rodio::{Decoder, OutputStream, Sink};
-    use std::path::Path;
-
-    pub fn play_wav_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-        let (_stream, stream_handle) = OutputStream::try_default()?;
-        let sink = Sink::try_new(&stream_handle)?;
-        let file = BufReader::new(File::open(path)?);
-        let source = Decoder::new(file)?;
-        sink.append(source);
-        sink.sleep_until_end();
-
-        Ok(())
-    }
-}
-
 pub fn read_input() -> String {
     let mut input = String::new();
     std::io::stdin()

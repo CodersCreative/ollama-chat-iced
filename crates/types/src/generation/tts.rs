@@ -1,3 +1,4 @@
+use crate::generation::SoundSpec;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 
@@ -8,20 +9,6 @@ pub struct TtsQueryData {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TtsResponse {
-    pub spec: TtsResponseSpec,
+    pub spec: SoundSpec,
     pub data: Vec<f32>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TtsResponseSpec {
-    pub sample_rate: u32,
-    pub bits_per_sample: u16,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum TtsStreamResult {
-    Idle,
-    Err(String),
-    Generating(TtsResponse),
-    Finished,
 }
