@@ -1,18 +1,21 @@
 use iced::Color;
-#[cfg(feature = "voice")]
-use rodio::{Decoder, OutputStream, Sink};
 use std::fmt::Display;
 
-#[cfg(feature = "voice")]
-pub fn play_wav_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let (_stream, stream_handle) = OutputStream::try_default()?;
-    let sink = Sink::try_new(&stream_handle)?;
-    let file = BufReader::new(File::open(path)?);
-    let source = Decoder::new(file)?;
-    sink.append(source);
-    sink.sleep_until_end();
+#[cfg(feature = "sound")]
+pub mod sound {
+    use rodio::{Decoder, OutputStream, Sink};
+    use std::path::Path;
 
-    Ok(())
+    pub fn play_wav_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+        let (_stream, stream_handle) = OutputStream::try_default()?;
+        let sink = Sink::try_new(&stream_handle)?;
+        let file = BufReader::new(File::open(path)?);
+        let source = Decoder::new(file)?;
+        sink.append(source);
+        sink.sleep_until_end();
+
+        Ok(())
+    }
 }
 
 pub fn read_input() -> String {

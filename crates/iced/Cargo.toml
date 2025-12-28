@@ -11,6 +11,9 @@ keywords = ["ai", "iced", "chat", "chatbot", "ollama"]
 categories = ["gui", "accessibility"]
 license = "MIT"
 
+[features]
+sound = ["dep:rodio"] 
+
 [dependencies]
 base64-stream = "4.0.0"
 clipboard-rs = "0.3.1"
@@ -28,3 +31,4 @@ ochat-types = {path = "../types"}
 ochat-common = {path = "../common"}
 open = "5.3.2"
 iced_split = "0.1.0"
+rodio = {version = "0.21.1", optional = true}

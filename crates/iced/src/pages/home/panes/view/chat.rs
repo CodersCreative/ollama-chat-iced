@@ -1114,12 +1114,32 @@ impl ChatsView {
                     ChatsViewMessage::CancelGenerating,
                 )))
                 .into(),
-            false => btn("send.svg")
-                .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
-                    id,
-                    ChatsViewMessage::SubmitInput,
-                )))
-                .into(),
+            false => {
+                let mut widgets = vec![
+                    btn("send.svg")
+                        .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                            id,
+                            ChatsViewMessage::SubmitInput,
+                        )))
+                        .into(),
+                ];
+
+                #[cfg(feature = "sound")]
+                {
+                    if app
+                        .cache
+                        .server_features
+                        .contains(&ochat_types::ServerFeatures::Voice)
+                    {
+                        widgets.push(btn("call.svg").into());
+                        widgets.push(btn("record.svg").into());
+                    }
+                }
+
+                widgets.reverse();
+
+                row(widgets).into()
+            }
         };
 
         let bottom = container(

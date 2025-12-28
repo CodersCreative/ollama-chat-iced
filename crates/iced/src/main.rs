@@ -20,6 +20,7 @@ use ochat_common::{
     load_token,
 };
 use ochat_types::{
+    ServerFeatures,
     providers::{hf::HFPullModelStreamResult, ollama::OllamaPullModelStreamResult},
     settings::{Settings, SettingsData},
 };
@@ -101,6 +102,7 @@ pub struct Application {
 pub struct AppCache {
     pub side_bar_items: SideBarItems,
     pub versions: Versions,
+    pub server_features: Vec<ServerFeatures>,
     pub expanded_file: Option<ViewFile>,
     pub settings: SettingsData,
     pub client_settings: ClientSettings,
@@ -177,6 +179,7 @@ pub enum CacheMessage {
     SetTheme(Theme),
     SetInstanceUrl(String),
     SetVersions(Versions),
+    SetServerFeatures(Vec<ServerFeatures>),
     SetUsePanes(bool),
 }
 
@@ -201,6 +204,9 @@ impl CacheMessage {
             }
             Self::SetOptions(x) => {
                 app.cache.home_shared.options = x;
+            }
+            Self::SetServerFeatures(x) => {
+                app.cache.server_features = x;
             }
             Self::ResetSideBarItems => {
                 return Task::future(async {
@@ -307,6 +313,16 @@ impl Application {
                     .await
                 {
                     Ok(x) => Message::Cache(CacheMessage::SetSettings(x.into())),
+                    Err(e) => Message::Err(e),
+                }
+            }),
+            Task::future(async {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Vec<ServerFeatures>, ()>("features/", &(), RequestType::Get)
+                    .await
+                {
+                    Ok(x) => Message::Cache(CacheMessage::SetServerFeatures(x.into())),
                     Err(e) => Message::Err(e),
                 }
             }),
