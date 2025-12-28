@@ -2,10 +2,7 @@ use crate::{DATA, RequestType};
 use base64_stream::base64::{Engine, prelude::BASE64_STANDARD};
 use iced::widget::markdown;
 use ochat_types::{
-    chats::{
-        Chat,
-        messages::{Message, MessageCanChange},
-    },
+    chats::{Chat, messages::Message},
     files::{B64File, FileType},
     options::{
         GenOptions,
@@ -94,7 +91,6 @@ pub struct MessageMk {
     pub content: markdown::Content,
     pub thinking: Option<markdown::Content>,
     pub files: Vec<ViewFile>,
-    pub can_change: bool,
     pub base: Message,
 }
 
@@ -109,7 +105,6 @@ impl Clone for MessageMk {
                 .clone()
                 .map(|x| markdown::Content::parse(&x)),
             base: self.base.clone(),
-            can_change: self.can_change,
         }
     }
 }
@@ -124,7 +119,6 @@ impl MessageMk {
                 .thinking
                 .clone()
                 .map(|x| markdown::Content::parse(&x)),
-            can_change: false,
             base: message,
         };
 
@@ -143,36 +137,43 @@ impl MessageMk {
             }
         }
 
-        if let Ok(can_change) = req
-            .make_request::<MessageCanChange, ()>(
-                &format!("message/{}/change/", message.base.id.key().to_string()),
-                &(),
-                RequestType::Get,
-            )
-            .await
-        {
-            message.can_change = can_change.can_change;
-        }
-
         message
     }
 }
 
 impl MessagesData {
-    pub fn push(&mut self, other: Vec<MessageMk>) -> Vec<String> {
-        let mut ids = Vec::new();
+    pub fn push(&mut self, other: Vec<MessageMk>) {
         for v in other.into_iter() {
-            ids.push(v.base.id.key().to_string());
-            self.0.insert(v.base.id.key().to_string(), v);
+            self.0
+                .insert(v.base.id.key().to_string().trim().to_string(), v);
         }
-
-        ids
     }
 
-    pub async fn load_chat(
-        chat_id: String,
-        path: Option<Vec<i8>>,
-    ) -> Result<Vec<MessageMk>, String> {
+    pub fn get_default_msgs_from_root(&self, root_id: String) -> Vec<String> {
+        let mut list = vec![root_id];
+
+        loop {
+            let Some(msg) = self.0.get(list.last().unwrap()) else {
+                break;
+            };
+            if msg.base.children.is_empty() {
+                break;
+            }
+
+            if let Some(x) = self.0.get(msg.base.children.first().unwrap().trim()) {
+                let id = x.base.id.key().to_string().trim().to_string();
+                if list.contains(&id) {
+                    break;
+                }
+
+                list.push(id);
+            }
+        }
+
+        list
+    }
+
+    pub async fn load_all_messages_from_chat(chat_id: String) -> Result<Vec<MessageMk>, String> {
         let req = DATA.read().unwrap().to_request();
 
         let chat: Chat = req
@@ -181,35 +182,35 @@ impl MessagesData {
             .map_err(|e| e.to_string())?;
 
         if let Some(x) = chat.root {
-            Self::load_chat_from_root(x, path).await
+            Self::load_all_messages_from_root(x).await
         } else {
             Ok(Vec::new())
         }
     }
 
-    pub async fn load_chat_from_root(
-        root_msg: String,
-        path: Option<Vec<i8>>,
-    ) -> Result<Vec<MessageMk>, String> {
+    pub async fn load_all_messages_from_root(root_msg: String) -> Result<Vec<MessageMk>, String> {
         let req = DATA.read().unwrap().to_request();
 
-        let messages: Vec<Message> = if let Some(path) = path {
-            req.make_request(
-                &format!("message/parent/{}", root_msg),
-                &path,
-                RequestType::Get,
-            )
+        let mut messages: Vec<Message> = if let Ok(x) = req
+            .make_request(&format!("message/{}", root_msg), &(), RequestType::Get)
             .await
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())
+        {
+            vec![x]
         } else {
-            req.make_request(
-                &format!("message/parent/{}/default/", root_msg),
-                &(),
-                RequestType::Get,
-            )
-            .await
-            .map_err(|e| e.to_string())?
+            Vec::new()
         };
+
+        messages.append(
+            &mut req
+                .make_request(
+                    &format!("message/parent/{}/all/", root_msg),
+                    &(),
+                    RequestType::Get,
+                )
+                .await
+                .map_err(|e| e.to_string())?,
+        );
 
         let mut message_mks = Vec::new();
 

@@ -27,10 +27,8 @@ pub struct Chat {
 }
 
 pub mod messages {
-    use std::fmt::Display;
-
-    use super::relationships::Reason;
     use super::*;
+    use std::fmt::Display;
 
     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
     pub enum Role {
@@ -68,8 +66,9 @@ pub mod messages {
         #[serde(default = "Vec::new")]
         #[builder(default = "Vec::new()")]
         pub files: Vec<String>,
-        #[builder(default = "None")]
-        pub reason: Option<Reason>,
+        #[serde(default = "Vec::new")]
+        #[builder(default = "Vec::new()")]
+        pub children: Vec<String>,
         #[builder(default = "None")]
         pub time: Option<Datetime>,
         #[serde(default = "Role::default")]
@@ -90,7 +89,7 @@ pub mod messages {
                 model: self.model,
                 thinking: self.thinking,
                 files: self.files,
-                reason: None,
+                children: self.children,
                 time: Some(self.time),
                 role: self.role,
             }
@@ -98,52 +97,23 @@ pub mod messages {
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
-    pub struct MessageCanChange {
-        pub id: String,
-        #[serde(default = "Default::default")]
-        pub can_change: bool,
-    }
-
-    #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Message {
         pub content: String,
         #[serde(default = "Vec::new")]
         pub files: Vec<String>,
+        #[serde(default = "Vec::new")]
+        pub children: Vec<String>,
         pub model: Option<ModelData>,
         pub thinking: Option<String>,
         pub role: Role,
         pub time: Datetime,
         pub id: RecordId,
     }
-}
 
-pub mod relationships {
-    use super::*;
-
-    #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
-    pub struct MessageRelationshipData {
-        pub parent: String,
-        pub child: String,
-        #[builder(default = "None")]
-        pub reason: Option<Reason>,
-        #[builder(default = "None")]
-        pub index: Option<u8>,
-    }
-
-    #[derive(Serialize, Deserialize, Clone, Debug)]
-    pub struct MessageRelationship {
-        pub parent: String,
-        pub child: String,
-        pub reason: Option<Reason>,
-        pub index: u8,
-        pub id: RecordId,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    pub enum Reason {
-        Model,
-        Regeneration,
-        Sibling,
+    impl PartialEq for Message {
+        fn eq(&self, other: &Self) -> bool {
+            self.id == other.id
+        }
     }
 }
 

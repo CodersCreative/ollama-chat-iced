@@ -76,7 +76,7 @@ pub enum ChatsViewMessage {
     FileUploaded(ViewFile),
     RemoveFile(usize),
     UserMessageUploaded(MessageMk),
-    AIMessageUploaded(MessageMk, Option<ChatQueryData>),
+    AIMessageUploaded(String, MessageMk, Option<ChatQueryData>),
     Regenerate(String),
     Branch(String),
     Expand(String),
@@ -414,18 +414,16 @@ impl ChatsViewMessage {
                     let messages = messages.clone();
                     let req = req.clone();
                     let tools = tools.clone();
-                    let id = id.clone();
                     Task::future(async move {
                         let message = MessageDataBuilder::default()
                             .content(String::new())
                             .role(Role::AI)
                             .model(Some(ModelData {provider : x.provider.trim().to_string(), model: x.model.clone()}))
-                            .reason(Some(ochat_types::chats::relationships::Reason::Model))
                             .build()
                             .unwrap();
                         match req
                             .make_request::<ochat_types::chats::messages::Message, MessageData>(
-                                &format!("message/parent/{}", user_message),
+                                &format!("message/parent/{}", &user_message),
                                 &message,
                                 RequestType::Post,
                             )
@@ -433,14 +431,14 @@ impl ChatsViewMessage {
                         {
                             Ok(message) => Message::HomePaneView(HomePaneViewMessage::Chats(
                                 id,
-                                ChatsViewMessage::AIMessageUploaded(MessageMk::get(message).await, Some(ChatQueryData { force_disable_tools: false, provider: x.provider.trim().to_string(), model: x.model, tools, messages }))
+                                ChatsViewMessage::AIMessageUploaded(user_message, MessageMk::get(message).await, Some(ChatQueryData { force_disable_tools: false, provider: x.provider.trim().to_string(), model: x.model, tools, messages }))
                             )),
                             Err(e) => Message::Err(e)
                         }
                     })
                 }))
             }
-            Self::AIMessageUploaded(message, query) => {
+            Self::AIMessageUploaded(user_message, message, query) => {
                 if let Some(x) = app
                     .get_chats_view(&id)
                     .unwrap()
@@ -448,23 +446,38 @@ impl ChatsViewMessage {
                     .last()
                     .map(|x| x.clone())
                 {
-                    for view in app
-                        .view_data
-                        .home
-                        .chats
-                        .iter_mut()
-                        .filter(|y| y.1.messages.contains(&x))
-                    {
-                        view.1.messages.push(message.base.id.key().to_string());
+                    let con = if let Some(x) = app.cache.home_shared.messages.0.get(&x) {
+                        x.base.role == Role::User
+                    } else {
+                        true
+                    };
+
+                    if con {
+                        for view in app
+                            .view_data
+                            .home
+                            .chats
+                            .iter_mut()
+                            .filter(|y| y.1.messages.contains(&x))
+                        {
+                            view.1.messages.push(message.base.id.key().to_string());
+                        }
                     }
                 }
 
                 let id = message.base.id.key().to_string();
+
                 app.cache
                     .home_shared
                     .messages
                     .0
-                    .insert(id.clone(), message.clone());
+                    .get_mut(&user_message)
+                    .unwrap()
+                    .base
+                    .children
+                    .push(id.clone());
+
+                app.cache.home_shared.messages.0.insert(id.clone(), message);
 
                 if let Some(query) = query {
                     Task::done(Message::Subscription(SubMessage::GenMessage(id, query)))
@@ -581,7 +594,7 @@ impl ChatsViewMessage {
                     let req = DATA.read().unwrap().to_request();
                     match req
                         .make_request::<ochat_types::chats::messages::Message, MessageData>(
-                            &format!("message/parent/{}", parent),
+                            &format!("message/parent/{}", &parent),
                             &message,
                             RequestType::Post,
                         )
@@ -590,6 +603,7 @@ impl ChatsViewMessage {
                         Ok(message) => Message::HomePaneView(HomePaneViewMessage::Chats(
                             id,
                             ChatsViewMessage::AIMessageUploaded(
+                                parent,
                                 MessageMk::get(message).await,
                                 Some(ChatQueryData {
                                     force_disable_tools: false,
@@ -679,6 +693,7 @@ impl ChatsView {
         id: u32,
         theme: &Theme,
         message: &'a MessageMk,
+        can_change: bool,
         edit: Option<&'a text_editor::Content>,
         expanded: bool,
     ) -> Element<'a, Message> {
@@ -753,7 +768,7 @@ impl ChatsView {
                         .into(),
                 ]);
 
-                if message.can_change {
+                if can_change {
                     widgets.append(&mut vec![
                         style::svg_button::text("back_arrow.svg", BODY_SIZE).into(),
                         style::svg_button::text("forward_arrow.svg", BODY_SIZE).into(),
@@ -1063,15 +1078,24 @@ impl ChatsView {
                 .width(Length::Fill)
                 .into(),
             false => {
-                let mut col = column(self.messages.iter().map(|x| {
-                    Self::view_message(
-                        id.clone(),
-                        &app.theme(),
-                        app.cache.home_shared.messages.0.get(x).unwrap(),
-                        self.edits.get(x),
-                        self.expanded_messages.contains(&x),
-                    )
-                    .into()
+                let mut can_change = false;
+                let mut col = column(self.messages.iter().filter_map(|x| {
+                    let x = x.trim();
+                    if let Some(msg) = app.cache.home_shared.messages.0.get(x) {
+                        let cur_change = can_change;
+                        can_change = msg.base.children.len() > 1;
+
+                        Some(Self::view_message(
+                            id.clone(),
+                            &app.theme(),
+                            msg,
+                            cur_change,
+                            self.edits.get(x),
+                            self.expanded_messages.contains(&x.to_string()),
+                        ))
+                    } else {
+                        None
+                    }
                 }))
                 .spacing(20);
 

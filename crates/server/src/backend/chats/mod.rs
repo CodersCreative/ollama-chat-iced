@@ -1,6 +1,5 @@
 pub mod messages;
 pub mod previews;
-pub mod relationships;
 pub mod route;
 
 use crate::backend::{CONN, chats::previews::PREVIEW_TABLE, errors::ServerError};
@@ -10,7 +9,6 @@ use ochat_types::chats::{Chat, ChatData, previews::Preview};
 const CHAT_TABLE: &str = "chats";
 
 pub async fn define_chats() -> Result<(), ServerError> {
-    // Use a linking table for default_tools and chats
     let _ = CONN
         .query(&format!(
             "

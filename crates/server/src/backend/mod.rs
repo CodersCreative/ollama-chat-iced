@@ -12,7 +12,7 @@ pub mod user;
 pub mod utils;
 
 use crate::backend::{
-    chats::{define_chats, previews::define_previews, relationships::define_message_relationships},
+    chats::{define_chats, previews::define_previews},
     errors::ServerError,
     files::define_files,
     folders::define_folders,
@@ -119,7 +119,6 @@ pub async fn define_tables() -> Result<(), ServerError> {
         define_settings(),
         define_messages(),
         define_chats(),
-        define_message_relationships(),
         define_ollama_models(),
         define_previews(),
         define_files(),

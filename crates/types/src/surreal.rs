@@ -77,14 +77,14 @@ pub enum Id {
 impl Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::String(x) => writeln!(f, "{}", x.trim()),
+            Self::String(x) => write!(f, "{}", x.trim()),
         }
     }
 }
 
 impl Display for RecordIdKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.0)
+        write!(f, "{}", self.0)
     }
 }
 

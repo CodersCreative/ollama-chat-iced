@@ -7933,6 +7933,7 @@ dependencies = [
 name = "ochat-server"
 version = "0.5.0"
 dependencies = [
+ "async-recursion",
  "axum",
  "axum-streams",
  "base64 0.22.1",

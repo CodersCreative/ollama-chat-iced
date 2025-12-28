@@ -391,7 +391,7 @@ impl PaneMessage {
                 };
 
                 let msgs = if let Some(x) = chat.root.clone() {
-                    match MessagesData::load_chat_from_root(x, None).await {
+                    match MessagesData::load_all_messages_from_root(x).await {
                         Ok(x) => x,
                         Err(e) => return Message::Err(e),
                     }
@@ -405,7 +405,16 @@ impl PaneMessage {
                 ))
             }),
             PaneMessage::ChatLoaded(pane, chat, messages) => {
-                let messages = app.cache.home_shared.messages.push(messages);
+                app.cache.home_shared.messages.push(messages);
+
+                let messages = if let Some(root) = chat.root.clone() {
+                    app.cache
+                        .home_shared
+                        .messages
+                        .get_default_msgs_from_root(root)
+                } else {
+                    Vec::new()
+                };
 
                 app.view_data.counter += 1;
                 let count = app.view_data.counter;
