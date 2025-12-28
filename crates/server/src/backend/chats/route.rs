@@ -33,6 +33,7 @@ pub fn routes() -> Router {
             get(previews::get_preview).put(previews::update_preview),
         )
         .route("/chat/", post(chats::create_chat))
+        .route("/chat/branch/", post(chats::branch_new_chat))
         .route("/chat/{id}/root/{root}", put(chats::set_chat_root))
         .route("/chat/all/", get(chats::list_all_chats))
         .route(

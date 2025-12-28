@@ -1,13 +1,21 @@
 use crate::{
     Application, CacheMessage, DATA, Message, PopUp,
     font::{BODY_SIZE, HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
-    pages::home::panes::{
-        data::{MessageMk, PromptsData, ViewFile, ViewFileType},
-        view::HomePaneViewMessage,
+    pages::{
+        PageMessage,
+        home::{
+            message::{HomeMessage, HomePickingType},
+            panes::{
+                PaneMessage,
+                data::{MessageMk, PromptsData, ViewFile, ViewFileType},
+                view::HomePaneViewMessage,
+            },
+        },
     },
     style,
     subscriptions::SubMessage,
     utils::get_path_assets,
+    windows::message::WindowMessage,
 };
 use iced::{
     Element, Length, Padding, Task, Theme,
@@ -17,6 +25,7 @@ use iced::{
         button, center, column, container, image, lazy, markdown, mouse_area, pick_list, row, rule,
         scrollable, space, stack, svg, text, text_editor,
     },
+    window,
 };
 use ochat_common::{
     convert_file_to_b64, convert_image_to_b64,
@@ -29,6 +38,7 @@ use ochat_types::{
     chats::{
         Chat,
         messages::{MessageData, MessageDataBuilder, ModelData, Role},
+        previews::Preview,
     },
     files::{B64File, B64FileData, B64FileDataBuilder, DBFile, FileType},
     generation::text::{ChatQueryData, ChatQueryMessage},
@@ -48,6 +58,7 @@ const DOC_FORMATS: [&str; 14] = [
 
 #[derive(Debug, Clone)]
 pub struct ChatsView {
+    pub window_id: Option<window::Id>,
     pub input: text_editor::Content,
     pub files: Vec<ViewFile>,
     pub models: Vec<SettingsProvider>,
@@ -629,9 +640,62 @@ impl ChatsViewMessage {
                     }
                 })
             }
-            Self::Branch(_) => {
-                // TODO
-                Task::none()
+            Self::Branch(message_id) => {
+                let messages: Vec<MessageData> = {
+                    let mut ids = {
+                        let view = app.get_chats_view(&id).unwrap();
+                        let index = view.messages.iter().position(|x| x == &message_id).unwrap();
+                        view.messages.split_at(index).0.to_vec()
+                    };
+                    ids.push(message_id);
+
+                    let mut messages = Vec::with_capacity(ids.len());
+
+                    for id in ids {
+                        if let Some(x) = app.cache.home_shared.messages.0.get(&id) {
+                            let mut msg: MessageData = x.base.clone().into();
+                            msg.children.clear();
+                            messages.push(msg);
+                        }
+                    }
+
+                    messages
+                };
+
+                let window_id = Self::get_window_id(app, id);
+
+                Task::future(async move {
+                    let req = DATA.read().unwrap().to_request();
+                    match req
+                        .make_request::<Chat, Vec<MessageData>>(
+                            "chat/branch/",
+                            &messages,
+                            RequestType::Post,
+                        )
+                        .await
+                    {
+                        Ok(chat) => Message::Batch(vec![
+                            match req
+                                .make_request::<Preview, ()>(
+                                    &format!("preview/{}", chat.id.key().to_string()),
+                                    &(),
+                                    RequestType::Put,
+                                )
+                                .await
+                            {
+                                Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                                Err(e) => Message::Err(e),
+                            },
+                            Message::Window(WindowMessage::Page(
+                                window_id,
+                                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                                    HomePickingType::ReplaceChat(chat.id.key().to_string()),
+                                ))),
+                            )),
+                        ]),
+                        Err(e) => Message::Err(e),
+                    }
+                })
             }
             Self::PrevMessage(message_id) => {
                 Self::handle_change_message(message_id, false, app, id)
@@ -681,6 +745,14 @@ impl ChatsViewMessage {
 
                 Task::none()
             }
+        }
+    }
+
+    fn get_window_id(app: &mut Application, id: u32) -> window::Id {
+        if let Some(x) = app.get_chats_view(&id).unwrap().window_id {
+            x.clone()
+        } else {
+            app.windows.first_key_value().unwrap().0.clone()
         }
     }
 

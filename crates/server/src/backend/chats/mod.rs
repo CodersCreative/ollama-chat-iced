@@ -2,9 +2,16 @@ pub mod messages;
 pub mod previews;
 pub mod route;
 
-use crate::backend::{CONN, chats::previews::PREVIEW_TABLE, errors::ServerError};
+use crate::backend::{
+    CONN,
+    chats::{
+        messages::{create_message, create_message_with_parent},
+        previews::PREVIEW_TABLE,
+    },
+    errors::ServerError,
+};
 use axum::{Json, extract::Path};
-use ochat_types::chats::{Chat, ChatData, previews::Preview};
+use ochat_types::chats::{Chat, ChatData, messages::MessageData, previews::Preview};
 
 const CHAT_TABLE: &str = "chats";
 
@@ -22,6 +29,35 @@ DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string DEFAULT <string>time::n
         ))
         .await?;
     Ok(())
+}
+
+pub async fn branch_new_chat(
+    Json(mut messages): Json<Vec<MessageData>>,
+) -> Result<Json<Option<Chat>>, ServerError> {
+    messages.iter_mut().for_each(|x| {
+        x.children.clear();
+    });
+
+    let root = create_message(Json(messages.remove(0))).await?.0.unwrap();
+    let mut parent = root.id.key().to_string();
+
+    let chat = create_chat(Json(ChatData {
+        user_id: None,
+        root: Some(parent.clone()),
+        time: None,
+    }))
+    .await?;
+
+    for message in messages {
+        if let Some(x) = create_message_with_parent(Path(parent.clone()), Json(message))
+            .await?
+            .0
+        {
+            parent = x.id.key().to_string();
+        }
+    }
+
+    Ok(chat)
 }
 
 pub async fn create_chat(Json(chat): Json<ChatData>) -> Result<Json<Option<Chat>>, ServerError> {

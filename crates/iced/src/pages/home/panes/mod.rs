@@ -422,6 +422,7 @@ impl PaneMessage {
                 app.view_data.home.chats.insert(
                     count,
                     ChatsView {
+                        window_id: Some(id),
                         input: text_editor::Content::default(),
                         models: if let Some(model) =
                             app.cache.client_settings.default_provider.clone()
