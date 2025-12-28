@@ -57,7 +57,6 @@ pub struct ChatsView {
     pub selected_prompt: Option<String>,
     pub tools: Vec<String>,
     pub messages: Vec<String>,
-    pub path: Vec<i8>,
     pub chat: Chat,
     pub start: usize,
 }
@@ -84,6 +83,9 @@ pub enum ChatsViewMessage {
     EditAction(String, text_editor::Action),
     SubmitEdit(String),
     AddModel,
+    SwitchMessage(String, String),
+    NextMessage(String),
+    PrevMessage(String),
     ChangeModel(usize, SettingsProvider),
     RemoveModel(usize),
     ChangeStart(usize),
@@ -600,20 +602,29 @@ impl ChatsViewMessage {
                         )
                         .await
                     {
-                        Ok(message) => Message::HomePaneView(HomePaneViewMessage::Chats(
-                            id,
-                            ChatsViewMessage::AIMessageUploaded(
-                                parent,
-                                MessageMk::get(message).await,
-                                Some(ChatQueryData {
-                                    force_disable_tools: false,
-                                    provider: model.provider,
-                                    model: model.model,
-                                    tools,
-                                    messages,
-                                }),
-                            ),
-                        )),
+                        Ok(message) => Message::Batch(vec![
+                            Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::SwitchMessage(
+                                    message_id,
+                                    message.id.key().to_string(),
+                                ),
+                            )),
+                            Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::AIMessageUploaded(
+                                    parent,
+                                    MessageMk::get(message).await,
+                                    Some(ChatQueryData {
+                                        force_disable_tools: false,
+                                        provider: model.provider,
+                                        model: model.model,
+                                        tools,
+                                        messages,
+                                    }),
+                                ),
+                            )),
+                        ]),
                         Err(e) => Message::Err(e),
                     }
                 })
@@ -622,6 +633,10 @@ impl ChatsViewMessage {
                 // TODO
                 Task::none()
             }
+            Self::PrevMessage(message_id) => {
+                Self::handle_change_message(message_id, false, app, id)
+            }
+            Self::NextMessage(message_id) => Self::handle_change_message(message_id, true, app, id),
             Self::AddModel => {
                 if let Some(model) = match app.cache.client_settings.default_provider.clone() {
                     Some(x) => Some(x),
@@ -651,7 +666,66 @@ impl ChatsViewMessage {
                 app.get_chats_view(&id).unwrap().start = index;
                 Task::none()
             }
+            Self::SwitchMessage(from, to) => {
+                let mut msgs = app
+                    .cache
+                    .home_shared
+                    .messages
+                    .get_default_msgs_from_root(to);
+
+                let view = app.get_chats_view(&id).unwrap();
+                let index = view.messages.iter().position(|x| x == &from).unwrap();
+                let mut new_messages = view.messages.split_at(index).0.to_vec();
+                new_messages.append(&mut msgs);
+                view.messages = new_messages;
+
+                Task::none()
+            }
         }
+    }
+
+    fn handle_change_message(
+        message_id: String,
+        is_next: bool,
+        app: &mut Application,
+        id: u32,
+    ) -> Task<Message> {
+        let new_message_id = {
+            let parent = &app
+                .cache
+                .home_shared
+                .messages
+                .0
+                .iter()
+                .find(|x| x.1.base.children.contains(&message_id))
+                .unwrap()
+                .1
+                .base;
+            let index = parent
+                .children
+                .iter()
+                .position(|x| x == &message_id)
+                .unwrap();
+
+            let index = if is_next {
+                if index + 1 >= parent.children.len() {
+                    0
+                } else {
+                    index + 1
+                }
+            } else if index <= 0 {
+                parent.children.len() - 1
+            } else {
+                index - 1
+            };
+
+            parent.children[index].clone()
+        };
+
+        Task::done(Message::HomePaneView(HomePaneViewMessage::Chats(
+            id,
+            ChatsViewMessage::SwitchMessage(message_id, new_message_id),
+        )))
     }
 
     async fn get_file_paths() -> Result<Vec<String>, String> {
@@ -770,8 +844,18 @@ impl ChatsView {
 
                 if can_change {
                     widgets.append(&mut vec![
-                        style::svg_button::text("back_arrow.svg", BODY_SIZE).into(),
-                        style::svg_button::text("forward_arrow.svg", BODY_SIZE).into(),
+                        style::svg_button::text("back_arrow.svg", BODY_SIZE)
+                            .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::PrevMessage(message.base.id.key().to_string()),
+                            )))
+                            .into(),
+                        style::svg_button::text("forward_arrow.svg", BODY_SIZE)
+                            .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                                id,
+                                ChatsViewMessage::NextMessage(message.base.id.key().to_string()),
+                            )))
+                            .into(),
                     ]);
                 }
 

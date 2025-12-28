@@ -436,7 +436,6 @@ impl PaneMessage {
                         },
                         tools: app.cache.client_settings.default_tools.clone(),
                         files: Vec::new(),
-                        path: Vec::new(),
                         start: 0,
                         messages,
                         chat,
