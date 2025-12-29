@@ -2,21 +2,24 @@ use crate::backend::errors::ServerError;
 use axum::Json;
 use natural_tts::{
     NaturalTts, NaturalTtsBuilder,
-    models::{Spec, gtts::GttsModel, tts_rs::TtsModel},
+    models::{Spec, gtts::GttsModel, parler::ParlerModel},
 };
 use ochat_types::generation::{
     SoundSpec,
     tts::{TtsQueryData, TtsResponse},
 };
-use std::sync::{LazyLock, RwLock};
+use std::{
+    path::PathBuf,
+    sync::{LazyLock, RwLock},
+};
 use text_splitter::TextSplitter;
 
 static NATURAL_TTS: LazyLock<RwLock<NaturalTts>> = LazyLock::new(|| {
     RwLock::new(
         NaturalTtsBuilder::default()
-            .default_model(natural_tts::Model::Gtts)
+            .default_model(natural_tts::Model::Parler)
             .gtts_model(GttsModel::default())
-            .tts_model(TtsModel::default())
+            .parler_model(ParlerModel::default())
             .build()
             .unwrap(),
     )
@@ -24,28 +27,24 @@ static NATURAL_TTS: LazyLock<RwLock<NaturalTts>> = LazyLock::new(|| {
 
 #[axum::debug_handler]
 pub async fn run(Json(data): Json<TtsQueryData>) -> Result<Json<TtsResponse>, ServerError> {
-    let texts = split_text_gtts(data.text);
+    let text = data.text;
     let mut data = Vec::new();
     let mut spec = None;
 
-    for text in texts {
-        let mut audio = NATURAL_TTS
-            .write()
-            .map_err(|e| ServerError::Unknown(e.to_string()))
-            .unwrap()
-            .synthesize_auto(text)
-            .map_err(|e| ServerError::Unknown(e.to_string()))
-            .unwrap();
+    let mut audio = NATURAL_TTS
+        .write()
+        .map_err(|e| ServerError::Unknown(e.to_string()))?
+        .synthesize(text, &PathBuf::from("output.wav"))
+        .map_err(|e| ServerError::Unknown(e.to_string()))?;
 
-        data.append(&mut audio.data);
+    data.append(&mut audio.data);
 
-        if spec.is_none() {
-            let Spec::Wav(s) = audio.spec else { panic!() };
+    if spec.is_none() {
+        let Spec::Wav(s) = audio.spec else { panic!() };
 
-            spec = Some(SoundSpec {
-                sample_rate: s.sample_rate,
-            });
-        }
+        spec = Some(SoundSpec {
+            sample_rate: s.sample_rate,
+        });
     }
 
     Ok(Json(TtsResponse {

@@ -8,7 +8,7 @@ use crate::{
             panes::{
                 data::{MessageMk, MessagesData, PromptsData},
                 view::{
-                    chat::ChatsView, models::ModelsView, options::OptionsView,
+                    call::CallView, chat::ChatsView, models::ModelsView, options::OptionsView,
                     prompts::PromptsView, pulls::PullsView, settings::SettingsView,
                 },
             },
@@ -31,6 +31,7 @@ pub mod view;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HomePaneType {
     Loading,
+    Call,
     Chat,
     Pulls,
     Models,
@@ -39,6 +40,7 @@ pub enum HomePaneType {
     Settings,
     Tools,
     Info,
+    NotImplemented,
 }
 
 impl HomePaneType {
@@ -79,12 +81,27 @@ impl HomePaneType {
                 HomePaneTypeWithId::Pulls(count)
             }
             Self::Info => HomePaneTypeWithId::Info,
-            _ => HomePaneTypeWithId::Loading,
+            Self::Call => {
+                if app.view_data.home.call.is_none() {
+                    app.view_data.home.call = Some(CallView::default());
+                }
+
+                if app.view_data.home.call.as_ref().unwrap().model.is_none() {
+                    let model = app.cache.client_settings.default_provider.clone();
+                    app.view_data.home.call.as_mut().unwrap().model = model;
+                }
+
+                app.view_data.home.call.as_mut().unwrap().ref_count += 1;
+
+                HomePaneTypeWithId::Call
+            }
+            Self::Chat => HomePaneTypeWithId::Loading,
+            _ => HomePaneTypeWithId::NotImplemented,
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HomePaneTypeWithId {
     Chat(u32),
     Pulls(u32),
@@ -93,7 +110,9 @@ pub enum HomePaneTypeWithId {
     Options(u32),
     Settings(u32),
     Tools(u32),
+    Call,
     Loading,
+    NotImplemented,
     Info,
 }
 
@@ -102,6 +121,8 @@ impl Into<HomePaneType> for &HomePaneTypeWithId {
         match self {
             HomePaneTypeWithId::Loading => HomePaneType::Loading,
             HomePaneTypeWithId::Info => HomePaneType::Info,
+            HomePaneTypeWithId::Call => HomePaneType::Call,
+            HomePaneTypeWithId::NotImplemented => HomePaneType::NotImplemented,
             HomePaneTypeWithId::Chat(_) => HomePaneType::Chat,
             HomePaneTypeWithId::Pulls(_) => HomePaneType::Pulls,
             HomePaneTypeWithId::Models(_) => HomePaneType::Models,
@@ -310,6 +331,16 @@ impl PaneMessage {
                 Task::none()
             }
             Self::Close(pane) => {
+                if Some(&HomePaneTypeWithId::Call)
+                    == app.get_home_page(&id).unwrap().panes.panes.get(pane)
+                {
+                    if app.view_data.home.call.as_ref().unwrap().ref_count <= 1 {
+                        app.view_data.home.call = None;
+                    } else {
+                        app.view_data.home.call.as_mut().unwrap().ref_count -= 1;
+                    }
+                }
+
                 let page = app.get_home_page(&id).unwrap();
                 if page.panes.panes.len() <= 1 {
                     return Task::done(Message::Window(WindowMessage::CloseWindow(id)));

@@ -773,7 +773,12 @@ impl HomeSideBar {
         .into()
     }
 
-    fn pane_buttons_vec<'a>(&'a self, id: window::Id, size: u32) -> Vec<Button<'a, Message>> {
+    fn pane_buttons_vec<'a>(
+        &'a self,
+        app: &'a Application,
+        id: window::Id,
+        size: u32,
+    ) -> Vec<Button<'a, Message>> {
         let new_chat_pane = style::svg_button::text("add_chat.svg", size).on_press(
             Message::Window(WindowMessage::Page(
                 id,
@@ -836,11 +841,32 @@ impl HomeSideBar {
             )),
         );
 
+        let mut widgets = vec![new_chat_pane];
+
+        #[cfg(feature = "sound")]
+        {
+            if app
+                .cache
+                .server_features
+                .contains(&ochat_types::ServerFeatures::Voice)
+            {
+                widgets.push(
+                    style::svg_button::text("call.svg", size).on_press(Message::Window(
+                        WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                                HomePickingType::OpenPane(HomePaneType::Call),
+                            ))),
+                        ),
+                    )),
+                );
+            }
+        }
+
         let quit = style::svg_button::danger("quit.svg", size)
             .on_press(Message::Window(WindowMessage::CloseWindow(id)));
 
-        vec![
-            new_chat_pane,
+        widgets.append(&mut vec![
             new_models_pane,
             new_prompts_pane,
             new_tools_pane,
@@ -848,10 +874,12 @@ impl HomeSideBar {
             new_pulls_pane,
             new_settings_pane,
             quit,
-        ]
+        ]);
+
+        widgets
     }
 
-    fn pane_buttons<'a>(&'a self, _app: &'a Application, id: window::Id) -> Element<'a, Message> {
+    fn pane_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
         let size = 24;
 
         let collapse = style::svg_button::text(
@@ -875,7 +903,7 @@ impl HomeSideBar {
             .spacing(5)
             .padding(Padding::default().top(5).bottom(5));
 
-        for button in self.pane_buttons_vec(id, size) {
+        for button in self.pane_buttons_vec(app, id, size) {
             col = col.push(button);
         }
 

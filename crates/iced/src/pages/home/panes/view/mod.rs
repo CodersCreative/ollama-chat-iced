@@ -8,6 +8,7 @@ use crate::{
             panes::{
                 HomePaneTypeWithId, HomePanes, PaneMessage,
                 view::{
+                    call::{CallView, CallViewMessage},
                     chat::{ChatsView, ChatsViewMessage},
                     models::{ModelsView, ModelsViewMessage},
                     options::{OptionsView, OptionsViewMessage},
@@ -20,16 +21,18 @@ use crate::{
         info,
     },
     style,
+    utils::get_path_assets,
     windows::message::WindowMessage,
 };
 use iced::{
     Element, Padding, Task,
     alignment::{Horizontal, Vertical},
-    widget::{center, column, container, pane_grid, row, text},
+    widget::{center, column, container, pane_grid, row, svg, text},
     window,
 };
 use std::{collections::HashMap, fmt::Display};
 
+pub mod call;
 pub mod chat;
 pub mod models;
 pub mod options;
@@ -45,6 +48,7 @@ pub struct HomePaneViewData {
     pub options: HashMap<u32, OptionsView>,
     pub pulls: HashMap<u32, PullsView>,
     pub chats: HashMap<u32, ChatsView>,
+    pub call: Option<CallView>,
 }
 
 #[derive(Debug, Clone)]
@@ -55,6 +59,7 @@ pub enum HomePaneViewMessage {
     Pulls(u32, PullsViewMessage),
     Settings(u32, SettingsViewMessage),
     Chats(u32, ChatsViewMessage),
+    Call(CallViewMessage),
 }
 
 impl HomePaneViewMessage {
@@ -66,6 +71,7 @@ impl HomePaneViewMessage {
             Self::Pulls(id, x) => x.handle(app, id),
             Self::Settings(id, x) => x.handle(app, id),
             Self::Chats(id, x) => x.handle(app, id),
+            Self::Call(x) => x.handle(app),
         }
     }
 }
@@ -231,6 +237,8 @@ impl Display for HomePaneTypeWithId {
                 Self::Options(_) => "Generation Options",
                 Self::Settings(_) => "Settings",
                 Self::Tools(_) => "Tools",
+                Self::NotImplemented => "Coming Soon...",
+                Self::Call => "Call",
                 Self::Loading => "Loading",
                 Self::Info => "Info",
             }
@@ -247,6 +255,7 @@ impl HomePaneTypeWithId {
             Self::Pulls(x) => app.view_data.home.pulls.get(x).unwrap().view(app, *x),
             Self::Settings(x) => app.view_data.home.settings.get(x).unwrap().view(app, *x),
             Self::Chat(x) => app.view_data.home.chats.get(x).unwrap().view(app, *x),
+            Self::Call => app.view_data.home.call.as_ref().unwrap().view(app),
             Self::Loading => center(
                 container(column![
                     text("Loading...")
@@ -256,6 +265,21 @@ impl HomePaneTypeWithId {
                         .style(style::text::translucent::text)
                         .size(BODY_SIZE),
                 ])
+                .max_width(800)
+                .padding(Padding::new(20.0))
+                .style(style::container::neutral_back),
+            )
+            .into(),
+            Self::NotImplemented => center(
+                container(column![
+                    text("Coming soon...")
+                        .style(style::text::primary)
+                        .size(HEADER_SIZE),
+                    svg(svg::Handle::from_path(get_path_assets("tools.svg"))).width(400).height(400).style(style::svg::text),
+                    text("Unfortunately this page is still under construction and will be coming in a later update!")
+                        .style(style::text::translucent::text)
+                        .size(BODY_SIZE),
+                ].align_x(Horizontal::Center))
                 .max_width(800)
                 .padding(Padding::new(20.0))
                 .style(style::container::neutral_back),

@@ -51,7 +51,7 @@ pub enum SubMessage {
     HFStopPulling(u32),
 
     #[cfg(feature = "sound")]
-    Record(RecorderFinish),
+    Record(Option<SettingsProvider>, RecorderFinish),
     #[cfg(feature = "sound")]
     Recording(u32, RecorderState),
     #[cfg(feature = "sound")]
@@ -399,10 +399,14 @@ impl SubMessage {
                 task
             }
             #[cfg(feature = "sound")]
-            Self::Record(on_finish) => {
+            Self::Record(provider, on_finish) => {
                 let id = app.subscriptions.counter.clone();
                 app.subscriptions.counter += 1;
-                let model = app.cache.client_settings.stt_provider.clone();
+                let model = if provider.is_some() {
+                    provider
+                } else {
+                    app.cache.client_settings.stt_provider.clone()
+                };
                 app.subscriptions
                     .recordings
                     .insert(id, Recorder::new(on_finish, model));

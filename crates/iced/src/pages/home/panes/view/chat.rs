@@ -8,7 +8,7 @@ use crate::{
             panes::{
                 PaneMessage,
                 data::{MessageMk, PromptsData, ViewFile, ViewFileType},
-                view::HomePaneViewMessage,
+                view::{HomePaneViewMessage, call::CallView},
             },
         },
     },
@@ -106,6 +106,7 @@ pub enum ChatsViewMessage {
     ChangeModel(usize, SettingsProvider),
     RemoveModel(usize),
     ChangeStart(usize),
+    OpenCall,
     #[cfg(feature = "sound")]
     Transcribe,
 }
@@ -142,6 +143,23 @@ impl ChatsViewMessage {
                         }
                     })
                 }
+            }
+            Self::OpenCall => {
+                let mut view = CallView::default();
+                view.model = app
+                    .get_chats_view(&id)
+                    .unwrap()
+                    .models
+                    .first()
+                    .map(|x| x.clone());
+                app.view_data.home.call = Some(view);
+
+                Task::done(Message::Window(WindowMessage::Page(
+                    Self::get_window_id(app, id),
+                    PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                        HomePickingType::OpenPane(crate::pages::home::panes::HomePaneType::Call),
+                    ))),
+                )))
             }
             Self::SetPrompts(x) => {
                 app.get_chats_view(&id).unwrap().prompts = x;
@@ -759,6 +777,7 @@ impl ChatsViewMessage {
                 app.get_chats_view(&id).unwrap().recording = Some(sub_id);
 
                 Task::done(Message::Subscription(SubMessage::Record(
+                    None,
                     crate::subscriptions::recorder::RecorderFinish(Rc::new(move |app, txt| {
                         let view = app.get_chats_view(&id).unwrap();
                         if let Some(txt) = txt {
@@ -1180,7 +1199,14 @@ impl ChatsView {
                         .server_features
                         .contains(&ochat_types::ServerFeatures::Voice)
                     {
-                        widgets.push(btn("call.svg").into());
+                        widgets.push(
+                            btn("call.svg")
+                                .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(
+                                    id,
+                                    ChatsViewMessage::OpenCall,
+                                )))
+                                .into(),
+                        );
                         widgets.push(
                             btn("record.svg")
                                 .on_press(Message::HomePaneView(HomePaneViewMessage::Chats(

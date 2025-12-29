@@ -13,6 +13,7 @@ license = "MIT"
 
 [features]
 sound = ["dep:cpal", "dep:voice_activity_detector"]
+default = ["sound"]
 
 [dependencies]
 base64-stream = "4.0.0"

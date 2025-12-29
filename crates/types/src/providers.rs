@@ -132,6 +132,7 @@ pub mod hf {
         pub name: String,
         pub model_type: ModelType,
         pub size: Option<u64>,
+        pub is_sharded: bool,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

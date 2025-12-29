@@ -43,7 +43,15 @@ pub async fn get_downloaded_hf_models() -> Result<Json<DownloadedHFModels>, Serv
 
                 while let Some(file) = directory.next_entry().await? {
                     if !file.file_type().await?.is_file()
-                        || file.path().extension().unwrap_or_default() != "gguf"
+                        || ["bin", "gguf", "safetensors"].contains(
+                            &file
+                                .path()
+                                .extension()
+                                .unwrap_or_default()
+                                .display()
+                                .to_string()
+                                .trim(),
+                        )
                     {
                         continue;
                     }
@@ -61,6 +69,7 @@ pub async fn get_downloaded_hf_models() -> Result<Json<DownloadedHFModels>, Serv
                         ),
                         name: file.file_name().display().to_string(),
                         size: Some(file.metadata().await?.len()),
+                        is_sharded: false,
                     });
                 }
             }
@@ -69,7 +78,6 @@ pub async fn get_downloaded_hf_models() -> Result<Json<DownloadedHFModels>, Serv
 
     Ok(Json(DownloadedHFModels { variants: files }))
 }
-
 pub async fn get_variants_base(
     id: String,
     client: &reqwest::Client,
@@ -88,39 +96,52 @@ pub async fn get_variants_base(
     let entries: Vec<Entry> = request.send().await?.error_for_status()?.json().await?;
     let mut files: HashMap<u64, Vec<HFModelVariant>> = HashMap::new();
 
+    let is_sharded = desired_file_type == "safetensors"
+        && entries
+            .iter()
+            .any(|e| e.path.ends_with(".safetensors.index.json"));
+
     for entry in entries {
         if entry.r#type != "file" || !entry.path.ends_with(desired_file_type) {
             continue;
         }
 
-        let file_stem = entry
-            .path
-            .trim_end_matches(&format!(".{}", desired_file_type));
-        let variant = file_stem.rsplit(['-', '.']).next().unwrap_or(file_stem);
-        let precision = variant
-            .split('_')
-            .next()
-            .unwrap_or(variant)
-            .trim_start_matches("IQ")
-            .trim_start_matches("Q")
-            .trim_start_matches("BF")
-            .trim_start_matches("F")
-            .parse();
+        let path_lower = entry.path.to_lowercase();
 
-        let precision = match precision {
-            Ok(x) => x,
-            Err(_) if model_type == ModelType::Text => continue,
-            _ => 1,
+        let precision: u64 = if path_lower.contains("f32") || path_lower.contains("fp32") {
+            32
+        } else if path_lower.contains("f16")
+            || path_lower.contains("fp16")
+            || path_lower.contains("bf16")
+        {
+            16
+        } else if path_lower.contains("q8") {
+            8
+        } else if path_lower.contains("q4") {
+            4
+        } else {
+            let file_stem = entry
+                .path
+                .trim_end_matches(&format!(".{}", desired_file_type));
+            let variant = file_stem.rsplit(['-', '.']).next().unwrap_or(file_stem);
+            variant
+                .split('_')
+                .next()
+                .unwrap_or(variant)
+                .trim_start_matches(|c: char| !c.is_numeric())
+                .parse()
+                .unwrap_or_default()
         };
 
-        let files = files.entry(precision).or_default();
+        let variant_list = files.entry(precision).or_default();
 
-        files.push(HFModelVariant {
+        variant_list.push(HFModelVariant {
             model: id.clone(),
             name: entry.path,
             model_type: model_type.clone(),
             size: Some(entry.size),
-        })
+            is_sharded,
+        });
     }
 
     Ok(HFModelVariants(files))
