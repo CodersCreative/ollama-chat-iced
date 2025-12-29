@@ -225,7 +225,8 @@ impl MessagesData {
 #[derive(Debug, Clone, Default)]
 pub struct ModelsData {
     pub ollama: Vec<OllamaModelsInfo>,
-    pub hf: Vec<HFModel>,
+    pub hf_text: Vec<HFModel>,
+    pub hf_stt: Vec<HFModel>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -324,14 +325,14 @@ impl ModelsData {
                 )
                 .await
                 .map(|x| {
-                    if x.len() > 200 {
-                        x[0..=200].to_vec()
+                    if x.len() > 150 {
+                        x[0..=150].to_vec()
                     } else {
                         x
                     }
                 })
                 .map_err(|e| e.to_string())?,
-            hf: req
+            hf_text: req
                 .make_request::<Vec<HFModel>, ()>(
                     &if let Some(search) = &search {
                         format!("provider/hf/text/model/search/{}", search)
@@ -342,13 +343,20 @@ impl ModelsData {
                     RequestType::Get,
                 )
                 .await
-                .map(|x| {
-                    if x.len() > 100 {
-                        x[0..=100].to_vec()
+                .map(|x| if x.len() > 75 { x[0..=75].to_vec() } else { x })
+                .map_err(|e| e.to_string())?,
+            hf_stt: req
+                .make_request::<Vec<HFModel>, ()>(
+                    &if let Some(search) = &search {
+                        format!("provider/hf/stt/model/search/{}", search)
                     } else {
-                        x
-                    }
-                })
+                        "provider/hf/stt/model/all/".to_string()
+                    },
+                    &(),
+                    RequestType::Get,
+                )
+                .await
+                .map(|x| if x.len() > 75 { x[0..=75].to_vec() } else { x })
                 .map_err(|e| e.to_string())?,
         })
     }

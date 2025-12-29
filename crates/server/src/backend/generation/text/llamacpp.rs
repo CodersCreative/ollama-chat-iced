@@ -20,7 +20,7 @@ const MAX_NEW_TOKENS: usize = 512;
 
 pub async fn get_model_dir_and_name(data: &ChatQueryData) -> (PathBuf, String) {
     let (user, model, name) = {
-        let provider = data.provider.trim().trim_start_matches("HF:");
+        let provider = data.provider.trim().split_once(":").unwrap().1;
         let (user, model) = provider.trim().split_once("/").unwrap();
         (
             user.to_string(),

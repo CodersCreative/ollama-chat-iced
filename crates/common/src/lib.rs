@@ -29,6 +29,9 @@ pub fn load_token() -> Result<Token, String> {
 }
 
 pub fn print_param_count(params: &u64) -> String {
+    if params <= &0 {
+        return String::from("Unknown");
+    }
     match params.ilog10() {
         0..3 => format!("{}", params),
         3..6 => format!("{}K", params / 1000),
@@ -39,6 +42,9 @@ pub fn print_param_count(params: &u64) -> String {
 }
 
 pub fn print_data_size(size: &u64) -> String {
+    if size <= &0 {
+        return String::from("Unknown");
+    }
     match size.ilog10() {
         0..3 => format!("{} B", size),
         3..6 => format!("{} KB", size / 1000),

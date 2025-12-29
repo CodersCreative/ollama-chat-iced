@@ -10,7 +10,7 @@ use iced::{
     Element, Length, Task, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        button, column, container, grid, markdown, pick_list, row, rule,
+        button, center_x, column, container, grid, markdown, pick_list, row, rule,
         scrollable::{self, Scrollbar},
         space, svg, text, text_input,
     },
@@ -64,11 +64,12 @@ impl Clone for HFViewModelDetails {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Page {
     Ollama,
-    HF,
+    HfText,
+    HfStt,
 }
 
 impl Page {
-    pub const ALL: [Page; 2] = [Page::Ollama, Page::HF];
+    pub const ALL: [Page; 3] = [Page::Ollama, Page::HfText, Page::HfStt];
 }
 
 impl Display for Page {
@@ -78,7 +79,8 @@ impl Display for Page {
             "{}",
             match self {
                 Page::Ollama => "Ollama",
-                Page::HF => "Huggingface",
+                Page::HfText => "Huggingface",
+                Page::HfStt => "Whisper",
             }
         )
     }
@@ -122,7 +124,8 @@ impl ModelsViewMessage {
 
                 if x.is_empty() {
                     view.models.ollama.clear();
-                    view.models.hf.clear();
+                    view.models.hf_text.clear();
+                    view.models.hf_stt.clear();
                 }
 
                 view.search = x;
@@ -176,11 +179,16 @@ impl ModelsViewMessage {
                     view.hf_expanded.retain(|y, _| y != &x);
                     Task::none()
                 } else {
+                    let page = view.page.clone();
                     Task::future(async move {
                         let req = DATA.read().unwrap().to_request();
                         match req
                             .make_request(
-                                &format!("provider/hf/model/{}", x),
+                                &if page == Page::HfText {
+                                    format!("provider/hf/text/model/{}", x)
+                                } else {
+                                    format!("provider/hf/stt/model/{}", x)
+                                },
                                 &(),
                                 RequestType::Get,
                             )
@@ -394,46 +402,79 @@ impl ModelsView {
                 let mut variants: Vec<(&u64, &Vec<HFModelVariant>)> =
                     expanded.base.variants.0.iter().collect();
                 variants.sort_by(|a, b| a.0.cmp(b.0));
-                column(variants.iter().map(|(k, variants)| {
-                    container(
-                        row![
-                            text(format!("{} bit", k))
-                                .style(style::text::primary)
-                                .size(SUB_HEADING_SIZE)
-                                .width(100),
-                            grid(variants.iter().map(|variant| {
-                                button(
-                                    row![
-                                        text(variant.variant().unwrap_or_default())
-                                            .style(style::text::text)
-                                            .size(BODY_SIZE),
-                                        text(print_data_size(&variant.size.clone().unwrap_or(0)))
+
+                if variants.len() == 1 {
+                    let (_, variants) = variants.first().unwrap();
+                    center_x(
+                        grid(variants.iter().map(|variant| {
+                            button(
+                                row![
+                                    text(variant.variant().unwrap_or_default())
+                                        .style(style::text::text)
+                                        .size(BODY_SIZE),
+                                    text(print_data_size(&variant.size.clone().unwrap_or(0)))
+                                        .style(style::text::translucent::text)
+                                        .size(BODY_SIZE)
+                                ]
+                                .spacing(5)
+                                .padding(5)
+                                .align_y(Vertical::Center),
+                            )
+                            .style(style::button::start)
+                            .on_press(Message::Subscription(SubMessage::HFPull(
+                                model.clone(),
+                                variant.name.clone(),
+                            )))
+                            .into()
+                        }))
+                        .height(Length::Shrink)
+                        .spacing(10),
+                    )
+                    .into()
+                } else {
+                    column(variants.iter().map(|(k, variants)| {
+                        container(
+                            row![
+                                text(format!("{} bit", k))
+                                    .style(style::text::primary)
+                                    .size(SUB_HEADING_SIZE)
+                                    .width(100),
+                                grid(variants.iter().map(|variant| {
+                                    button(
+                                        row![
+                                            text(variant.variant().unwrap_or_default())
+                                                .style(style::text::text)
+                                                .size(BODY_SIZE),
+                                            text(print_data_size(
+                                                &variant.size.clone().unwrap_or(0)
+                                            ))
                                             .style(style::text::translucent::text)
                                             .size(BODY_SIZE)
-                                    ]
-                                    .spacing(5)
-                                    .padding(5)
-                                    .align_y(Vertical::Center),
-                                )
-                                .style(style::button::start)
-                                .on_press(Message::Subscription(SubMessage::HFPull(
-                                    model.clone(),
-                                    variant.name.clone(),
-                                )))
-                                .into()
-                            }))
-                            .height(Length::Shrink)
-                            .spacing(10),
-                        ]
-                        .align_y(Vertical::Center)
-                        .spacing(20),
-                    )
-                    .padding(20)
-                    .style(style::container::code)
+                                        ]
+                                        .spacing(5)
+                                        .padding(5)
+                                        .align_y(Vertical::Center),
+                                    )
+                                    .style(style::button::start)
+                                    .on_press(Message::Subscription(SubMessage::HFPull(
+                                        model.clone(),
+                                        variant.name.clone(),
+                                    )))
+                                    .into()
+                                }))
+                                .height(Length::Shrink)
+                                .spacing(10),
+                            ]
+                            .align_y(Vertical::Center)
+                            .spacing(20),
+                        )
+                        .padding(20)
+                        .style(style::container::code)
+                        .into()
+                    }))
+                    .spacing(5)
                     .into()
-                }))
-                .spacing(5)
-                .into()
+                }
             };
 
             inner_col = inner_col.push(tags);
@@ -522,11 +563,23 @@ impl ModelsView {
                 }),
             )
             .spacing(10),
-            Page::HF => column(
-                if self.search.is_empty() || self.models.hf.is_empty() {
-                    &app.cache.home_shared.models.hf
+            Page::HfText => column(
+                if self.search.is_empty() || self.models.hf_text.is_empty() {
+                    &app.cache.home_shared.models.hf_text
                 } else {
-                    &self.models.hf
+                    &self.models.hf_text
+                }
+                .iter()
+                .map(|x| {
+                    Self::view_hf_model(id.clone(), x, &app.theme(), self.hf_expanded.get(&x.id))
+                }),
+            )
+            .spacing(10),
+            Page::HfStt => column(
+                if self.search.is_empty() || self.models.hf_stt.is_empty() {
+                    &app.cache.home_shared.models.hf_stt
+                } else {
+                    &self.models.hf_stt
                 }
                 .iter()
                 .map(|x| {

@@ -130,15 +130,30 @@ pub mod hf {
     pub struct HFModelVariant {
         pub model: String,
         pub name: String,
+        pub model_type: ModelType,
         pub size: Option<u64>,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub enum ModelType {
+        Text,
+        Speech,
     }
 
     impl HFModelVariant {
         pub fn variant(&self) -> Option<&str> {
-            self.name
-                .trim_end_matches(".gguf")
-                .rsplit(['-', '.'])
-                .next()
+            if self.model_type == ModelType::Text {
+                self.name
+                    .trim_end_matches(".gguf")
+                    .rsplit(['-', '.'])
+                    .next()
+            } else {
+                Some(
+                    self.name
+                        .trim_end_matches(".bin")
+                        .trim_start_matches("ggml-"),
+                )
+            }
         }
     }
 

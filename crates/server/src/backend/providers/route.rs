@@ -16,8 +16,12 @@ pub fn routes() -> Router {
             get(providers::ollama::models::search_ollama_models),
         )
         .route(
-            "/provider/hf/model/{user}/{id}",
-            get(providers::hf::fetch_model_details),
+            "/provider/hf/text/model/{user}/{id}",
+            get(providers::hf::text::fetch_model_details),
+        )
+        .route(
+            "/provider/hf/stt/model/{user}/{id}",
+            get(providers::hf::stt::fetch_model_details),
         )
         .route(
             "/provider/hf/model/{user}/{id}/{name}",
@@ -38,6 +42,18 @@ pub fn routes() -> Router {
         .route(
             "/provider/hf/text/model/search/{search}",
             get(providers::hf::text::search_models),
+        )
+        .route(
+            "/provider/hf/stt/model/all/",
+            get(providers::hf::stt::list_all_models),
+        )
+        .route(
+            "/provider/hf/stt/model/downloaded/",
+            get(providers::hf::stt::list_all_downloaded_models),
+        )
+        .route(
+            "/provider/hf/stt/model/search/{search}",
+            get(providers::hf::stt::search_models),
         )
         .route(
             "/provider/{id}/model/{model}",

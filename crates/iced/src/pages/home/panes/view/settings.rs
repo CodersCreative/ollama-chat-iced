@@ -44,6 +44,7 @@ pub enum SettingsViewMessage {
     UpdateProviderKey(usize, String),
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
+    UpdateSttModel(SettingsProvider),
     InstanceUrl(InputMessage),
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
@@ -167,6 +168,11 @@ impl SettingsViewMessage {
             Self::UpdatePreviewModel(model) => UpdateModel!(model, previews_provider),
             Self::UpdateDefaultModel(model) => {
                 app.cache.client_settings.default_provider = Some(model);
+                app.cache.client_settings.save();
+                Task::none()
+            }
+            Self::UpdateSttModel(model) => {
+                app.cache.client_settings.stt_provider = Some(model);
                 app.cache.client_settings.save();
                 Task::none()
             }
@@ -472,6 +478,31 @@ impl SettingsView {
 
                 model_column = model_column.push(sub_heading("Default Model"));
                 model_column = model_column.push(default_model);
+
+                #[cfg(feature = "sound")]
+                {
+                    if app
+                        .cache
+                        .server_features
+                        .contains(&ochat_types::ServerFeatures::Voice)
+                    {
+                        let stt_model = pick_list(
+                            x.stt_models.clone(),
+                            app.cache.client_settings.stt_provider.clone(),
+                            move |x| {
+                                Message::HomePaneView(HomePaneViewMessage::Settings(
+                                    id,
+                                    SettingsViewMessage::UpdateSttModel(x),
+                                ))
+                            },
+                        )
+                        .style(style::pick_list::main)
+                        .menu_style(style::menu::main);
+
+                        model_column = model_column.push(sub_heading("STT Model"));
+                        model_column = model_column.push(stt_model);
+                    }
+                }
             }
         }
 

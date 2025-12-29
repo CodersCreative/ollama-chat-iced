@@ -46,11 +46,11 @@ pub enum SetupMessage {
     UpdateProviderKey(usize, String),
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
+    UpdateSttModel(SettingsProvider),
     InstanceUrl(InputMessage),
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
     AddProvider(usize),
-    SetLlamacpp(bool),
     AddProviderInput,
     NextPage,
 }
@@ -89,7 +89,6 @@ impl SetupMessage {
                 );
                 Task::none()
             }
-            Self::SetLlamacpp(_) => Task::none(),
             Self::AddProvider(index) => {
                 let input = app
                     .get_setup_page(&id)
@@ -171,6 +170,11 @@ impl SetupMessage {
             Self::UpdatePreviewModel(model) => UpdateModel!(model, previews_provider),
             Self::UpdateDefaultModel(model) => {
                 app.cache.client_settings.default_provider = Some(model);
+                app.cache.client_settings.save();
+                Task::none()
+            }
+            Self::UpdateSttModel(model) => {
+                app.cache.client_settings.stt_provider = Some(model);
                 app.cache.client_settings.save();
                 Task::none()
             }
@@ -427,15 +431,27 @@ impl SetupPage {
 
                 model_column = model_column.push(sub_heading("Default Model"));
                 model_column = model_column.push(default_model);
+
+                let stt_model = pick_list(
+                    x.stt_models.clone(),
+                    app.cache.client_settings.stt_provider.clone(),
+                    move |x| {
+                        Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Setup(SetupMessage::UpdateSttModel(x)),
+                        ))
+                    },
+                )
+                .style(style::pick_list::main)
+                .menu_style(style::menu::main);
+
+                model_column = model_column.push(sub_heading("STT Model"));
+                model_column = model_column.push(stt_model);
             }
         }
 
         let use_panes = checkbox(app.cache.client_settings.use_panes)
             .label("Use Panes")
-            .on_toggle(move |x| Message::Cache(CacheMessage::SetUsePanes(x)));
-
-        let use_llamacpp = checkbox(app.cache.client_settings.use_panes)
-            .label("Use llama-cpp huggingface backend")
             .on_toggle(move |x| Message::Cache(CacheMessage::SetUsePanes(x)));
 
         let theme = pick_list(Theme::ALL, Some(app.theme()), move |x| {
@@ -461,7 +477,6 @@ impl SetupPage {
                         ochat,
                         sub_heading("Models Download Path"),
                         models_path,
-                        use_llamacpp,
                         providers,
                         model_column,
                         sub_heading("Decorations"),

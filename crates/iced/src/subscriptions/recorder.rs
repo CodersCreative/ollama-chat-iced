@@ -4,7 +4,10 @@ use iced::{
     task::{Straw, sipper},
 };
 use ochat_common::data::RequestType;
-use ochat_types::generation::stt::{SttQueryData, SttResponse};
+use ochat_types::{
+    generation::stt::{SttQueryData, SttResponse},
+    settings::SettingsProvider,
+};
 use std::{
     fmt::Debug,
     rc::Rc,
@@ -22,6 +25,7 @@ const VAD_THRESHOLD: f32 = 0.4;
 #[derive(Debug, Clone)]
 pub struct Recorder {
     pub on_finish: RecorderFinish,
+    pub model: Option<SettingsProvider>,
     pub state: RecorderState,
 }
 
@@ -51,9 +55,10 @@ pub enum RecorderUpdate {
 }
 
 impl Recorder {
-    pub fn new(on_finish: RecorderFinish) -> Self {
+    pub fn new(on_finish: RecorderFinish, model: Option<SettingsProvider>) -> Self {
         Self {
             on_finish,
+            model,
             state: RecorderState::Idle,
         }
     }
@@ -62,7 +67,7 @@ impl Recorder {
         match self.state {
             RecorderState::Err(_) | RecorderState::Finished | RecorderState::Idle => {
                 let (task, _handle) = Task::sip(
-                    record_stream(),
+                    record_stream(self.model.clone()),
                     RecorderUpdate::Generating,
                     RecorderUpdate::Finished,
                 )
@@ -81,7 +86,7 @@ impl Recorder {
     }
 }
 
-pub fn record_stream() -> impl Straw<(), RecorderState, String> {
+pub fn record_stream(model: Option<SettingsProvider>) -> impl Straw<(), RecorderState, String> {
     let req = DATA.read().unwrap().to_request();
     sipper(async move |mut output| {
         let recorded_data = Arc::new(Mutex::new(Vec::<f32>::new()));
@@ -159,6 +164,7 @@ pub fn record_stream() -> impl Straw<(), RecorderState, String> {
         let _ = output.send(RecorderState::Generating).await;
 
         let final_data = SttQueryData {
+            model,
             data: recorded_data.lock().unwrap().clone(),
             spec: ochat_types::generation::SoundSpec { sample_rate: 16000 },
         };

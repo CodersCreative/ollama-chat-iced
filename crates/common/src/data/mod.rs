@@ -15,6 +15,7 @@ pub struct Data {
     pub instance_url: Option<String>,
     pub providers: Vec<Provider>,
     pub models: Vec<SettingsProvider>,
+    pub stt_models: Vec<SettingsProvider>,
     pub jwt: Option<String>,
 }
 
@@ -78,9 +79,17 @@ impl Data {
         .await?;
 
         Ok(Data {
+            stt_models: request_ochat_server(
+                &jwt,
+                &format!("{}/provider/hf/stt/model/downloaded/", instance),
+                &(),
+                RequestType::Get,
+            )
+            .await?,
             instance_url: Some(instance),
             providers,
             models,
+
             jwt,
         })
     }

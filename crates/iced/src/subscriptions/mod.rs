@@ -297,7 +297,7 @@ impl SubMessage {
                     })
             }
             Self::HFPulling(id, HFPullModelStreamResult::Finished) => {
-                let _ = app.subscriptions.ollama_pulls.remove(&id);
+                let _ = app.subscriptions.hf_pulls.remove(&id);
                 let (url, providers) = {
                     let data = DATA.read().unwrap();
                     (
@@ -402,9 +402,10 @@ impl SubMessage {
             Self::Record(on_finish) => {
                 let id = app.subscriptions.counter.clone();
                 app.subscriptions.counter += 1;
+                let model = app.cache.client_settings.stt_provider.clone();
                 app.subscriptions
                     .recordings
-                    .insert(id, Recorder::new(on_finish));
+                    .insert(id, Recorder::new(on_finish, model));
 
                 app.subscriptions
                     .recordings
