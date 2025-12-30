@@ -16,7 +16,7 @@ use ochat_types::{
     chats::{messages::MessageData, previews::Preview},
     generation::text::{ChatQueryData, ChatStreamResult},
     providers::{
-        hf::{HFModel, HFPullModelStreamResult},
+        hf::{HFModel, HFPullModelStreamResult, ModelType},
         ollama::{OllamaModelsInfo, OllamaPullModelStreamResult},
     },
     settings::SettingsProvider,
@@ -46,7 +46,7 @@ pub enum SubMessage {
     OllamaPull(OllamaModelsInfo, SettingsProvider),
     OllamaPulling(u32, OllamaPullModelStreamResult),
     OllamaStopPulling(u32),
-    HFPull(HFModel, String),
+    HFPull(HFModel, String, ModelType),
     HFPulling(u32, HFPullModelStreamResult),
     HFStopPulling(u32),
 
@@ -272,12 +272,12 @@ impl SubMessage {
                 app.cache.home_shared.downloads.ollama.remove(&id);
                 Task::none()
             }
-            Self::HFPull(model, name) => {
+            Self::HFPull(model, name, model_type) => {
                 let id = app.subscriptions.counter.clone();
                 app.subscriptions.counter += 1;
                 app.subscriptions
                     .hf_pulls
-                    .insert(id, HFPull::new(model.id.clone(), name));
+                    .insert(id, HFPull::new(model.id.clone(), name, model_type));
                 app.cache.home_shared.downloads.hf.insert(id, model);
 
                 app.add_pull_pop_up(id);

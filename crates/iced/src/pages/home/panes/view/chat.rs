@@ -1197,7 +1197,7 @@ impl ChatsView {
                     if app
                         .cache
                         .server_features
-                        .contains(&ochat_types::ServerFeatures::Voice)
+                        .contains(&ochat_types::ServerFeatures::Sound)
                     {
                         widgets.push(
                             btn("call.svg")

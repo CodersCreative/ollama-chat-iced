@@ -15,8 +15,16 @@ pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, S
     let client = reqwest::Client::new();
 
     let request = client.get(format!("{API_URL}/models")).query(&[
-        ("search", search.trim()),
-        ("filter", "text-generation"),
+        (
+            "search",
+            if search.contains("parler") {
+                search.to_string()
+            } else {
+                format!("parler {}", search.trim())
+            }
+            .trim(),
+        ),
+        ("filter", "text-to-speech"),
         ("limit", "75"),
         ("full", "true"),
     ]);
@@ -64,7 +72,7 @@ pub async fn list_all_downloaded_models() -> Result<Json<Vec<SettingsProvider>>,
         let _ = fs::create_dir(&dir).await.unwrap();
     }
 
-    let dir = dir.join("text/");
+    let dir = dir.join("tts/");
 
     if !fs::try_exists(&dir).await.unwrap_or(true) {
         let _ = fs::create_dir(&dir).await.unwrap();
@@ -86,9 +94,9 @@ pub async fn list_all_downloaded_models() -> Result<Json<Vec<SettingsProvider>>,
 
                 while let Some(forth) = dir.next_entry().await? {
                     let name = forth.file_name().into_string().unwrap().trim().to_string();
-                    if name.to_lowercase().ends_with("gguf") {
+                    if !name.to_lowercase().ends_with("json") {
                         models.push(SettingsProvider {
-                            provider: format!("HF-Text:{}/{}", user, model),
+                            provider: format!("HF-TTS:{}/{}", user, model),
                             model: name,
                         });
                     }
@@ -103,5 +111,5 @@ pub async fn list_all_downloaded_models() -> Result<Json<Vec<SettingsProvider>>,
 pub async fn fetch_model_details(
     Path((user, id)): Path<(String, String)>,
 ) -> Result<Json<HFModelDetails>, ServerError> {
-    fetch_model_details_base(user, id, ModelType::Text).await
+    fetch_model_details_base(user, id, ModelType::Tts).await
 }

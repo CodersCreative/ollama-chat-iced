@@ -88,7 +88,9 @@ pub mod ollama {
 }
 
 pub mod hf {
-    use crate::surreal::Datetime;
+    use serde_json::Value;
+
+    use crate::{settings::parse_provider_name, surreal::Datetime};
     use std::collections::HashMap;
 
     use super::*;
@@ -117,13 +119,39 @@ pub mod hf {
         pub last_modified: Datetime,
         pub downloads: u64,
         pub likes: u64,
-        pub base_model: Option<String>,
+        base_model: Option<String>,
         pub pipeline_tag: Option<String>,
         pub architecture: Option<String>,
+        #[serde(alias = "cardData")]
+        #[serde(default = "Default::default")]
+        pub card_data: CardData,
         #[serde(default = "Default::default")]
         pub parameters: u64,
         #[serde(default = "Default::default")]
         pub variants: HFModelVariants,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, Default)]
+    pub struct CardData {
+        #[serde(default = "Default::default")]
+        base_model: Option<Value>,
+    }
+
+    impl HFModelDetails {
+        pub fn get_base_model(&self) -> Option<String> {
+            if let Some(x) = self.base_model.clone() {
+                Some(x)
+            } else if let Some(x) = self.card_data.base_model.clone() {
+                if x.is_array() {
+                    let lst = x.as_array().unwrap();
+                    lst.first().map(|x| x.as_str().unwrap().to_string())
+                } else {
+                    Some(x.as_str().unwrap().to_string())
+                }
+            } else {
+                None
+            }
+        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -138,23 +166,13 @@ pub mod hf {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum ModelType {
         Text,
-        Speech,
+        Stt,
+        Tts,
     }
 
     impl HFModelVariant {
-        pub fn variant(&self) -> Option<&str> {
-            if self.model_type == ModelType::Text {
-                self.name
-                    .trim_end_matches(".gguf")
-                    .rsplit(['-', '.'])
-                    .next()
-            } else {
-                Some(
-                    self.name
-                        .trim_end_matches(".bin")
-                        .trim_start_matches("ggml-"),
-                )
-            }
+        pub fn variant(&self) -> Option<String> {
+            Some(parse_provider_name(&self.name, &self.model))
         }
     }
 
@@ -173,5 +191,6 @@ pub mod hf {
     pub struct HFPullModelResponse {
         pub total: Option<u64>,
         pub completed: Option<u64>,
+        pub speed: Option<f64>,
     }
 }

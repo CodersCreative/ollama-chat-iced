@@ -19,7 +19,7 @@ use ochat_common::{data::RequestType, print_data_size};
 use ochat_types::{
     providers::{
         Provider, ProviderType,
-        hf::{HFModel, HFModelDetails, HFModelVariant},
+        hf::{HFModel, HFModelDetails, HFModelVariant, ModelType},
         ollama::OllamaModelsInfo,
     },
     settings::SettingsProvider,
@@ -66,10 +66,11 @@ pub enum Page {
     Ollama,
     HfText,
     HfStt,
+    HfTts,
 }
 
 impl Page {
-    pub const ALL: [Page; 3] = [Page::Ollama, Page::HfText, Page::HfStt];
+    pub const ALL: [Page; 4] = [Page::Ollama, Page::HfText, Page::HfStt, Page::HfTts];
 }
 
 impl Display for Page {
@@ -81,6 +82,7 @@ impl Display for Page {
                 Page::Ollama => "Ollama",
                 Page::HfText => "Huggingface",
                 Page::HfStt => "Whisper",
+                Page::HfTts => "Parler",
             }
         )
     }
@@ -126,6 +128,7 @@ impl ModelsViewMessage {
                     view.models.ollama.clear();
                     view.models.hf_text.clear();
                     view.models.hf_stt.clear();
+                    view.models.hf_tts.clear();
                 }
 
                 view.search = x;
@@ -186,8 +189,10 @@ impl ModelsViewMessage {
                             .make_request(
                                 &if page == Page::HfText {
                                     format!("provider/hf/text/model/{}", x)
-                                } else {
+                                } else if page == Page::HfStt {
                                     format!("provider/hf/stt/model/{}", x)
+                                } else {
+                                    format!("provider/hf/tts/model/{}", x)
                                 },
                                 &(),
                                 RequestType::Get,
@@ -331,6 +336,7 @@ impl ModelsView {
         id: u32,
         model: &'a HFModel,
         theme: &Theme,
+        page: &Page,
         expanded: Option<&'a HFViewModelDetails>,
     ) -> Element<'a, Message> {
         let sub_heading = |txt: &'static str| text(txt).size(BODY_SIZE).style(style::text::text);
@@ -424,6 +430,11 @@ impl ModelsView {
                             .on_press(Message::Subscription(SubMessage::HFPull(
                                 model.clone(),
                                 variant.name.clone(),
+                                match page {
+                                    Page::HfStt => ModelType::Stt,
+                                    Page::HfTts => ModelType::Tts,
+                                    _ => ModelType::Text,
+                                },
                             )))
                             .into()
                         }))
@@ -459,6 +470,11 @@ impl ModelsView {
                                     .on_press(Message::Subscription(SubMessage::HFPull(
                                         model.clone(),
                                         variant.name.clone(),
+                                        match page {
+                                            Page::HfStt => ModelType::Stt,
+                                            Page::HfTts => ModelType::Tts,
+                                            _ => ModelType::Text,
+                                        },
                                     )))
                                     .into()
                                 }))
@@ -571,7 +587,13 @@ impl ModelsView {
                 }
                 .iter()
                 .map(|x| {
-                    Self::view_hf_model(id.clone(), x, &app.theme(), self.hf_expanded.get(&x.id))
+                    Self::view_hf_model(
+                        id.clone(),
+                        x,
+                        &app.theme(),
+                        &self.page,
+                        self.hf_expanded.get(&x.id),
+                    )
                 }),
             )
             .spacing(10),
@@ -583,7 +605,31 @@ impl ModelsView {
                 }
                 .iter()
                 .map(|x| {
-                    Self::view_hf_model(id.clone(), x, &app.theme(), self.hf_expanded.get(&x.id))
+                    Self::view_hf_model(
+                        id.clone(),
+                        x,
+                        &app.theme(),
+                        &self.page,
+                        self.hf_expanded.get(&x.id),
+                    )
+                }),
+            )
+            .spacing(10),
+            Page::HfTts => column(
+                if self.search.is_empty() || self.models.hf_tts.is_empty() {
+                    &app.cache.home_shared.models.hf_tts
+                } else {
+                    &self.models.hf_tts
+                }
+                .iter()
+                .map(|x| {
+                    Self::view_hf_model(
+                        id.clone(),
+                        x,
+                        &app.theme(),
+                        &self.page,
+                        self.hf_expanded.get(&x.id),
+                    )
                 }),
             )
             .spacing(10),

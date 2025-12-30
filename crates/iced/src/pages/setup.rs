@@ -47,6 +47,7 @@ pub enum SetupMessage {
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
     UpdateSttModel(SettingsProvider),
+    UpdateTtsModel(SettingsProvider),
     InstanceUrl(InputMessage),
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
@@ -175,6 +176,11 @@ impl SetupMessage {
             }
             Self::UpdateSttModel(model) => {
                 app.cache.client_settings.stt_provider = Some(model);
+                app.cache.client_settings.save();
+                Task::none()
+            }
+            Self::UpdateTtsModel(model) => {
+                app.cache.client_settings.tts_provider = Some(model);
                 app.cache.client_settings.save();
                 Task::none()
             }
@@ -432,21 +438,46 @@ impl SetupPage {
                 model_column = model_column.push(sub_heading("Default Model"));
                 model_column = model_column.push(default_model);
 
-                let stt_model = pick_list(
-                    x.stt_models.clone(),
-                    app.cache.client_settings.stt_provider.clone(),
-                    move |x| {
-                        Message::Window(WindowMessage::Page(
-                            id,
-                            PageMessage::Setup(SetupMessage::UpdateSttModel(x)),
-                        ))
-                    },
-                )
-                .style(style::pick_list::main)
-                .menu_style(style::menu::main);
+                #[cfg(feature = "sound")]
+                {
+                    if app
+                        .cache
+                        .server_features
+                        .contains(&ochat_types::ServerFeatures::Sound)
+                    {
+                        let stt_model = pick_list(
+                            x.stt_models.clone(),
+                            app.cache.client_settings.stt_provider.clone(),
+                            move |x| {
+                                Message::Window(WindowMessage::Page(
+                                    id,
+                                    PageMessage::Setup(SetupMessage::UpdateSttModel(x)),
+                                ))
+                            },
+                        )
+                        .style(style::pick_list::main)
+                        .menu_style(style::menu::main);
 
-                model_column = model_column.push(sub_heading("STT Model"));
-                model_column = model_column.push(stt_model);
+                        model_column = model_column.push(sub_heading("STT Model"));
+                        model_column = model_column.push(stt_model);
+
+                        let tts_model = pick_list(
+                            x.tts_models.clone(),
+                            app.cache.client_settings.tts_provider.clone(),
+                            move |x| {
+                                Message::Window(WindowMessage::Page(
+                                    id,
+                                    PageMessage::Setup(SetupMessage::UpdateTtsModel(x)),
+                                ))
+                            },
+                        )
+                        .style(style::pick_list::main)
+                        .menu_style(style::menu::main);
+
+                        model_column = model_column.push(sub_heading("TTS Model"));
+                        model_column = model_column.push(tts_model);
+                    }
+                }
             }
         }
 

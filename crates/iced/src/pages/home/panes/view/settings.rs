@@ -45,6 +45,7 @@ pub enum SettingsViewMessage {
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
     UpdateSttModel(SettingsProvider),
+    UpdateTtsModel(SettingsProvider),
     InstanceUrl(InputMessage),
     DeleteProvider(RecordId),
     RemoveProviderInput(usize),
@@ -173,6 +174,11 @@ impl SettingsViewMessage {
             }
             Self::UpdateSttModel(model) => {
                 app.cache.client_settings.stt_provider = Some(model);
+                app.cache.client_settings.save();
+                Task::none()
+            }
+            Self::UpdateTtsModel(model) => {
+                app.cache.client_settings.tts_provider = Some(model);
                 app.cache.client_settings.save();
                 Task::none()
             }
@@ -484,7 +490,7 @@ impl SettingsView {
                     if app
                         .cache
                         .server_features
-                        .contains(&ochat_types::ServerFeatures::Voice)
+                        .contains(&ochat_types::ServerFeatures::Sound)
                     {
                         let stt_model = pick_list(
                             x.stt_models.clone(),
@@ -501,6 +507,22 @@ impl SettingsView {
 
                         model_column = model_column.push(sub_heading("STT Model"));
                         model_column = model_column.push(stt_model);
+
+                        let tts_model = pick_list(
+                            x.tts_models.clone(),
+                            app.cache.client_settings.tts_provider.clone(),
+                            move |x| {
+                                Message::HomePaneView(HomePaneViewMessage::Settings(
+                                    id,
+                                    SettingsViewMessage::UpdateTtsModel(x),
+                                ))
+                            },
+                        )
+                        .style(style::pick_list::main)
+                        .menu_style(style::menu::main);
+
+                        model_column = model_column.push(sub_heading("TTS Model"));
+                        model_column = model_column.push(tts_model);
                     }
                 }
             }

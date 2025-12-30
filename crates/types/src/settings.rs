@@ -24,7 +24,30 @@ pub struct SettingsProvider {
 
 impl Display for SettingsProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.model)
+        write!(f, "{}", parse_provider_name(&self.model, &self.provider))
+    }
+}
+
+pub fn parse_provider_name(name: &str, provider: &str) -> String {
+    let name = name.rsplit("-00").next().unwrap();
+    let trimmed = name
+        .replace("ggml", "")
+        .replace("gguf", "")
+        .replace("bin", "")
+        .replace("safetensors", "");
+
+    let trimmed = trimmed
+        .trim()
+        .trim_start_matches(['.', '-', '_'])
+        .trim_end_matches(['.', '-', '_'])
+        .trim();
+
+    if trimmed == "model" && provider.contains("/") && provider.contains("HF") {
+        provider.rsplit_once("/").unwrap().1.to_string()
+    } else if trimmed.len() <= 10 && provider.contains("/") && provider.contains("HF") {
+        format!("{}/{}", provider.rsplit_once("/").unwrap().1, trimmed)
+    } else {
+        trimmed.to_string()
     }
 }
 

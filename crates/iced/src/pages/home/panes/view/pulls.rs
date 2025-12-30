@@ -182,7 +182,9 @@ impl PullsView {
             HFPullModelStreamResult::Pulling(status) => {
                 let mut col = column![].spacing(5);
 
-                if let (Some(total), Some(completed)) = (&status.total, &status.completed) {
+                if let (Some(total), Some(completed), Some(speed)) =
+                    (&status.total, &status.completed, &status.speed)
+                {
                     if total != &0 {
                         let progress = (*completed as f64 / *total as f64) as f32 * 100.0;
                         col = col.push(
@@ -192,6 +194,10 @@ impl PullsView {
                                     .girth(Length::Fixed(SUB_HEADING_SIZE as f32)),
                                 text(format!("{:.2}%", progress))
                                     .style(style::text::primary)
+                                    .width(75.0)
+                                    .size(SUB_HEADING_SIZE),
+                                text(format!("{:.2}Mb/s", speed / 8_000_000.0))
+                                    .style(style::text::text)
                                     .width(75.0)
                                     .size(SUB_HEADING_SIZE)
                             ]

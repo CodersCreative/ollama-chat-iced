@@ -3,7 +3,7 @@ use iced::{
     futures::StreamExt,
     task::{Straw, sipper},
 };
-use ochat_types::providers::hf::{HFPullModelResponse, HFPullModelStreamResult};
+use ochat_types::providers::hf::{HFPullModelResponse, HFPullModelStreamResult, ModelType};
 
 use crate::DATA;
 
@@ -12,6 +12,7 @@ pub struct HFPull {
     pub name: String,
     pub model: String,
     pub state: HFPullModelStreamResult,
+    pub model_type: ModelType,
 }
 
 pub enum HFPullUpdate {
@@ -20,10 +21,11 @@ pub enum HFPullUpdate {
 }
 
 impl HFPull {
-    pub fn new(model: String, name: String) -> Self {
+    pub fn new(model: String, name: String, model_type: ModelType) -> Self {
         Self {
             name,
             model,
+            model_type,
             state: HFPullModelStreamResult::Idle,
         }
     }
@@ -48,7 +50,11 @@ impl HFPull {
             | HFPullModelStreamResult::Finished
             | HFPullModelStreamResult::Idle => {
                 let (task, _handle) = Task::sip(
-                    pull_stream(self.model.clone(), self.name.clone()),
+                    pull_stream(
+                        self.model.clone(),
+                        self.name.clone(),
+                        self.model_type.clone(),
+                    ),
                     HFPullUpdate::Pulling,
                     HFPullUpdate::Finished,
                 )
@@ -67,15 +73,26 @@ impl HFPull {
     }
 }
 
-pub fn pull_stream(model: String, name: String) -> impl Straw<(), HFPullModelStreamResult, String> {
+pub fn pull_stream(
+    model: String,
+    name: String,
+    model_type: ModelType,
+) -> impl Straw<(), HFPullModelStreamResult, String> {
     let req = DATA.read().unwrap().to_request();
 
     sipper(async move |mut output| {
         let mut response = req
             .get_client()
             .post(&format!(
-                "{0}/provider/hf/model/{1}/{2}",
-                req.url, model, name
+                "{0}/provider/hf/{1}/model/{2}/{3}",
+                req.url,
+                match model_type {
+                    ModelType::Text => "text",
+                    ModelType::Stt => "stt",
+                    ModelType::Tts => "tts",
+                },
+                model,
+                name
             ))
             .send()
             .await

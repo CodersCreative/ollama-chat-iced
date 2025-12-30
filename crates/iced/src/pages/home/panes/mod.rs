@@ -91,6 +91,32 @@ impl HomePaneType {
                     app.view_data.home.call.as_mut().unwrap().model = model;
                 }
 
+                if app
+                    .view_data
+                    .home
+                    .call
+                    .as_ref()
+                    .unwrap()
+                    .stt_model
+                    .is_none()
+                {
+                    let model = app.cache.client_settings.stt_provider.clone();
+                    app.view_data.home.call.as_mut().unwrap().stt_model = model;
+                }
+
+                if app
+                    .view_data
+                    .home
+                    .call
+                    .as_ref()
+                    .unwrap()
+                    .tts_model
+                    .is_none()
+                {
+                    let model = app.cache.client_settings.tts_provider.clone();
+                    app.view_data.home.call.as_mut().unwrap().tts_model = model;
+                }
+
                 app.view_data.home.call.as_mut().unwrap().ref_count += 1;
 
                 HomePaneTypeWithId::Call

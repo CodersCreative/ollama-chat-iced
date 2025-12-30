@@ -24,8 +24,20 @@ pub fn routes() -> Router {
             get(providers::hf::stt::fetch_model_details),
         )
         .route(
-            "/provider/hf/model/{user}/{id}/{name}",
-            post(providers::hf::pull::run),
+            "/provider/hf/tts/model/{user}/{id}",
+            get(providers::hf::tts::fetch_model_details),
+        )
+        .route(
+            "/provider/hf/text/model/{user}/{id}/{name}",
+            post(providers::hf::pull::run_text),
+        )
+        .route(
+            "/provider/hf/tts/model/{user}/{id}/{name}",
+            post(providers::hf::pull::run_tts),
+        )
+        .route(
+            "/provider/hf/stt/model/{user}/{id}/{name}",
+            post(providers::hf::pull::run_stt),
         )
         .route(
             "/provider/hf/model/downloaded/",
@@ -54,6 +66,18 @@ pub fn routes() -> Router {
         .route(
             "/provider/hf/stt/model/search/{search}",
             get(providers::hf::stt::search_models),
+        )
+        .route(
+            "/provider/hf/tts/model/all/",
+            get(providers::hf::tts::list_all_models),
+        )
+        .route(
+            "/provider/hf/tts/model/downloaded/",
+            get(providers::hf::tts::list_all_downloaded_models),
+        )
+        .route(
+            "/provider/hf/tts/model/search/{search}",
+            get(providers::hf::tts::search_models),
         )
         .route(
             "/provider/{id}/model/{model}",

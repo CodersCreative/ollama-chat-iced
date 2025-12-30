@@ -1,12 +1,22 @@
-use crate::backend::errors::ServerError;
+use crate::backend::{
+    errors::ServerError,
+    providers::hf::{pull::get_models_dir, tts::list_all_downloaded_models},
+};
 use axum::Json;
 use natural_tts::{
     NaturalTts, NaturalTtsBuilder,
-    models::{Spec, gtts::GttsModel, parler::ParlerModel},
+    models::{
+        Spec,
+        gtts::GttsModel,
+        parler::{ParlerModel, ParlerModelOptionsBuilder, ParlerModelPath},
+    },
 };
-use ochat_types::generation::{
-    SoundSpec,
-    tts::{TtsQueryData, TtsResponse},
+use ochat_types::{
+    generation::{
+        SoundSpec,
+        tts::{TtsQueryData, TtsResponse},
+    },
+    settings::SettingsProvider,
 };
 use std::{
     path::PathBuf,
@@ -25,8 +35,61 @@ static NATURAL_TTS: LazyLock<RwLock<NaturalTts>> = LazyLock::new(|| {
     )
 });
 
+pub async fn get_model_dir_and_name(data: &SettingsProvider) -> (PathBuf, String) {
+    let (user, model, name) = {
+        let provider = data.provider.trim().split_once(":").unwrap().1;
+        let (user, model) = provider.trim().split_once("/").unwrap();
+        (
+            user.to_string(),
+            model.to_string(),
+            data.model.trim().to_string(),
+        )
+    };
+    let model_dir = get_models_dir(
+        name.clone(),
+        format!("{}/{}", user, model),
+        "tts".to_string(),
+    )
+    .await;
+
+    (model_dir, name)
+}
+
 #[axum::debug_handler]
 pub async fn run(Json(data): Json<TtsQueryData>) -> Result<Json<TtsResponse>, ServerError> {
+    let model = if let Some(x) = data.model.clone() {
+        x
+    } else {
+        let mut lst = list_all_downloaded_models().await?.0;
+        if lst.is_empty() {
+            return Err(ServerError::Unknown(String::from(
+                "No TTS models downloaded",
+            )));
+        }
+        lst.remove(0)
+    };
+
+    {
+        let (dir, name) = get_model_dir_and_name(&model).await;
+        NATURAL_TTS
+            .write()
+            .map_err(|e| ServerError::Unknown(e.to_string()))?
+            .parler_model = Some(
+            ParlerModel::new(
+                ParlerModelOptionsBuilder::default()
+                    .model_path(ParlerModelPath::Local {
+                        model_file_paths: vec![dir.join(name)],
+                        tokenizers_path: dir.join("tokenizer.json"),
+                        config_path: dir.join("config.json"),
+                    })
+                    .description("An asserive female speaker")
+                    .build()
+                    .unwrap(),
+            )
+            .map_err(|e| ServerError::Unknown(e.to_string()))?,
+        );
+    }
+
     let text = data.text;
     let mut data = Vec::new();
     let mut spec = None;

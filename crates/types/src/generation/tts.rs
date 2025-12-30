@@ -1,9 +1,11 @@
-use crate::generation::SoundSpec;
+use crate::{generation::SoundSpec, settings::SettingsProvider};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct TtsQueryData {
+    #[builder(default = "None")]
+    pub model: Option<SettingsProvider>,
     pub text: String,
 }
 

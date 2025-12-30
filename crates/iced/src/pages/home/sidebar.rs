@@ -848,7 +848,7 @@ impl HomeSideBar {
             if app
                 .cache
                 .server_features
-                .contains(&ochat_types::ServerFeatures::Voice)
+                .contains(&ochat_types::ServerFeatures::Sound)
             {
                 widgets.push(
                     style::svg_button::text("call.svg", size).on_press(Message::Window(

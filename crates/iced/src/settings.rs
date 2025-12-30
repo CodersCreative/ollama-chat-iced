@@ -10,6 +10,8 @@ pub struct ClientSettings {
     pub instance_url: String,
     pub default_provider: Option<SettingsProvider>,
     pub stt_provider: Option<SettingsProvider>,
+    pub tts_provider: Option<SettingsProvider>,
+    #[serde(default = "Vec::new")]
     pub default_tools: Vec<String>,
     pub use_panes: bool,
     pub theme: usize,
@@ -20,6 +22,7 @@ impl Default for ClientSettings {
             instance_url: String::from("http://localhost:1212/api"),
             default_provider: None,
             stt_provider: None,
+            tts_provider: None,
             default_tools: Vec::new(),
             use_panes: true,
             theme: 11,

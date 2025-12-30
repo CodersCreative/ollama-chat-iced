@@ -42,22 +42,24 @@ normal = [
     "dep:tokio-stream",
     "dep:schemars",
     "dep:reqwest",
-    "dep:llama-cpp-2",
     "dep:ochat-common",
     "dep:bytes",
     "dep:websearch",
     "dep:spider",
-    "dep:async-recursion"
+    "dep:async-recursion",
+    "dep:candle-core",
+    "dep:candle-transformers",
+    "dep:tokenizers",
+    "dep:safetensors",
+    "dep:byteorder"
 ]
-
-voice = ["dep:rodio", "sound", "dep:whisper-rs"]
-sound = ["dep:text-splitter", "dep:natural-tts",  "normal"]
+sound = ["dep:rodio","dep:text-splitter", "dep:natural-tts", "dep:whisper-rs",  "normal"]
 python = ["dep:pyo3", "dep:pythonize", "normal"]
-cuda = ["llama-cpp-2/cuda", "whisper-rs/cuda",  "normal", "natural-tts/cuda"]
-vulkan = ["llama-cpp-2/vulkan", "whisper-rs/vulkan", "normal"]
-metal = ["llama-cpp-2/metal", "whisper-rs/metal",  "normal", "natural-tts/metal"]
-full = ["python", "voice"]
-default = ["normal", "voice"]
+cuda = ["whisper-rs/cuda",  "normal", "natural-tts/cuda", "candle-core/cuda", "candle-transformers/cuda"]
+vulkan = ["whisper-rs/vulkan", "normal"]
+metal = ["whisper-rs/metal",  "normal", "natural-tts/metal", "candle-core/metal", "candle-transformers/metal"]
+full = ["python", "sound"]
+default = ["normal"]
 
 [dependencies]
 axum = { version = "0.8.0", features = ["macros"], optional= true}
@@ -74,7 +76,6 @@ schemars = {version = "1.1.0", optional = true}
 ochat-types = {path = "../types"}
 ochat-common = {path = "../common", optional = true}
 reqwest = {version = "0.12.24", features = ["json", "stream"], optional = true}
-llama-cpp-2 = {version = "0.1.130", optional = true}
 clap = { version = "4.5.53", features = ["derive"]}
 leptos = { version = "0.8.0" }
 leptos_router = { version = "0.8.0" }
@@ -90,6 +91,11 @@ websearch = {version = "0.1.1", optional = true}
 spider = {version = "2.38.110", optional = true}
 async-recursion = {version = "1.1.1", optional = true}
 base64 = "0.22.1"
+candle-core = {version = "0.9.1", optional = true}
+candle-transformers = {version = "0.9.1", optional = true}
+safetensors = {version = "0.7.0", optional = true}
+tokenizers = {version = "0.22.2", optional = true}
+byteorder = {version = "1.5", optional = true}
 
 # Python
 pyo3 = { version = "0.27.1", features = ["auto-initialize"] , optional = true}

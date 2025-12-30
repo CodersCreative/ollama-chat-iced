@@ -227,6 +227,7 @@ pub struct ModelsData {
     pub ollama: Vec<OllamaModelsInfo>,
     pub hf_text: Vec<HFModel>,
     pub hf_stt: Vec<HFModel>,
+    pub hf_tts: Vec<HFModel>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -351,6 +352,19 @@ impl ModelsData {
                         format!("provider/hf/stt/model/search/{}", search)
                     } else {
                         "provider/hf/stt/model/all/".to_string()
+                    },
+                    &(),
+                    RequestType::Get,
+                )
+                .await
+                .map(|x| if x.len() > 75 { x[0..=75].to_vec() } else { x })
+                .map_err(|e| e.to_string())?,
+            hf_tts: req
+                .make_request::<Vec<HFModel>, ()>(
+                    &if let Some(search) = &search {
+                        format!("provider/hf/tts/model/search/{}", search)
+                    } else {
+                        "provider/hf/tts/model/all/".to_string()
                     },
                     &(),
                     RequestType::Get,

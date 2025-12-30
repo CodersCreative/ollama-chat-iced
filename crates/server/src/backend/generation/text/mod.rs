@@ -4,12 +4,11 @@ use axum_streams::StreamBodyAs;
 use ochat_types::generation::text::{ChatQueryData, ChatResponse};
 
 pub mod api;
-pub mod llamacpp;
 
 #[axum::debug_handler]
 pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, ServerError> {
     if data.provider.starts_with("HF") {
-        llamacpp::run(data).await
+        todo!()
     } else {
         api::run(data).await
     }
@@ -18,7 +17,7 @@ pub async fn run(Json(data): Json<ChatQueryData>) -> Result<Json<ChatResponse>, 
 #[axum::debug_handler]
 pub async fn stream(Json(data): Json<ChatQueryData>) -> impl IntoResponse {
     if data.provider.starts_with("HF") {
-        StreamBodyAs::json_nl(llamacpp::stream(data).await)
+        todo!()
     } else {
         StreamBodyAs::json_nl(api::stream(data).await)
     }

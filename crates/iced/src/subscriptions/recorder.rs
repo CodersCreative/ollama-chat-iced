@@ -15,6 +15,7 @@ use std::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
+    time::{Duration, Instant},
 };
 use voice_activity_detector::VoiceActivityDetector;
 
@@ -112,6 +113,7 @@ pub fn record_stream(model: Option<SettingsProvider>) -> impl Straw<(), Recorder
         let rec_clone = Arc::clone(&recorded_data);
         let buf_clone = Arc::clone(&processing_buffer);
         let running_clone = Arc::clone(&is_running);
+        let start = Instant::now();
 
         let stream = device
             .build_input_stream(
@@ -140,7 +142,9 @@ pub fn record_stream(model: Option<SettingsProvider>) -> impl Straw<(), Recorder
                             consecutive_silence_chunks = 0;
                         }
 
-                        if consecutive_silence_chunks >= SILENCE_THRESHOLD {
+                        if consecutive_silence_chunks >= SILENCE_THRESHOLD
+                            && start.elapsed() > Duration::from_secs(5)
+                        {
                             running_clone.store(false, Ordering::SeqCst);
                             break;
                         }

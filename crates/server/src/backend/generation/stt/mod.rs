@@ -21,7 +21,12 @@ pub async fn get_model_dir_and_name(data: &SettingsProvider) -> (PathBuf, String
             data.model.trim().to_string(),
         )
     };
-    let model_dir = get_models_dir(format!("{}/{}", user, model), "speech".to_string()).await;
+    let model_dir = get_models_dir(
+        name.clone(),
+        format!("{}/{}", user, model),
+        "stt".to_string(),
+    )
+    .await;
 
     (model_dir, name)
 }

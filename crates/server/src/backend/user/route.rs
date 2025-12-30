@@ -13,9 +13,6 @@ pub async fn features() -> Result<Json<Vec<ServerFeatures>>, ServerError> {
     #[allow(unused_mut)]
     let mut features = Vec::new();
 
-    #[cfg(feature = "voice")]
-    features.push(ServerFeatures::Voice);
-
     #[cfg(feature = "sound")]
     features.push(ServerFeatures::Sound);
 

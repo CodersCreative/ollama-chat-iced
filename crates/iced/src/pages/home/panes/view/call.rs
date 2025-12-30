@@ -26,6 +26,7 @@ use crate::{
 pub struct CallView {
     pub model: Option<SettingsProvider>,
     pub stt_model: Option<SettingsProvider>,
+    pub tts_model: Option<SettingsProvider>,
     pub history: Vec<ChatQueryMessage>,
     pub tools: Vec<String>,
     pub state: CallState,
@@ -50,6 +51,7 @@ pub enum CallViewMessage {
     ResponseGenerated(ChatResponse),
     StartPlaying(TtsResponse),
     UpdateSttModel(SettingsProvider),
+    UpdateTtsModel(SettingsProvider),
     UpdateModel(SettingsProvider),
     Stop,
 }
@@ -68,7 +70,7 @@ impl CallViewMessage {
                 if !app
                     .cache
                     .server_features
-                    .contains(&ochat_types::ServerFeatures::Voice)
+                    .contains(&ochat_types::ServerFeatures::Sound)
                 {
                     return Task::done(Message::Err(String::from(
                         "ERROR : Server does not support calling...",
@@ -174,6 +176,7 @@ impl CallViewMessage {
 
                     TtsQueryData {
                         text: response.content,
+                        model: view.tts_model.clone(),
                     }
                 };
 
@@ -223,6 +226,10 @@ impl CallViewMessage {
                 app.view_data.home.call.as_mut().unwrap().stt_model = Some(x);
                 Task::none()
             }
+            Self::UpdateTtsModel(x) => {
+                app.view_data.home.call.as_mut().unwrap().tts_model = Some(x);
+                Task::none()
+            }
             Self::Stop => {
                 app.view_data.home.call.as_mut().unwrap().stop = true;
                 Task::none()
@@ -265,7 +272,7 @@ impl CallView {
                     if app
                         .cache
                         .server_features
-                        .contains(&ochat_types::ServerFeatures::Voice)
+                        .contains(&ochat_types::ServerFeatures::Sound)
                     {
                         let stt_model = pick_list(
                             x.stt_models.clone(),
@@ -281,6 +288,21 @@ impl CallView {
 
                         model_column = model_column.push(sub_heading("STT Model"));
                         model_column = model_column.push(stt_model);
+
+                        let tts_model = pick_list(
+                            x.tts_models.clone(),
+                            app.cache.client_settings.tts_provider.clone(),
+                            move |x| {
+                                Message::HomePaneView(HomePaneViewMessage::Call(
+                                    CallViewMessage::UpdateTtsModel(x),
+                                ))
+                            },
+                        )
+                        .style(style::pick_list::main)
+                        .menu_style(style::menu::main);
+
+                        model_column = model_column.push(sub_heading("TTS Model"));
+                        model_column = model_column.push(tts_model);
                         added_sound = true;
                     }
                 }

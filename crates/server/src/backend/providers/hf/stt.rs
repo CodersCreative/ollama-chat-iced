@@ -17,10 +17,10 @@ pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, S
     let request = client.get(format!("{API_URL}/models")).query(&[
         (
             "search",
-            if search.contains("cpp") {
+            if search.contains("whisper") {
                 search.to_string()
             } else {
-                format!("cpp {}", search.trim())
+                format!("whisper {}", search.trim())
             }
             .trim(),
         ),
@@ -62,7 +62,7 @@ pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, S
 }
 
 pub async fn list_all_models() -> Result<Json<Vec<HFModel>>, ServerError> {
-    search_models(Path(String::from("cpp"))).await
+    search_models(Path(String::new())).await
 }
 
 pub async fn list_all_downloaded_models() -> Result<Json<Vec<SettingsProvider>>, ServerError> {
@@ -72,7 +72,7 @@ pub async fn list_all_downloaded_models() -> Result<Json<Vec<SettingsProvider>>,
         let _ = fs::create_dir(&dir).await.unwrap();
     }
 
-    let dir = dir.join("speech/");
+    let dir = dir.join("stt/");
 
     if !fs::try_exists(&dir).await.unwrap_or(true) {
         let _ = fs::create_dir(&dir).await.unwrap();
@@ -90,12 +90,16 @@ pub async fn list_all_downloaded_models() -> Result<Json<Vec<SettingsProvider>>,
             let mut dir = fs::read_dir(second.path()).await?;
 
             while let Some(third) = dir.next_entry().await? {
-                let name = third.file_name().into_string().unwrap().trim().to_string();
-                if !name.to_lowercase().ends_with("json") {
-                    models.push(SettingsProvider {
-                        provider: format!("HF-STT:{}/{}", user, model),
-                        model: name,
-                    });
+                let mut dir = fs::read_dir(third.path()).await?;
+
+                while let Some(forth) = dir.next_entry().await? {
+                    let name = forth.file_name().into_string().unwrap().trim().to_string();
+                    if !name.to_lowercase().ends_with("json") {
+                        models.push(SettingsProvider {
+                            provider: format!("HF-STT:{}/{}", user, model),
+                            model: name,
+                        });
+                    }
                 }
             }
         }
@@ -107,5 +111,5 @@ pub async fn list_all_downloaded_models() -> Result<Json<Vec<SettingsProvider>>,
 pub async fn fetch_model_details(
     Path((user, id)): Path<(String, String)>,
 ) -> Result<Json<HFModelDetails>, ServerError> {
-    fetch_model_details_base(user, id, "bin", ModelType::Speech).await
+    fetch_model_details_base(user, id, ModelType::Stt).await
 }

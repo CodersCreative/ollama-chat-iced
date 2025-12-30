@@ -24,7 +24,7 @@ pub enum ServerError {
     #[error("Web Search Error : {0}")]
     WebSearch(#[from] websearch::error::SearchError),
     #[error("STT Error : {0}")]
-    #[cfg(feature = "voice")]
+    #[cfg(feature = "sound")]
     Whisper(#[from] whisper_rs::WhisperError),
     #[error("IO Error : {0}")]
     IO(#[from] std::io::Error),
