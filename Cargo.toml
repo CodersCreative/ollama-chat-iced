@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/cli", "crates/common", "crates/iced","crates/server", "crates/types"]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 authors = ["Creative Coders <officialccoders@gmail.com>"]
 description = "A chatbot application that uses Ollama AIs."
@@ -15,8 +15,8 @@ categories = ["gui", "accessibility"]
 license = "MIT"
 
 [workspace.dependencies]
-ochat-types = {path = "./crates/types", version = "0.5.0"}
-ochat-common = {path = "./crates/common", version = "0.5.0"}
+ochat-types = {path = "./crates/types", version = "0.5.1"}
+ochat-common = {path = "./crates/common", version = "0.5.1"}
 
 [patch.crates-io]
 mistralrs.git = "https://github.com/EricLBuehler/mistral.rs.git"
