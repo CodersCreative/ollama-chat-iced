@@ -5,6 +5,7 @@ edition.workspace = true
 authors.workspace = true
 description = "Types used between ochat packages and binaries."
 publish.workspace = true
+repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 license.workspace = true

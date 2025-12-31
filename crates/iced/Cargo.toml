@@ -5,6 +5,7 @@ edition.workspace = true
 authors.workspace = true
 description = "A chatbot application that uses Ollama AIs."
 publish.workspace = true
+repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 license.workspace = true

@@ -5,6 +5,7 @@ edition.workspace = true
 authors.workspace = true
 description = "Common functionality for frontend ochat apps."
 publish.workspace = true
+repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 license.workspace = true
