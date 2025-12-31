@@ -1,14 +1,14 @@
 use super::API_URL;
 use crate::backend::{
-    errors::ServerError, providers::hf::fetch_model_details_base, settings::get_settings,
+    errors::ServerError,
+    providers::hf::{fetch_model_details_base, process_searched_models, pull::EXTRA_EXTS},
+    settings::get_settings,
 };
 use axum::{Json, extract::Path};
 use ochat_types::{
     providers::hf::{HFModel, HFModelDetails, ModelType},
     settings::SettingsProvider,
 };
-use serde::Deserialize;
-use serde_json::Value;
 use tokio::fs;
 
 pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, ServerError> {
@@ -22,35 +22,7 @@ pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, S
     ]);
 
     let response = request.send().await?;
-    let mut models: Vec<Value> = response.json().await?;
-
-    #[derive(Deserialize, PartialEq, Eq)]
-    #[serde(untagged)]
-    enum Gated {
-        Bool(bool),
-        Other(String),
-    }
-
-    impl Default for Gated {
-        fn default() -> Self {
-            Gated::Bool(true)
-        }
-    }
-
-    models.retain(|model| {
-        Gated::Bool(false)
-            == serde_json::from_value(model.get("gated").unwrap().clone()).unwrap_or_default()
-    });
-
-    Ok(Json(
-        models
-            .into_iter()
-            .filter_map(|x| match serde_json::from_value(x) {
-                Ok(x) => Some(x),
-                _ => None,
-            })
-            .collect(),
-    ))
+    process_searched_models(response.json().await?)
 }
 
 pub async fn list_all_models() -> Result<Json<Vec<HFModel>>, ServerError> {
@@ -86,7 +58,8 @@ pub async fn list_all_downloaded_models() -> Result<Json<Vec<SettingsProvider>>,
 
                 while let Some(forth) = dir.next_entry().await? {
                     let name = forth.file_name().into_string().unwrap().trim().to_string();
-                    if name.to_lowercase().ends_with("gguf") {
+                    if !EXTRA_EXTS.contains(&name.to_lowercase().rsplit_once(".").unwrap().1.trim())
+                    {
                         models.push(SettingsProvider {
                             provider: format!("HF-Text:{}/{}", user, model),
                             model: name,

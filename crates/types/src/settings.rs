@@ -29,7 +29,7 @@ impl Display for SettingsProvider {
 }
 
 pub fn parse_provider_name(name: &str, provider: &str) -> String {
-    let name = name.rsplit("-00").next().unwrap();
+    let name = name.split("-00").next().unwrap();
     let trimmed = name
         .replace("ggml", "")
         .replace("gguf", "")
@@ -42,9 +42,9 @@ pub fn parse_provider_name(name: &str, provider: &str) -> String {
         .trim_end_matches(['.', '-', '_'])
         .trim();
 
-    if trimmed == "model" && provider.contains("/") && provider.contains("HF") {
+    if trimmed == "model" && provider.contains("/") {
         provider.rsplit_once("/").unwrap().1.to_string()
-    } else if trimmed.len() <= 10 && provider.contains("/") && provider.contains("HF") {
+    } else if trimmed.len() <= 10 && provider.contains("/") {
         format!("{}/{}", provider.rsplit_once("/").unwrap().1, trimmed)
     } else {
         trimmed.to_string()

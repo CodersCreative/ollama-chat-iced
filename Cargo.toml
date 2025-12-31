@@ -2,6 +2,9 @@
 resolver = "2"
 members = ["crates/cli", "crates/common", "crates/iced","crates/server", "crates/types"]
 
+[patch.crates-io]
+mistralrs.git = "https://github.com/EricLBuehler/mistral.rs.git"
+
 # Defines a size-optimized profile for the WASM bundle in release mode
 [profile.wasm-release]
 inherits = "release"

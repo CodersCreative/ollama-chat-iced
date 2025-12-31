@@ -239,28 +239,48 @@ pub async fn run(data: ChatQueryData) -> Result<Json<ChatResponse>, ServerError>
 pub async fn stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamResult> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-    let request = get_chat_completion_request(&data).await.unwrap();
-
-    let mut response = {
-        let mut messages = request.1;
-        request
-            .0
-            .stream_completion(
-                if messages.len() % 2 == 0 {
-                    rig::message::Message::user("Now generate from your previous instructions...")
-                } else {
-                    messages.pop().unwrap()
-                },
-                messages,
-            )
-            .await
-            .unwrap()
-            .stream()
-            .await
-            .unwrap()
-    };
-
     tokio::spawn(async move {
+        let request = match get_chat_completion_request(&data).await {
+            Ok(x) => x,
+            Err(e) => {
+                let _ = tx.send(ChatStreamResult::Err(e.to_string()));
+                let _ = tx.send(ChatStreamResult::Finished);
+                return;
+            }
+        };
+
+        let mut response = {
+            let mut messages = request.1;
+            match request
+                .0
+                .stream_completion(
+                    if messages.len() % 2 == 0 {
+                        rig::message::Message::user(
+                            "Now generate from your previous instructions...",
+                        )
+                    } else {
+                        messages.pop().unwrap()
+                    },
+                    messages,
+                )
+                .await
+            {
+                Ok(x) => match x.stream().await {
+                    Ok(x) => x,
+                    Err(e) => {
+                        let _ = tx.send(ChatStreamResult::Err(e.to_string()));
+                        let _ = tx.send(ChatStreamResult::Finished);
+                        return;
+                    }
+                },
+                Err(e) => {
+                    let _ = tx.send(ChatStreamResult::Err(e.to_string()));
+                    let _ = tx.send(ChatStreamResult::Finished);
+                    return;
+                }
+            }
+        };
+
         let mut content = String::new();
         let mut thinking = String::new();
         while let Some(response) = response.next().await {
@@ -296,7 +316,6 @@ pub async fn stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamResult>
                     }));
                 }
                 Err(e) => {
-                    eprintln!("{:?}", e);
                     let _ = tx.send(ChatStreamResult::Err(e.to_string()));
                 }
             }
@@ -316,10 +335,10 @@ pub async fn stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamResult>
             func_calls: Vec::new(),
         }));
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(20));
 
         let _ = tx.send(ChatStreamResult::Finished);
     });
 
-    return Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx));
+    Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx))
 }

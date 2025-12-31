@@ -2,6 +2,7 @@ use crate::backend::{
     providers::hf::{
         API_URL, HF_URL,
         conversion::{ModelFormat, convert_model},
+        model_is_gated,
     },
     settings::get_settings,
 };
@@ -20,7 +21,17 @@ use tokio::{
     time::timeout,
 };
 
-const EXTRA_FILES: [&str; 2] = ["tokenizer.json", "config.json"];
+const EXTRA_FILES: [&str; 7] = [
+    "tokenizer.json",
+    "config.json",
+    "preprocessor_config.json",
+    "generation_config.json",
+    "processor_config.json",
+    "config_sentence_transformers.json",
+    "chat_template.jinja",
+];
+
+pub const EXTRA_EXTS: [&str; 3] = ["json", "jinja", "tmp"];
 const MAX_RETRIES: u32 = 128;
 const RETRY_RESET_TIME: Duration = Duration::from_secs(10);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -35,6 +46,7 @@ pub async fn run_pull_stream(
     model: String,
     name: String,
     output_format: ModelFormat,
+    sub_type: &str,
 ) -> impl Stream<Item = HFPullModelStreamResult> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let client = reqwest::Client::builder()
@@ -71,17 +83,7 @@ pub async fn run_pull_stream(
     let entries_url = format!("{}/models/{}/tree/main", API_URL, model_id);
     let mut download_queue: Vec<(String, PathBuf)> = Vec::new();
 
-    let model_path = get_models_dir(
-        name.clone(),
-        model_id.clone(),
-        match output_format {
-            ModelFormat::SafeTensors => "tts",
-            ModelFormat::GGUF => "text",
-            ModelFormat::GGML => "stt",
-        }
-        .to_string(),
-    )
-    .await;
+    let model_path = get_models_dir(name.clone(), model_id.clone(), sub_type.to_string()).await;
 
     if let Ok(resp) = client.get(&entries_url).send().await {
         if let Ok(entries) = resp.json::<Vec<Entry>>().await {
@@ -106,22 +108,47 @@ pub async fn run_pull_stream(
         }
     }
 
-    if let Some(base_model) = details.get_base_model() {
-        for extra in EXTRA_FILES {
-            download_queue.push((
-                format!("{}/{}/resolve/main/{}", HF_URL, model_id, extra),
-                model_path.join(format!("{}.new", extra)),
-            ));
+    let mut base_model = details.get_base_model();
 
-            download_queue.push((
-                format!("{}/{}/resolve/main/{}", HF_URL, base_model, extra),
-                model_path.join(extra),
-            ));
+    base_model = if let Some(base_model) = base_model {
+        if model_is_gated(&base_model, &client).await.unwrap_or(true) {
+            None
+        } else {
+            Some(base_model)
         }
     } else {
-        for extra in EXTRA_FILES {
+        None
+    };
+
+    let secondary_model = {
+        let id = model_id.rsplit_once("-");
+        if let Some(id) = id {
+            if model_is_gated(id.0, &client).await.unwrap_or(true) {
+                None
+            } else {
+                Some(id.0.to_string())
+            }
+        } else {
+            None
+        }
+    };
+
+    for extra in EXTRA_FILES {
+        if let Some(sec) = &secondary_model {
             download_queue.push((
-                format!("{}/{}/resolve/main/{}", HF_URL, model_id, extra),
+                format!("{}/{}/resolve/main/{}", HF_URL, sec, extra),
+                model_path.join(format!("{}.ter", extra)),
+            ));
+        }
+
+        download_queue.push((
+            format!("{}/{}/resolve/main/{}", HF_URL, model_id, extra),
+            model_path.join(format!("{}.sec", extra)),
+        ));
+
+        if let Some(base_model) = &base_model {
+            download_queue.push((
+                format!("{}/{}/resolve/main/{}", HF_URL, base_model, extra),
                 model_path.join(extra),
             ));
         }
@@ -193,14 +220,35 @@ pub async fn run_pull_stream(
             return;
         }
 
+        let mut updated = Vec::new();
+
         for path in model_path.read_dir().unwrap() {
             let path = path.unwrap().path();
-            if path.extension().unwrap().to_str().unwrap() == "new" {
-                let file_size = fs::metadata(path.clone()).await.unwrap().len();
+            let file_size = fs::metadata(path.clone()).await.unwrap().len();
 
+            if file_size <= 200 {
+                let _ = fs::remove_file(&path).await;
+                continue;
+            }
+
+            let desired = path
+                .to_str()
+                .unwrap()
+                .rsplit_once(".")
+                .unwrap()
+                .0
+                .to_string();
+
+            if path.extension().unwrap().to_str().unwrap() == "sec" {
                 if file_size > 1000 {
-                    let _ =
-                        fs::rename(&path, path.to_str().unwrap().rsplit_once(".").unwrap().0).await;
+                    let _ = fs::rename(&path, &desired).await;
+                    updated.push(desired);
+                } else {
+                    let _ = fs::remove_file(&path).await;
+                }
+            } else if path.extension().unwrap().to_str().unwrap() == "ter" {
+                if file_size > 1000 && !updated.contains(&desired) {
+                    let _ = fs::rename(&path, desired).await;
                 } else {
                     let _ = fs::remove_file(&path).await;
                 }
@@ -333,17 +381,17 @@ async fn attempt_download_stream(
 
 #[axum::debug_handler]
 pub async fn run_tts(Path((user, id, name)): Path<(String, String, String)>) -> impl IntoResponse {
-    StreamBodyAs::json_nl(run_pull_stream(user, id, name, ModelFormat::SafeTensors).await)
+    StreamBodyAs::json_nl(run_pull_stream(user, id, name, ModelFormat::SafeTensors, "tts").await)
 }
 
 #[axum::debug_handler]
 pub async fn run_text(Path((user, id, name)): Path<(String, String, String)>) -> impl IntoResponse {
-    StreamBodyAs::json_nl(run_pull_stream(user, id, name, ModelFormat::GGUF).await)
+    StreamBodyAs::json_nl(run_pull_stream(user, id, name, ModelFormat::SafeTensors, "text").await)
 }
 
 #[axum::debug_handler]
 pub async fn run_stt(Path((user, id, name)): Path<(String, String, String)>) -> impl IntoResponse {
-    StreamBodyAs::json_nl(run_pull_stream(user, id, name, ModelFormat::GGML).await)
+    StreamBodyAs::json_nl(run_pull_stream(user, id, name, ModelFormat::GGML, "stt").await)
 }
 
 pub async fn get_models_dir(name: String, model: String, sub_type: String) -> PathBuf {

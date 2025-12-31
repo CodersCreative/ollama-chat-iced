@@ -1,7 +1,7 @@
 use crate::backend::{errors::ServerError, settings::get_settings};
 use axum::Json;
 use ochat_types::providers::hf::{
-    DownloadedHFModels, HFModelDetails, HFModelVariant, HFModelVariants, ModelType,
+    DownloadedHFModels, HFModel, HFModelDetails, HFModelVariant, HFModelVariants, ModelType,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -90,6 +90,57 @@ pub async fn get_downloaded_hf_models() -> Result<Json<DownloadedHFModels>, Serv
 
     Ok(Json(DownloadedHFModels { variants: files }))
 }
+
+pub fn process_searched_models(mut models: Vec<Value>) -> Result<Json<Vec<HFModel>>, ServerError> {
+    #[derive(Deserialize, PartialEq, Eq)]
+    #[serde(untagged)]
+    enum Gated {
+        Bool(bool),
+        Other(String),
+    }
+
+    impl Default for Gated {
+        fn default() -> Self {
+            Gated::Bool(true)
+        }
+    }
+
+    models.retain(|model| {
+        Gated::Bool(false)
+            == serde_json::from_value(model.get("gated").unwrap().clone()).unwrap_or_default()
+    });
+
+    Ok(Json(
+        models
+            .into_iter()
+            .filter_map(|x| match serde_json::from_value(x) {
+                Ok(x) => Some(x),
+                _ => None,
+            })
+            .collect(),
+    ))
+}
+
+pub async fn model_is_gated(id: &str, client: &reqwest::Client) -> Option<bool> {
+    let Ok(request) = client
+        .get(format!("{}/models/{}", API_URL, id.trim()))
+        .send()
+        .await
+    else {
+        return None;
+    };
+
+    let Ok(value) = request.json::<Value>().await else {
+        return None;
+    };
+
+    let Some(value) = value.get("gated") else {
+        return None;
+    };
+
+    value.as_bool()
+}
+
 pub async fn get_variants_base(
     id: String,
     client: &reqwest::Client,
