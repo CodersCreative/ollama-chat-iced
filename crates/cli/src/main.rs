@@ -22,7 +22,7 @@ use std::{
     env,
     error::Error,
     io::{self, Write},
-    process::{Command, Stdio},
+    process::Command,
     time::Duration,
 };
 use tabled::{
@@ -359,8 +359,6 @@ async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>>
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Arguments::parse();
     let mut server_handle = None;
-
-    println!("args {:?}", args);
 
     let url = args.url.clone().unwrap_or("localhost:1212/api".to_string());
 
