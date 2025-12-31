@@ -154,13 +154,14 @@ async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>>
             let download_server = server || !server && !gui;
             let download_iced = gui || !gui && !server;
 
-            let manifest = env::var_os("CARGO_MANIFEST_DIR")
-                .unwrap()
-                .to_string_lossy()
-                .replace(r"\", "/");
+            let manifest = env::var_os("CARGO_MANIFEST_DIR").map(|x| {
+                x.to_string_lossy()
+                    .replace(r"\", "/")
+                    .contains("/git/checkouts/ochat-")
+            });
 
             let (iced, server) = (
-                if manifest.contains("/git/checkouts/ochat-") || git {
+                if manifest.unwrap_or(false) || git {
                     vec![
                         "--git",
                         "https://github.com/CodersCreative/ollama-chat-iced.git",
@@ -179,8 +180,12 @@ async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>>
                 ],
             );
 
+            let cargo = env::var_os("CARGO")
+                .map(|x| x.to_string_lossy().replace(r"\", "/"))
+                .unwrap_or(String::from("cargo"));
+
             if download_server {
-                let mut child = Command::new(env::var_os("CARGO").unwrap())
+                let mut child = Command::new(&cargo)
                     .args(["install", "--force", "--locked"])
                     .args(server)
                     .args(server_args.unwrap_or_default())
@@ -189,7 +194,7 @@ async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>>
             }
 
             if download_iced {
-                let mut child = Command::new(env::var_os("CARGO").unwrap())
+                let mut child = Command::new(cargo)
                     .args(["install", "--force", "--locked"])
                     .args(iced)
                     .args(gui_args.unwrap_or_default())
