@@ -159,8 +159,8 @@ async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>>
                 .to_string_lossy()
                 .replace(r"\", "/");
 
-            let (iced, server) = if manifest.contains("/git/checkouts/ochat-") || git {
-                (
+            let (iced, server) = (
+                if manifest.contains("/git/checkouts/ochat-") || git {
                     vec![
                         "--git",
                         "https://github.com/CodersCreative/ollama-chat-iced.git",
@@ -168,22 +168,16 @@ async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>>
                     ]
                     .into_iter()
                     .map(|x| x.to_string())
-                    .collect(),
-                    vec![
-                        "--git",
-                        "https://github.com/CodersCreative/ollama-chat-iced.git",
-                        "ochat-server",
-                    ]
-                    .into_iter()
-                    .map(|x| x.to_string())
-                    .collect(),
-                )
-            } else {
-                (
-                    vec![format!("ochat-iced@{}", env!("CARGO_PKG_VERSION"))],
-                    vec![format!("ochat-server@{}", env!("CARGO_PKG_VERSION"))],
-                )
-            };
+                    .collect()
+                } else {
+                    vec![format!("ochat-iced@{}", env!("CARGO_PKG_VERSION"))]
+                },
+                [
+                    "--git",
+                    "https://github.com/CodersCreative/ollama-chat-iced.git",
+                    "ochat-server",
+                ],
+            );
 
             if download_server {
                 let mut child = Command::new(env::var_os("CARGO").unwrap())
