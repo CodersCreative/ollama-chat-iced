@@ -11,9 +11,9 @@ pub async fn define_gen_options() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(
             "
-DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL
-    PERMISSIONS FOR select, update, delete WHERE user_id = $auth.id FOR create FULL;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE record DEFAULT ALWAYS $auth.id;
+DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS
+    PERMISSIONS FOR select, update, delete WHERE user_id = record::id($auth.id) FOR create FULL;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string DEFAULT ALWAYS record::id($auth.id);
 DEFINE FIELD IF NOT EXISTS name ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS data ON TABLE {0} TYPE array<object, 16>;
 

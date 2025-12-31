@@ -247,7 +247,7 @@ pub struct OptionData {
 
 #[derive(Debug, Clone)]
 pub struct OptionRelationshipData {
-    pub user_id: Option<RecordId>,
+    pub user_id: Option<String>,
     pub model: Option<SettingsProvider>,
     pub option: String,
     pub id: Option<RecordId>,

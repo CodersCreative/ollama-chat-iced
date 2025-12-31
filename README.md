@@ -8,7 +8,9 @@
 
 - 🚀 **Effortless Setup**: Install seamlessly using [Cargo](https://doc.rust-lang.org/cargo/).
 
-- 🤝 **Ollama**: Effortlessly chat to any AI model available  at [ollama](https://ollama.com/search) and download each model within the app.
+- 🤝 **Ollama**: Effortlessly chat to any AI model available at [ollama](https://ollama.com/search) and download each model within the app.
+
+- 🤝 **Huggingface**: Allows for models to be run and downloaded that are available at [huggingface](https://huggingface.co).
 
 - ⚙️ **Model Settings**: Easily change the parameters of the model within the application.
 
@@ -18,7 +20,7 @@
 
 - 🎤 **Transcribe**: Easily transcribe mic input within the application for hands-free use.
 
-- 🗔 **Panels**: Engage with multiple activities within the app simultaneously using distinct panels.
+- 🗔 **Panels**: Engage with multiple activities within the app simultaneously using distinct panels or split panels into new seperate windows.
 
 - ⚙️ **Many Models Conversations**: Effortlessly engage with various models simultaneously, harnessing their unique strengths for optimal responses. Enhance your experience by leveraging a diverse set of models in parallel.
 
@@ -45,37 +47,32 @@ ollama pull orca-mini:3b
 # To install from crates.io
 cargo install ochat
 
+# To install additional binaries for the gui and server
+ochat install
+
 # To run the installed program
 ochat
 ```
 
-### Build & Run
-```
-# Clone the repository:
-git clone https://gitlab.com/officialccoders/ollama-chat-iced.git
-cd ollama-chat-iced
-
-# Build and run app with release tags:
-cargo build --release
-cargo run --release
-
-# Or simply:
-cargo run
-```
-
 ## Gallery
 
-![Ochat's home screen.](/media/home.png)
+![Ochat's home screen.](/media/images.png)
 
 ![Ochat calling screen.](/media/call.png)
 
-![Ochat handling images.](/media/images.png)
+![Ochat chats split.](/media/split_chats.png)
 
-![Ochat's model options.](/media/models.png)
+![Ochat's model options.](/media/gen_options.png)
 
 ![Ochat's code handling.](/media/code.png)
 
-![Ochat's theme showcase.](/media/options.png)
+![Ochat's theme showcase.](/media/split.png)
+
+![Ochat pulling models.](/media/pulling.png)
+
+![Ochat over multiple windows.](/media/multi_window.png)
+
+![Ochat prompts.](/media/prompts.png)
 
 ## Contributing
 

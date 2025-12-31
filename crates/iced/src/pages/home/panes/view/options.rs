@@ -755,6 +755,16 @@ impl OptionsView {
         .width(Length::Fill)
         .height(Length::Fill);
 
-        container(column![row![search, add], options].spacing(10)).into()
+        container(
+            column![
+                row![search, add],
+                text("Currently not all options available will be applied when generating, sorry.")
+                    .style(style::text::translucent::danger)
+                    .size(BODY_SIZE),
+                options
+            ]
+            .spacing(10),
+        )
+        .into()
     }
 }

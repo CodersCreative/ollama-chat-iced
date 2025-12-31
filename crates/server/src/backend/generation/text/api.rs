@@ -26,7 +26,7 @@ use rig::{
     tool::ToolSet,
     vector_store::in_memory_store::{InMemoryVectorIndex, InMemoryVectorStore},
 };
-use std::{thread, time::Duration};
+use std::{collections::HashMap, thread, time::Duration};
 
 type Agent = rig::agent::Agent<generic_rig::CompletionModel>;
 
@@ -102,6 +102,7 @@ async fn get_chat_completion_request(
         })
     }
 
+    let mut params = HashMap::new();
     if let Ok(Json(Some(options))) = get_default_gen_options_from_model(axum::extract::Path((
         query.provider.clone(),
         query.model.clone(),
@@ -109,13 +110,68 @@ async fn get_chat_completion_request(
     .await
     {
         for option in options.data {
+            if !option.activated {
+                continue;
+            }
             match option.key {
                 GenOptionKey::Temperature => {
                     agent = agent.temperature(option.value.as_f32() as f64)
                 }
-                _ => {}
+                GenOptionKey::Mirostat => {
+                    params.insert("mirostat", serde_json::to_value(option.value.as_i32())?);
+                }
+                GenOptionKey::MirostatETA => {
+                    params.insert("mirostat_eta", serde_json::to_value(option.value.as_f32())?);
+                }
+                GenOptionKey::MirostatTau => {
+                    params.insert("mirostat_tau", serde_json::to_value(option.value.as_f32())?);
+                }
+                GenOptionKey::CtxWindow => {
+                    params.insert("num_ctx", serde_json::to_value(option.value.as_i32())?);
+                }
+                GenOptionKey::NumGQA => {
+                    params.insert("num_gqa", serde_json::to_value(option.value.as_i32())?);
+                }
+                GenOptionKey::GPULayers => {
+                    params.insert("num_gpu", serde_json::to_value(option.value.as_i32())?);
+                }
+                GenOptionKey::NumThreads => {
+                    params.insert("num_thread", serde_json::to_value(option.value.as_i32())?);
+                }
+                GenOptionKey::RepeatN => {
+                    params.insert(
+                        "repeat_last_n",
+                        serde_json::to_value(option.value.as_i32())?,
+                    );
+                }
+                GenOptionKey::RepeatPenalty => {
+                    params.insert(
+                        "repeat_penalty",
+                        serde_json::to_value(option.value.as_f32())?,
+                    );
+                }
+                GenOptionKey::Seed => {
+                    params.insert("seed", serde_json::to_value(option.value.as_i32())?);
+                }
+                GenOptionKey::TailFreeZ => {
+                    params.insert("tfs_z", serde_json::to_value(option.value.as_f32())?);
+                }
+                GenOptionKey::NumberPredict => {
+                    params.insert("num_predict", serde_json::to_value(option.value.as_i32())?);
+                }
+                GenOptionKey::TopK => {
+                    params.insert("top_k", serde_json::to_value(option.value.as_i32())?);
+                }
+                GenOptionKey::TopP => {
+                    params.insert("top_p", serde_json::to_value(option.value.as_f32())?);
+                }
+                GenOptionKey::StopSequence => {}
             }
         }
+    }
+
+    if !params.is_empty() {
+        agent = agent.additional_params(serde_json::to_value(params)?);
     }
 
     Ok((

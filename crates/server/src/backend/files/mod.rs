@@ -1,10 +1,7 @@
 use crate::backend::{CONN, errors::ServerError, utils::get_file_uploads_path};
 use axum::{Json, extract::Path};
 use base64::{Engine, prelude::BASE64_STANDARD};
-use ochat_types::{
-    files::{B64File, B64FileData, DBFile, FileType},
-    surreal::RecordId,
-};
+use ochat_types::files::{B64File, B64FileData, DBFile, FileType};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -19,7 +16,7 @@ pub mod route;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct DBFileData {
-    user_id: Option<RecordId>,
+    user_id: Option<String>,
     path: String,
     file_type: FileType,
     filename: String,
@@ -70,15 +67,15 @@ pub async fn define_files() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL
-    PERMISSIONS FOR select, update, delete WHERE user_id = $auth.id FOR create FULL;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE record DEFAULT ALWAYS $auth.id;
+    PERMISSIONS FOR select, update, delete WHERE user_id = record::id($auth.id) FOR create FULL;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string DEFAULT ALWAYS record::id($auth.id);
 DEFINE FIELD IF NOT EXISTS file_type ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS filename ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS path ON TABLE {0} TYPE string;
 
 DEFINE TABLE IF NOT EXISTS {1} SCHEMAFULL
-    PERMISSIONS FOR select, update, delete WHERE user_id = $auth.id FOR create FULL;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {1} TYPE record DEFAULT ALWAYS $auth.id;
+    PERMISSIONS FOR select, update, delete WHERE user_id = record::id($auth.id) FOR create FULL;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {1} TYPE string DEFAULT ALWAYS record::id($auth.id);
 DEFINE FIELD IF NOT EXISTS file_id ON TABLE {1} TYPE string;
 ",
             FILE_TABLE, EMBEDDINGS_TABLE,

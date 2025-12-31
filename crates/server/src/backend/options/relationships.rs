@@ -15,8 +15,8 @@ pub async fn define_gen_models() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL
-    PERMISSIONS FOR select, update, delete WHERE user_id = $auth.id FOR create FULL;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE record DEFAULT ALWAYS $auth.id;
+    PERMISSIONS FOR select, update, delete WHERE user_id = record::id($auth.id) FOR create FULL;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string DEFAULT ALWAYS record::id($auth.id);
 DEFINE FIELD IF NOT EXISTS provider ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS model ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS option ON TABLE {0} TYPE string;

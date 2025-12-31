@@ -11,8 +11,8 @@ pub async fn define_folders() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL
-    PERMISSIONS FOR select, update WHERE user_id = $auth.id FOR create FULL FOR delete WHERE name != 'Archived' and name != 'Favourites';
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE record DEFAULT ALWAYS $auth.id;
+    PERMISSIONS FOR select, update WHERE user_id = record::id($auth.id) FOR create FULL FOR delete WHERE name != 'Archived' and name != 'Favourites';
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string DEFAULT ALWAYS record::id($auth.id);
 DEFINE FIELD IF NOT EXISTS chats ON TABLE {0} TYPE array<string>;
 DEFINE FIELD IF NOT EXISTS parent ON TABLE {0} TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS name ON TABLE {0} TYPE string;

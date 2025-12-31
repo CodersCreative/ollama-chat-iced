@@ -21,8 +21,8 @@ pub async fn define_previews() -> Result<(), ServerError> {
         .query(&format!(
             "
 DEFINE TABLE IF NOT EXISTS {0} SCHEMAFULL
-    PERMISSIONS FOR select, delete WHERE user_id = $auth.id FOR update, create FULL;
-DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE record DEFAULT ALWAYS $auth.id;
+    PERMISSIONS FOR select, delete WHERE user_id = record::id($auth.id) FOR update, create FULL;
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE {0} TYPE string DEFAULT ALWAYS record::id($auth.id);
 DEFINE FIELD IF NOT EXISTS text ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS time ON TABLE {0} TYPE string DEFAULT <string>time::now();
 

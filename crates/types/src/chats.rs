@@ -6,7 +6,7 @@ use crate::surreal::{Datetime, RecordId};
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct ChatData {
     #[builder(default = "None")]
-    pub user_id: Option<RecordId>,
+    pub user_id: Option<String>,
     #[builder(default = "None")]
     pub root: Option<String>,
     #[builder(default = "None")]
@@ -15,7 +15,7 @@ pub struct ChatData {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Chat {
-    pub user_id: RecordId,
+    pub user_id: String,
     pub root: Option<String>,
     pub time: Datetime,
     pub id: RecordId,
@@ -117,7 +117,7 @@ pub mod previews {
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Preview {
-        pub user_id: RecordId,
+        pub user_id: String,
         pub text: String,
         pub time: Datetime,
         pub id: RecordId,
@@ -125,7 +125,7 @@ pub mod previews {
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct PreviewData {
-        pub user_id: Option<RecordId>,
+        pub user_id: Option<String>,
         pub text: String,
         pub time: Datetime,
     }

@@ -6,7 +6,6 @@ use ochat_types::surreal::Datetime;
 
 const MESSAGE_TABLE: &str = "messages";
 
-// Change time to use surreal datetime
 pub async fn define_messages() -> Result<(), ServerError> {
     let _ = CONN
         .query(&format!(

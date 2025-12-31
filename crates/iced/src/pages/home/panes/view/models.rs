@@ -80,7 +80,7 @@ impl Display for Page {
             "{}",
             match self {
                 Page::Ollama => "Ollama",
-                Page::HfText => "Huggingface",
+                Page::HfText => "Mistral-rs",
                 Page::HfStt => "Whisper",
                 Page::HfTts => "Parler",
             }
@@ -579,24 +579,32 @@ impl ModelsView {
                 }),
             )
             .spacing(10),
-            Page::HfText => column(
-                if self.search.is_empty() || self.models.hf_text.is_empty() {
-                    &app.cache.home_shared.models.hf_text
-                } else {
-                    &self.models.hf_text
-                }
-                .iter()
-                .map(|x| {
-                    Self::view_hf_model(
-                        id.clone(),
-                        x,
-                        &app.theme(),
-                        &self.page,
-                        self.hf_expanded.get(&x.id),
-                    )
-                }),
-            )
-            .spacing(10),
+            Page::HfText => {
+                let mut widgets = vec![text("Currently the mistralrs integration is unstable and may produce unreliable results or errors, sorry.")
+                                    .style(style::text::translucent::danger)
+                                    .size(BODY_SIZE).into()];
+
+                widgets.append(
+                    &mut if self.search.is_empty() || self.models.hf_text.is_empty() {
+                        &app.cache.home_shared.models.hf_text
+                    } else {
+                        &self.models.hf_text
+                    }
+                    .iter()
+                    .map(|x| {
+                        Self::view_hf_model(
+                            id.clone(),
+                            x,
+                            &app.theme(),
+                            &self.page,
+                            self.hf_expanded.get(&x.id),
+                        )
+                    })
+                    .collect(),
+                );
+
+                column(widgets).spacing(10)
+            }
             Page::HfStt => column(
                 if self.search.is_empty() || self.models.hf_stt.is_empty() {
                     &app.cache.home_shared.models.hf_stt

@@ -31,7 +31,7 @@ const EXTRA_FILES: [&str; 7] = [
     "chat_template.jinja",
 ];
 
-pub const EXTRA_EXTS: [&str; 3] = ["json", "jinja", "tmp"];
+pub const EXTRA_EXTS: [&str; 6] = ["json", "jinja", "tmp", "sec", "new", "ter"];
 const MAX_RETRIES: u32 = 128;
 const RETRY_RESET_TIME: Duration = Duration::from_secs(10);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);

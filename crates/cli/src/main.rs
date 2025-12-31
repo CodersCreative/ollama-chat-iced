@@ -19,9 +19,10 @@ use ochat_types::{
 use rustyline::{DefaultEditor, error::ReadlineError};
 use serde_json::Value;
 use std::{
+    env,
     error::Error,
     io::{self, Write},
-    process::Command,
+    process::{Command, Stdio},
     time::Duration,
 };
 use tabled::{
@@ -85,6 +86,18 @@ enum Action {
         email: String,
         password: String,
     },
+    Install {
+        #[arg(long)]
+        git: bool,
+        #[arg(long)]
+        server: bool,
+        #[arg(long)]
+        server_args: Option<Vec<String>>,
+        #[arg(long)]
+        gui: bool,
+        #[arg(long)]
+        gui_args: Option<Vec<String>>,
+    },
     List,
 }
 
@@ -106,15 +119,90 @@ impl Into<ProviderType> for ClapProviderType {
 }
 
 fn spawn_iced() -> Result<std::process::Child, std::io::Error> {
-    Command::new("ochat-iced").spawn()
+    match Command::new("ochat-iced").spawn() {
+        Ok(x) => Ok(x),
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                eprintln!("Consider using 'ochat install --gui' to install the gui.")
+            }
+            Err(e)
+        }
+    }
 }
 
 fn spawn_server(url: String) -> Result<std::process::Child, std::io::Error> {
-    Command::new("ochat-server").arg("--url").arg(url).spawn()
+    match Command::new("ochat-server").arg("--url").arg(url).spawn() {
+        Ok(x) => Ok(x),
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                eprintln!("Consider using 'ochat install --server' to install the server.")
+            }
+            Err(e)
+        }
+    }
 }
 
 async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>> {
     match action {
+        Action::Install {
+            server,
+            server_args,
+            gui,
+            gui_args,
+            git,
+        } => {
+            let download_server = server || !server && !gui;
+            let download_iced = gui || !gui && !server;
+
+            let manifest = env::var_os("CARGO_MANIFEST_DIR")
+                .unwrap()
+                .to_string_lossy()
+                .replace(r"\", "/");
+
+            let (iced, server) = if manifest.contains("/git/checkouts/ochat-") || git {
+                (
+                    vec![
+                        "--git",
+                        "https://github.com/CodersCreative/ollama-chat-iced.git",
+                        "ochat-iced",
+                    ]
+                    .into_iter()
+                    .map(|x| x.to_string())
+                    .collect(),
+                    vec![
+                        "--git",
+                        "https://github.com/CodersCreative/ollama-chat-iced.git",
+                        "ochat-server",
+                    ]
+                    .into_iter()
+                    .map(|x| x.to_string())
+                    .collect(),
+                )
+            } else {
+                (
+                    vec![format!("ochat-iced@{}", env!("CARGO_PKG_VERSION"))],
+                    vec![format!("ochat-server@{}", env!("CARGO_PKG_VERSION"))],
+                )
+            };
+
+            if download_server {
+                let mut child = Command::new(env::var_os("CARGO").unwrap())
+                    .args(["install", "--force", "--locked"])
+                    .args(server)
+                    .args(server_args.unwrap_or_default())
+                    .spawn()?;
+                child.wait()?;
+            }
+
+            if download_iced {
+                let mut child = Command::new(env::var_os("CARGO").unwrap())
+                    .args(["install", "--force", "--locked"])
+                    .args(iced)
+                    .args(gui_args.unwrap_or_default())
+                    .spawn()?;
+                child.wait()?;
+            }
+        }
         Action::SignIn { name, password } => {
             match req
                 .make_request::<Token, SigninData>(
@@ -271,6 +359,8 @@ async fn run_action(req: &Request, action: Action) -> Result<(), Box<dyn Error>>
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Arguments::parse();
     let mut server_handle = None;
+
+    println!("args {:?}", args);
 
     let url = args.url.clone().unwrap_or("localhost:1212/api".to_string());
 

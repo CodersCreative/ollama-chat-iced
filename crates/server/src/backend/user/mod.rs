@@ -150,7 +150,7 @@ pub async fn get_current_user() -> Result<Json<Option<User>>, ServerError> {
     let mut user: Vec<User> = CONN
         .query(&format!(
             "
-                SELECT * FROM type::thing('{0}', meta::id($auth.id));
+                SELECT * FROM type::thing('{0}', record::id($auth.id));
             ",
             USER_TABLE,
         ))
@@ -161,7 +161,7 @@ pub async fn get_current_user() -> Result<Json<Option<User>>, ServerError> {
         user = CONN
             .query(&format!(
                 "
-                CREATE type::thing('{0}', meta::id($auth.id));
+                CREATE type::thing('{0}', record::id($auth.id));
             ",
                 USER_TABLE,
             ))

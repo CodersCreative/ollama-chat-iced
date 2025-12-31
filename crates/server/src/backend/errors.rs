@@ -9,6 +9,8 @@ use thiserror::Error;
 pub enum ServerError {
     #[error("Database Error : {0}")]
     Surreal(#[from] surrealdb::Error),
+    #[error("Serde Error : {0}")]
+    Serde(#[from] serde_json::Error),
     #[error("Message Error : {0}")]
     RigMessageError(#[from] rig::completion::MessageError),
     #[error("Completion Error : {0}")]

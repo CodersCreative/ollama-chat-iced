@@ -848,6 +848,7 @@ impl ChatsViewMessage {
 
     async fn get_file_paths() -> Result<Vec<String>, String> {
         let files = rfd::AsyncFileDialog::new()
+            .add_filter("All", &[&IMAGE_FORMATS[..], &DOC_FORMATS[..]].concat())
             .add_filter("Image", &IMAGE_FORMATS)
             .add_filter("Document", &DOC_FORMATS)
             .pick_files()

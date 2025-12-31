@@ -6,7 +6,7 @@ use crate::surreal::RecordId;
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct FolderData {
     #[builder(default = "None")]
-    pub user_id: Option<RecordId>,
+    pub user_id: Option<String>,
     #[builder(default = "Vec::new()")]
     #[serde(default = "Vec::new")]
     pub chats: Vec<String>,
@@ -28,7 +28,7 @@ fn new_name() -> String {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Folder {
-    pub user_id: RecordId,
+    pub user_id: String,
     #[serde(default = "Vec::new")]
     pub chats: Vec<String>,
     pub parent: Option<String>,

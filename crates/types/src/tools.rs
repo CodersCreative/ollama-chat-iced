@@ -8,7 +8,7 @@ use crate::{prompts::OpenWebUIUser, surreal::RecordId};
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, Default)]
 pub struct ToolData {
     #[builder(default = "None")]
-    pub user_id: Option<RecordId>,
+    pub user_id: Option<String>,
     pub name: String,
     #[serde(default = "Default::default")]
     #[builder(default = "Default::default()")]
@@ -106,7 +106,7 @@ pub struct ToolParameter {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Tool {
-    pub user_id: RecordId,
+    pub user_id: String,
     pub name: String,
     #[serde(default = "Default::default")]
     pub tool_type: ToolType,
