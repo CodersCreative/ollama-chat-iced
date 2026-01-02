@@ -5042,6 +5042,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced_selection"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67f18f594469b7a72647621cf1c374716243b2aea0617f50eaf7507c621a8e01"
+dependencies = [
+ "iced_widget",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "iced_split"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7788,7 +7798,7 @@ dependencies = [
 
 [[package]]
 name = "ochat"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "clap",
  "futures",
@@ -7806,7 +7816,7 @@ dependencies = [
 
 [[package]]
 name = "ochat-common"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "base64-stream",
  "image",
@@ -7819,13 +7829,14 @@ dependencies = [
 
 [[package]]
 name = "ochat-iced"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "base64-stream",
  "clipboard-rs",
  "cpal 0.17.0",
  "derive_builder",
  "iced",
+ "iced_selection",
  "iced_split",
  "image",
  "ochat-common",
@@ -7843,7 +7854,7 @@ dependencies = [
 
 [[package]]
 name = "ochat-server"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "async-recursion",
  "axum",
@@ -7890,7 +7901,7 @@ dependencies = [
 
 [[package]]
 name = "ochat-types"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "derive_builder",

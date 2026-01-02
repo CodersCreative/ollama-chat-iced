@@ -27,9 +27,10 @@ use crate::{
 use iced::{
     Element, Padding, Task,
     alignment::{Horizontal, Vertical},
-    widget::{center, column, container, pane_grid, row, svg, text},
+    widget::{center, column, container, pane_grid, row, svg},
     window,
 };
+use iced_selection::text;
 use std::{collections::HashMap, fmt::Display};
 
 pub mod call;
@@ -77,7 +78,6 @@ impl HomePaneViewMessage {
 }
 
 fn add_to_window<'a>(
-    app: &'a Application,
     id: window::Id,
     pane: pane_grid::Pane,
     title: String,
@@ -87,7 +87,7 @@ fn add_to_window<'a>(
     let header = pane_grid::TitleBar::new(
         text(title)
             .font(get_bold_font())
-            .color(app.theme().palette().primary)
+            .style(style::text::primary)
             .size(BODY_SIZE + 2)
             .align_y(Vertical::Center)
             .align_x(Horizontal::Left),
@@ -191,7 +191,6 @@ impl HomePanes {
                 };
 
                 add_to_window(
-                    app,
                     id.clone(),
                     pane,
                     state.to_string(),

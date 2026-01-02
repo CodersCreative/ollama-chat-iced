@@ -10,9 +10,10 @@ use iced::{
     border, padding,
     widget::{
         button, checkbox, column, container, float, grid, hover, keyed_column, pick_list,
-        right_center, row, scrollable, space, stack, text, text_input,
+        right_center, row, scrollable, space, stack, text_input,
     },
 };
+use iced_selection::text;
 use ochat_common::data::RequestType;
 use ochat_types::{
     providers::{Provider, ProviderData, ProviderDataBuilder, ProviderType},
@@ -335,7 +336,7 @@ impl SettingsView {
             let item = button(
                 text(theme.to_string())
                     .width(Length::Fill)
-                    .wrapping(text::Wrapping::None)
+                    .wrapping(iced::widget::text::Wrapping::None)
                     .center(),
             )
             .on_press(Message::Cache(crate::CacheMessage::SetTheme(theme.clone())))

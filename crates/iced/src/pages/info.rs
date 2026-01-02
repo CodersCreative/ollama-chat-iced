@@ -1,8 +1,9 @@
 use iced::{
     Element, Font, Padding,
     alignment::{Horizontal, Vertical},
-    widget::{button, center, column, container, image, row, rule, scrollable, text},
+    widget::{button, center, column, container, image, row, rule, scrollable},
 };
+use iced_selection::text;
 use ochat_types::WORD_ART;
 
 use crate::{

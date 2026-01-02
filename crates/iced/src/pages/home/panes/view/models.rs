@@ -10,11 +10,12 @@ use iced::{
     Element, Length, Task, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        button, center_x, column, container, grid, markdown, pick_list, row, rule,
+        button, center_x, column, container, grid, pick_list, row, rule,
         scrollable::{self, Scrollbar},
-        space, svg, text, text_input,
+        space, svg, text_input,
     },
 };
+use iced_selection::{markdown, text};
 use ochat_common::{data::RequestType, print_data_size};
 use ochat_types::{
     providers::{
@@ -496,11 +497,10 @@ impl ModelsView {
             inner_col = inner_col.push(tags);
 
             inner_col = inner_col.push(sub_heading("Readme"));
-            inner_col = inner_col.push(markdown::view_with(
-                expanded.description.items(),
-                style::markdown::main(theme),
-                &style::markdown::CustomViewer,
-            ));
+            inner_col = inner_col.push(
+                markdown::view(expanded.description.items(), style::markdown::main(theme))
+                    .map(Message::UriClicked),
+            );
 
             col = col.push(container(inner_col).style(style::container::window_title_back))
         } else {

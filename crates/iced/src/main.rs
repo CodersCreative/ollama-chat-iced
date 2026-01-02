@@ -10,11 +10,11 @@ use iced::{
     alignment::Vertical,
     clipboard, exit,
     widget::{
-        center, column, container, image, markdown, mouse_area, progress_bar, right, row,
-        scrollable, stack, text,
+        center, column, container, image, mouse_area, progress_bar, right, row, scrollable, stack,
     },
     window::{self},
 };
+use iced_selection::{markdown, text};
 use ochat_common::{
     data::{Data, RequestType, versions::Versions},
     load_token,
@@ -406,11 +406,10 @@ impl Application {
                     .height(Length::Fill)
                     .width(Length::Fill)
                     .into(),
-                ViewFileType::Document(x) => scrollable::Scrollable::new(markdown::view_with(
-                    x.mk.iter(),
-                    style::markdown::main(&self.theme()),
-                    &style::markdown::CustomViewer,
-                ))
+                ViewFileType::Document(x) => scrollable::Scrollable::new(
+                    markdown::view(x.mk.iter(), style::markdown::main(&self.theme()))
+                        .map(Message::UriClicked),
+                )
                 .direction(scrollable::Direction::Vertical(
                     scrollable::Scrollbar::default(),
                 ))

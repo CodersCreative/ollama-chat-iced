@@ -11,9 +11,10 @@ use iced::{
     widget::{
         column, container, row, rule,
         scrollable::{self, Scrollbar},
-        space, svg, text, text_editor, text_input,
+        space, svg, text_editor, text_input,
     },
 };
+use iced_selection::text;
 use ochat_common::{data::RequestType, load_from_file};
 use ochat_types::prompts::{Prompt, PromptData, PromptDataBuilder};
 use std::collections::HashMap;

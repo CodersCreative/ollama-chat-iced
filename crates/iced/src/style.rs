@@ -266,12 +266,14 @@ pub mod container {
 }
 
 pub mod text {
-    use iced::{Theme, widget::text::Style};
-
+    use crate::utils::change_alpha;
+    use iced::Theme;
+    use iced_selection::text::Style;
     macro_rules! text_style {
         ($iden:ident) => {
             pub fn $iden(theme: &Theme) -> Style {
                 Style {
+                    selection: change_alpha(theme.palette().$iden.clone(), 0.4),
                     color: Some(theme.palette().$iden.clone()),
                 }
             }
@@ -285,12 +287,12 @@ pub mod text {
 
     pub mod translucent {
         use super::*;
-        use crate::utils::change_alpha;
 
         macro_rules! text_style_translucent {
             ($iden:ident) => {
                 pub fn $iden(theme: &Theme) -> Style {
                     Style {
+                        selection: change_alpha(theme.palette().$iden.clone(), 0.4),
                         color: Some(change_alpha(theme.palette().$iden.clone(), 0.6)),
                     }
                 }

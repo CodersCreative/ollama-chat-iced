@@ -12,9 +12,9 @@ use iced::{
         rule::horizontal as horizontal_rule,
         scrollable::{self, Scrollbar},
         space::horizontal as horizontal_space,
-        text,
     },
 };
+use iced_selection::text;
 use ochat_types::providers::{
     hf::{HFModel, HFPullModelStreamResult},
     ollama::{OllamaModelsInfo, OllamaPullModelStreamResult},

@@ -1,9 +1,8 @@
-use std::rc::Rc;
-
 use iced::{
     Element, Task,
-    widget::{column, container, pick_list, rule, scrollable, text},
+    widget::{column, container, pick_list, rule, scrollable},
 };
+use iced_selection::text;
 use ochat_common::data::RequestType;
 use ochat_types::{
     chats::messages::Role,
@@ -13,6 +12,7 @@ use ochat_types::{
     },
     settings::SettingsProvider,
 };
+use std::rc::Rc;
 
 use crate::{
     Application, DATA, Message,

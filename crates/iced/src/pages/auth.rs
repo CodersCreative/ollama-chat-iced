@@ -1,8 +1,9 @@
 use iced::{
     Element, Font, Padding, Task,
     alignment::Vertical,
-    widget::{button, center, column, container, row, rule, scrollable, space, text, text_input},
+    widget::{button, center, column, container, row, rule, scrollable, space, text_input},
 };
+use iced_selection::text;
 use ochat_common::{
     data::{Data, RequestType},
     save_token,

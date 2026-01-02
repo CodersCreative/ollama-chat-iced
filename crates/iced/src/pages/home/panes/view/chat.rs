@@ -22,11 +22,13 @@ use iced::{
     alignment::{Horizontal, Vertical},
     clipboard,
     widget::{
-        button, center, column, container, image, lazy, markdown, mouse_area, pick_list, row, rule,
-        scrollable, space, stack, svg, text, text_editor,
+        button, center, column, container, image, lazy, mouse_area, pick_list, row, rule,
+        scrollable, space, stack, svg, text_editor,
     },
     window,
 };
+
+use iced_selection::{markdown, text};
 use ochat_common::{
     convert_file_to_b64, convert_image_to_b64,
     data::{
@@ -1027,11 +1029,8 @@ impl ChatsView {
                 })
                 .into()
         } else {
-            markdown::view_with(
-                message.content.items(),
-                style::markdown::main(theme),
-                &style::markdown::CustomViewer,
-            )
+            markdown::view(message.content.items(), style::markdown::main(theme))
+                .map(Message::UriClicked)
         };
 
         let mut col = column![header, images, content,].spacing(5);
@@ -1039,11 +1038,13 @@ impl ChatsView {
         if message.thinking.is_some() {
             let thinking: Element<'a, Message> = if expanded {
                 mouse_area(
-                    container(markdown::view_with(
-                        message.thinking.as_ref().unwrap().items(),
-                        style::markdown::main(theme),
-                        &style::markdown::CustomViewer,
-                    ))
+                    container(
+                        markdown::view(
+                            message.thinking.as_ref().unwrap().items(),
+                            style::markdown::main(theme),
+                        )
+                        .map(Message::UriClicked),
+                    )
                     .padding(10)
                     .style(style::container::back),
                 )
@@ -1153,7 +1154,7 @@ impl ChatsView {
                         "Awaiting Response..."
                     },
                 )
-                .color(app.theme().palette().primary)
+                .style(style::text::primary)
                 .size(20),
             )
             .padding(20)

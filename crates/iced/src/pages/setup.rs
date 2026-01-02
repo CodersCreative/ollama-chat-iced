@@ -11,10 +11,11 @@ use iced::{
     widget::{
         Scrollable, center, checkbox, column, container, keyed_column, pick_list, row, rule,
         scrollable::{self, Direction, Scrollbar},
-        space, text, text_input,
+        space, text_input,
     },
     window,
 };
+use iced_selection::text;
 use ochat_common::data::RequestType;
 use ochat_types::{
     providers::{Provider, ProviderData, ProviderDataBuilder, ProviderType},

@@ -13,9 +13,10 @@ use iced::{
     widget::{
         column, container, pick_list, row, rule,
         scrollable::{self, Scrollbar},
-        space, text, text_input, toggler,
+        space, text_input, toggler,
     },
 };
+use iced_selection::text;
 use ochat_common::data::RequestType;
 use ochat_types::{
     options::{

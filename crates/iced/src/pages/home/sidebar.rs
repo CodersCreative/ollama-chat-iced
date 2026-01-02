@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     Application, DATA, InputMessage, Message,
     font::{HEADER_SIZE, SUB_HEADING_SIZE, get_bold_font},
@@ -21,12 +19,14 @@ use iced::{
     alignment::{Horizontal, Vertical},
     widget::{
         Button, button, center_x, column, container, hover, markdown, right, row, rule, space, svg,
-        text, text_input,
+        text_input,
     },
     window,
 };
+use iced_selection::text;
 use ochat_common::data::RequestType;
 use ochat_types::{chats::previews::Preview, folders::Folder, surreal::RecordId};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct PreviewMk {
