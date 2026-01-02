@@ -21,6 +21,7 @@ pub enum HomePickingType {
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
+    Dropped(String, String),
     SearchItems(InputMessage),
     SetItems(SideBarItems),
     ExpandItem(String),
@@ -319,6 +320,30 @@ impl HomeMessage {
                 {
                     Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
                     Err(e) => Message::Err(e),
+                }
+            }),
+            Self::Dropped(to, from) => Task::future(async move {
+                let req = DATA.read().unwrap().to_request();
+                match req
+                    .make_request::<Option<Folder>, ()>(
+                        &format!("folder/{}/parent/{}", to, from),
+                        &(),
+                        RequestType::Put,
+                    )
+                    .await
+                {
+                    Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                    Err(_) => match req
+                        .make_request::<Option<Folder>, ()>(
+                            &format!("folder/{}/chat/{}", to, from),
+                            &(),
+                            RequestType::Put,
+                        )
+                        .await
+                    {
+                        Ok(_) => Message::Cache(crate::CacheMessage::ResetSideBarItems),
+                        Err(e) => Message::Err(e),
+                    },
                 }
             }),
         }

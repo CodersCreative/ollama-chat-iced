@@ -12,6 +12,10 @@ use crate::{
     },
     style::{self},
     utils::get_path_assets,
+    widgets::{
+        drag::{self, DragAndDrop},
+        dragzone,
+    },
     windows::message::WindowMessage,
 };
 use iced::{
@@ -21,7 +25,7 @@ use iced::{
         Button, button, center_x, column, container, hover, markdown, right, row, rule, space, svg,
         text_input,
     },
-    window,
+    window::{self},
 };
 use iced_selection::text;
 use ochat_common::data::RequestType;
@@ -30,6 +34,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct PreviewMk {
+    pub name: String,
     pub markdown: Vec<markdown::Item>,
     pub id: RecordId,
 }
@@ -45,6 +50,7 @@ pub struct FolderMk {
 impl From<Preview> for PreviewMk {
     fn from(value: Preview) -> Self {
         Self {
+            name: value.text.clone(),
             markdown: markdown::parse(&if value.text.is_empty() {
                 "Generation Failed".to_string()
             } else {
@@ -109,6 +115,16 @@ impl SideBarItem {
                 }
                 ret
             }
+        }
+    }
+
+    pub fn get_name(&self) -> &str {
+        match self {
+            Self::Preview(x) => &x.name,
+            Self::Folder {
+                folder,
+                children: _,
+            } => &folder.name,
         }
     }
 
@@ -368,6 +384,7 @@ pub struct HomeSideBar {
     pub expanded: Vec<String>,
     pub buttons_expanded: Vec<String>,
     pub editing: HashMap<String, String>,
+    pub drag: DragAndDrop,
     pub search: String,
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -382,6 +399,7 @@ impl Default for HomeSideBar {
         Self {
             split: NORMAL_SIZE,
             is_collapsed: false,
+            drag: DragAndDrop::default(),
             expanded: Vec::new(),
             buttons_expanded: Vec::new(),
             editing: HashMap::new(),
@@ -665,7 +683,25 @@ impl HomeSideBar {
             }
         }
 
-        body.into()
+        if item.is_builtin() {
+            body.into()
+        } else {
+            dragzone::drop_zone(
+                self.drag.clone(),
+                drag::drag(item.get_name().to_string(), self.drag.clone(), body)
+                    .payload(item.get_record_id().key().to_string()),
+            )
+            .on_drop(move |x| {
+                Message::Window(WindowMessage::Page(
+                    id,
+                    PageMessage::Home(HomeMessage::Dropped(
+                        item.get_record_id().key().to_string(),
+                        x,
+                    )),
+                ))
+            })
+            .into()
+        }
     }
 
     fn chat_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
