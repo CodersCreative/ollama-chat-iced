@@ -322,7 +322,7 @@ impl HomeMessage {
                     Err(e) => Message::Err(e),
                 }
             }),
-            Self::Dropped(to, from) => Task::future(async move {
+            Self::Dropped(from, to) => Task::future(async move {
                 let req = DATA.read().unwrap().to_request();
                 match req
                     .make_request::<Option<Folder>, ()>(

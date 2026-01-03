@@ -7,6 +7,8 @@ use std::rc::Rc;
 
 use iced::advanced::widget::Tree;
 use iced::advanced::{self, Layout, Widget, layout, mouse, overlay, renderer};
+use iced::keyboard::Key;
+use iced::keyboard::key::Named;
 use iced::mouse::Button;
 use iced::{Element, Size};
 use iced::{Rectangle, Vector};
@@ -50,6 +52,9 @@ where
     Draggable {
         dragging,
         content: content.into(),
+        on_early_drop: None,
+        can_drag: true,
+        on_drop: None,
         on_pickup: None,
         payload: None,
         id,
@@ -63,8 +68,11 @@ pub struct Draggable<'a, Message: Clone, Theme, Renderer, Payload> {
     pub dragging: DragAndDrop,
     /// The visual elements of the draggable
     pub content: Element<'a, Message, Theme, Renderer>,
+    pub can_drag: bool,
     /// Send a message on pick up?
     pub on_pickup: Option<Box<dyn Fn(Payload) -> Message>>,
+    pub on_early_drop: Option<Box<dyn Fn(Payload) -> Message>>,
+    pub on_drop: Option<Box<dyn Fn(Payload) -> Message>>,
     /// The payload of the draggable. This is intermediary data used by drop zones and messages to modify your program's state.
     pub payload: Option<Payload>,
 }
@@ -94,6 +102,22 @@ impl<Message: Clone, Theme, Renderer: iced::advanced::Renderer, Payload: Clone>
         }
     }
 
+    pub fn on_early_drop<F: (Fn(Payload) -> Message) + 'static>(self, fun: F) -> Self {
+        Self {
+            on_early_drop: Some(Box::new(fun)),
+            ..self
+        }
+    }
+
+    pub fn on_drop<F: (Fn(Payload) -> Message) + 'static>(self, fun: F) -> Self {
+        Self {
+            on_drop: Some(Box::new(fun)),
+            ..self
+        }
+    }
+    pub fn can_drag(self, can_drag: bool) -> Self {
+        Self { can_drag, ..self }
+    }
     #[must_use = "This draggable is given a payload but is not used anywhere"]
     pub fn payload(self, payload: Payload) -> Self {
         Self {
@@ -216,16 +240,12 @@ impl<Message: Clone, Theme, Renderer: iced::advanced::Renderer, Payload: Clone +
             viewport,
         );
 
-        if shell.is_event_captured() {
-            return;
-        }
-
         // TODO
         // Add dragging. Clicking should set the dragging state to true. Releasing should set it to false.
         match event {
-            iced::Event::Mouse(mouse::Event::ButtonPressed(Button::Left)) => {
+            iced::Event::Mouse(mouse::Event::ButtonPressed(Button::Right)) => {
                 let bounds = layout.bounds();
-                if cursor.is_over(bounds) {
+                if cursor.is_over(bounds) && self.can_drag {
                     let state = state.state.downcast_mut::<State>();
                     state.overlay_bounds.width = bounds.width;
                     state.overlay_bounds.height = bounds.height;
@@ -240,7 +260,7 @@ impl<Message: Clone, Theme, Renderer: iced::advanced::Renderer, Payload: Clone +
                 let state = state.state.downcast_mut::<State>();
                 state.overlay_bounds.x = position.x - state.overlay_bounds.width / 2.0;
                 state.overlay_bounds.y = position.y - state.overlay_bounds.height / 2.0;
-                if state.is_pressed && (cursor.is_over(bounds) || state.dragging) {
+                if state.is_pressed && (cursor.is_over(bounds) || state.dragging) && self.can_drag {
                     if !state.dragging {
                         state.dragging = true;
                         if let Some(payload) = &self.payload {
@@ -255,10 +275,26 @@ impl<Message: Clone, Theme, Renderer: iced::advanced::Renderer, Payload: Clone +
                     shell.capture_event();
                 }
             }
-            iced::Event::Mouse(mouse::Event::ButtonReleased(Button::Left)) => {
+            iced::Event::Mouse(mouse::Event::ButtonReleased(Button::Right))
+            | iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                key: Key::Named(Named::Escape),
+                ..
+            }) => {
                 let state = state.state.downcast_mut::<State>();
+
+                if state.dragging {
+                    if let (Some(func), Some(payload)) = (&self.on_early_drop, &self.payload) {
+                        shell.publish(func(payload.clone()));
+                    }
+
+                    state.is_pressed = false;
+                } else if cursor.is_over(layout.bounds()) {
+                    if let (Some(on_drop), Some(payload)) = (&self.on_drop, &self.payload) {
+                        shell.publish(on_drop(payload.clone()));
+                    }
+                }
+
                 state.dragging = false;
-                state.is_pressed = false;
                 shell.request_redraw();
             }
             _ => {}

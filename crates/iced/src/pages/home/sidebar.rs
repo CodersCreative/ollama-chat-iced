@@ -12,10 +12,7 @@ use crate::{
     },
     style::{self},
     utils::get_path_assets,
-    widgets::{
-        drag::{self, DragAndDrop},
-        dragzone,
-    },
+    widgets::drag::{self, DragAndDrop},
     windows::message::WindowMessage,
 };
 use iced::{
@@ -385,6 +382,7 @@ pub struct HomeSideBar {
     pub buttons_expanded: Vec<String>,
     pub editing: HashMap<String, String>,
     pub drag: DragAndDrop,
+    pub dragging: Option<String>,
     pub search: String,
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -400,6 +398,7 @@ impl Default for HomeSideBar {
             split: NORMAL_SIZE,
             is_collapsed: false,
             drag: DragAndDrop::default(),
+            dragging: None,
             expanded: Vec::new(),
             buttons_expanded: Vec::new(),
             editing: HashMap::new(),
@@ -459,7 +458,6 @@ impl HomeSideBar {
                 style::markdown::main(theme),
                 &style::markdown::CustomViewer,
             ))
-            .clip(true)
             .on_press({
                 if item.is_folder() {
                     Message::Window(WindowMessage::Page(
@@ -683,25 +681,17 @@ impl HomeSideBar {
             }
         }
 
-        if item.is_builtin() {
-            body.into()
-        } else {
-            dragzone::drop_zone(
-                self.drag.clone(),
-                drag::drag(item.get_name().to_string(), self.drag.clone(), body)
-                    .payload(item.get_record_id().key().to_string()),
-            )
+        let item_id = item.get_record_id().key().to_string();
+        drag::drag(item.get_name().to_string(), self.drag.clone(), body)
             .on_drop(move |x| {
                 Message::Window(WindowMessage::Page(
                     id,
-                    PageMessage::Home(HomeMessage::Dropped(
-                        item.get_record_id().key().to_string(),
-                        x,
-                    )),
+                    PageMessage::Home(HomeMessage::Dropped(x, item_id.clone())),
                 ))
             })
+            .can_drag(!item.is_builtin())
+            .payload(item.get_record_id().key().to_string())
             .into()
-        }
     }
 
     fn chat_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
