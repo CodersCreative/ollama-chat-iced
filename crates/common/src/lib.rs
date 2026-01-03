@@ -1,4 +1,5 @@
 use base64_stream::ToBase64Reader;
+use enigo::{Keyboard, Settings};
 use image::ImageFormat;
 use ochat_types::user::Token;
 use serde::de::DeserializeOwned;
@@ -8,10 +9,17 @@ use std::{
     fs::{self, File},
     io::{BufReader, Cursor, Read},
     path::Path,
+    sync::{LazyLock, RwLock},
 };
-
+#[cfg(feature = "sound")]
+pub mod audio;
 pub mod data;
 
+static ENIGO: LazyLock<RwLock<Option<enigo::Enigo>>> =
+    LazyLock::new(|| match enigo::Enigo::new(&Settings::default()) {
+        Ok(x) => RwLock::new(Some(x)),
+        _ => RwLock::new(None),
+    });
 const TOKEN_PATH: &str = "jwt.json";
 
 pub fn save_token(token: &Token) {
@@ -138,6 +146,11 @@ pub fn convert_file_to_b64(path: &Path) -> Result<String, Box<dyn Error>> {
     Ok(base64)
 }
 
-pub fn convert_audio_to_b64(path: &Path) -> Result<String, Box<dyn Error>> {
-    convert_file_to_b64(path)
+pub fn force_paste_text(text: &str) -> Result<(), String> {
+    match &mut *ENIGO.write().unwrap() {
+        Some(x) => x.text(text).map_err(|e| e.to_string())?,
+        _ => return Err(String::from("Failed to paste")),
+    }
+
+    Ok(())
 }

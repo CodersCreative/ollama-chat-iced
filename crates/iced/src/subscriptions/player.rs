@@ -1,13 +1,13 @@
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use iced::{
     Task,
+    futures::StreamExt,
     task::{Straw, sipper},
 };
 use ochat_types::generation::tts::TtsResponse;
 use std::{
     fmt::Debug,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc, atomic::AtomicBool},
 };
 
 use crate::{Application, Message};
@@ -77,45 +77,12 @@ impl Player {
 
 pub fn play_stream(data: TtsResponse) -> impl Straw<(), PlayerState, String> {
     sipper(async move |mut output| {
-        let host = cpal::default_host();
-        let device = host.default_output_device().unwrap();
+        let mut response = ochat_common::audio::play(data, Arc::new(AtomicBool::new(true))).await;
 
-        let config = cpal::StreamConfig {
-            channels: 1,
-            sample_rate: data.spec.sample_rate,
-            buffer_size: cpal::BufferSize::Default,
-        };
-
-        let sample_index = Arc::new(Mutex::new(0usize));
-        let samples = Arc::new(data.data);
-
-        let samples_clone = Arc::clone(&samples);
-        let index_clone = Arc::clone(&sample_index);
-
-        let stream = device
-            .build_output_stream(
-                &config,
-                move |output: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    let mut idx = index_clone.lock().unwrap();
-
-                    for frame in output.iter_mut() {
-                        if *idx < samples_clone.len() {
-                            *frame = samples_clone[*idx];
-                            *idx += 1;
-                        } else {
-                            *frame = 0.0;
-                        }
-                    }
-                },
-                |err| eprintln!("{}", err),
-                None,
-            )
-            .map_err(|e| e.to_string())?;
-
-        stream.play().map_err(|e| e.to_string())?;
-
-        while *sample_index.lock().unwrap() < samples.len() {
-            std::thread::sleep(std::time::Duration::from_millis(100));
+        while let Some(data) = response.next().await {
+            if let ochat_common::audio::PlayerStreamResult::Err(e) = data {
+                let _ = output.send(PlayerState::Err(e));
+            }
         }
 
         let _ = output.send(PlayerState::Finished).await;
