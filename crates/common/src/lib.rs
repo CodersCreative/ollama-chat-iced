@@ -11,6 +11,7 @@ use std::{
     path::Path,
     sync::{LazyLock, RwLock},
 };
+
 #[cfg(feature = "sound")]
 pub mod audio;
 pub mod data;
@@ -153,4 +154,209 @@ pub fn force_paste_text(text: &str) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+pub mod combinations {
+    use rdev::{EventType, Key};
+    use std::{
+        collections::HashMap,
+        rc::Rc,
+        sync::{LazyLock, RwLock},
+    };
+
+    pub fn prink_key(value: &rdev::Key) -> Option<String> {
+        Some(
+            match value {
+                Key::Alt => "alt",
+                Key::AltGr => "alt",
+                Key::Backspace => "back",
+                Key::CapsLock => "caps",
+                Key::ControlLeft | Key::ControlRight => "ctrl",
+                Key::Delete => "del",
+                Key::UpArrow => "up",
+                Key::DownArrow => "down",
+                Key::LeftArrow => "left",
+                Key::RightArrow => "right",
+                Key::End => "end",
+                Key::Escape => "esc",
+                Key::F1 => "f1",
+                Key::F2 => "f2",
+                Key::F3 => "f3",
+                Key::F4 => "f4",
+                Key::F5 => "f5",
+                Key::F6 => "f6",
+                Key::F7 => "f7",
+                Key::F8 => "f8",
+                Key::F9 => "f9",
+                Key::F10 => "f10",
+                Key::F11 => "f11",
+                Key::F12 => "f12",
+                Key::Home => "home",
+                Key::MetaLeft | Key::MetaRight => "meta",
+                Key::PageUp => "page_up",
+                Key::PageDown => "page_down",
+                Key::Return => "enter",
+                Key::ShiftLeft | Key::ShiftRight => "shift",
+                Key::Space => "space",
+                Key::Tab => "tab",
+                Key::BackQuote => "backtick",
+                Key::Num1 | Key::Kp1 => "1",
+                Key::Num2 | Key::Kp2 => "2",
+                Key::Num3 | Key::Kp3 => "3",
+                Key::Num4 | Key::Kp4 => "4",
+                Key::Num5 | Key::Kp5 => "5",
+                Key::Num6 | Key::Kp6 => "6",
+                Key::Num7 | Key::Kp7 => "7",
+                Key::Num8 | Key::Kp8 => "8",
+                Key::Num9 | Key::Kp9 => "9",
+                Key::Num0 | Key::Kp0 => "0",
+                Key::Minus => "minus",
+                Key::Equal => "equal",
+                Key::KeyA => "A",
+                Key::KeyB => "B",
+                Key::KeyC => "C",
+                Key::KeyD => "D",
+                Key::KeyE => "E",
+                Key::KeyF => "F",
+                Key::KeyG => "G",
+                Key::KeyH => "H",
+                Key::KeyI => "I",
+                Key::KeyJ => "J",
+                Key::KeyK => "K",
+                Key::KeyL => "L",
+                Key::KeyM => "M",
+                Key::KeyN => "N",
+                Key::KeyO => "O",
+                Key::KeyP => "P",
+                Key::KeyQ => "Q",
+                Key::KeyR => "R",
+                Key::KeyS => "S",
+                Key::KeyT => "T",
+                Key::KeyU => "U",
+                Key::KeyV => "V",
+                Key::KeyW => "W",
+                Key::KeyX => "X",
+                Key::KeyY => "Y",
+                Key::KeyZ => "Z",
+                Key::LeftBracket => "(",
+                Key::RightBracket => ")",
+                Key::SemiColon => "semi_colon",
+                Key::Function => "fn",
+                Key::KpReturn => "enter",
+                Key::KpMinus => "minus",
+                Key::KpPlus => "plus",
+                Key::KpMultiply => "multiply",
+                Key::KpDivide => "divide",
+                Key::Comma => "comma",
+                Key::Dot => "full_stop",
+                Key::Slash => "slash",
+                Key::Insert => "ins",
+                _ => return None,
+            }
+            .to_string(),
+        )
+    }
+
+    pub static LOOKING_FOR: LazyLock<RwLock<LookingFor>> =
+        LazyLock::new(|| RwLock::new(LookingFor::default()));
+
+    #[derive(Clone)]
+    pub struct NewCombinationFn(Rc<dyn Fn(Vec<Key>)>);
+    #[derive(Clone)]
+    pub struct NewCombinationKeyPressedFn(Rc<dyn Fn(Key)>);
+    #[derive(Clone)]
+    pub struct CombinationPressedFn(Rc<dyn Fn()>);
+
+    #[derive(Default)]
+    pub struct LookingFor {
+        last: Vec<Key>,
+        funcs: HashMap<u32, LookingForFn>,
+        counter: u32,
+    }
+
+    unsafe impl Send for LookingFor {}
+    unsafe impl Sync for LookingFor {}
+
+    #[derive(Clone)]
+    enum LookingForFn {
+        New {
+            func: NewCombinationFn,
+            key_pressed: NewCombinationKeyPressedFn,
+            pressed: Vec<Key>,
+            esc: Key,
+        },
+        Combination {
+            func: CombinationPressedFn,
+            combo: Vec<Key>,
+        },
+    }
+
+    pub fn get_new_combination(
+        func: NewCombinationFn,
+        key_pressed: NewCombinationKeyPressedFn,
+        esc: Key,
+    ) -> u32 {
+        let mut val = LOOKING_FOR.write().unwrap();
+        let counter = val.counter;
+        val.funcs.insert(
+            counter,
+            LookingForFn::New {
+                func,
+                esc,
+                key_pressed,
+                pressed: Vec::new(),
+            },
+        );
+        val.counter += 1;
+        counter
+    }
+
+    pub fn add_new_combination(func: CombinationPressedFn, combo: Vec<Key>) -> u32 {
+        let mut val = LOOKING_FOR.write().unwrap();
+        let counter = val.counter;
+        val.funcs
+            .insert(counter, LookingForFn::Combination { func, combo });
+        val.counter += 1;
+        counter
+    }
+
+    pub fn remove_combination(key: &u32) {
+        let _ = LOOKING_FOR.write().unwrap().funcs.remove(key);
+    }
+
+    pub fn listen() {
+        let _ = rdev::listen(|event| {
+            if let EventType::KeyPress(event) = event.event_type {
+                let mut state = LOOKING_FOR.write().unwrap();
+                let mut remove = Vec::new();
+                state.last.push(event);
+                let last = state.last.clone();
+
+                for (key, val) in &mut state.funcs {
+                    match val {
+                        LookingForFn::Combination { func, combo } if combo.len() <= last.len() => {
+                            if combo[..] == last[last.len() - combo.len()..] {
+                                func.0();
+                            }
+                        }
+                        LookingForFn::New {
+                            func, esc, pressed, ..
+                        } if &event == esc => {
+                            func.0(pressed.clone());
+                            remove.push(key);
+                        }
+                        LookingForFn::New {
+                            key_pressed,
+                            pressed,
+                            ..
+                        } => {
+                            pressed.push(event);
+                            key_pressed.0(event);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        });
+    }
 }
