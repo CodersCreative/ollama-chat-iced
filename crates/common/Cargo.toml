@@ -12,7 +12,7 @@ license.workspace = true
 readme.workspace = true
 
 [features]
-sound = ["dep:cpal", "dep:voice_activity_detector", "dep:audio-io"]
+sound = ["dep:cpal", "dep:voice_activity_detector", "dep:audio-io", "dep:ort-sys"]
 tray = ["dep:tray-icon"]
 default = []
 
@@ -32,3 +32,4 @@ rdev = "0.5.3"
 tray-icon = {version="0.21.3", optional = true}
 voice_activity_detector = {version ="^0.1.0", features = ["async"], optional = true}
 cpal = {version = "0.17.0", optional = true}
+ort-sys = {version = "=2.0.0-rc.4", features = ["download-binaries"], optional = true}

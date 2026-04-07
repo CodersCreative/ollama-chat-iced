@@ -127,7 +127,7 @@ impl Tool for WebScraper {
         let pages = Arc::new(Mutex::new(HashMap::new()));
 
         {
-            let mut rx2 = site.subscribe(16).unwrap();
+            let mut rx2 = site.subscribe(16);
             let pages_rx = pages.clone();
 
             tokio::spawn(async move {

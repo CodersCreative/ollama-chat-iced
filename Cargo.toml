@@ -19,7 +19,7 @@ ochat-types = {path = "./crates/types", version = "0.5.1"}
 ochat-common = {path = "./crates/common", version = "0.5.1"}
 
 [patch.crates-io]
-mistralrs.git = "https://github.com/EricLBuehler/mistral.rs.git"
+mistralrs = {git="https://github.com/EricLBuehler/mistral.rs.git", rev = "b5af26051d1ae87102bb2a2815dd7d526c02c5d6"}
 
 # Defines a size-optimized profile for the WASM bundle in release mode
 [profile.wasm-release]

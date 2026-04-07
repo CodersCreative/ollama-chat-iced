@@ -5,10 +5,14 @@ use crate::backend::{
 use axum::Json;
 use futures::Stream;
 use mistralrs::{
-    AutoLoaderBuilder, DefaultSchedulerMethod, EmbeddingSpecificConfig, LocalModelPaths,
-    MistralRsBuilder, Model, ModelDType, ModelPaths, NormalSpecificConfig, ResponseOk,
-    SchedulerConfig, VisionMessages, VisionSpecificConfig, best_device,
+    DefaultSchedulerMethod, Model, ModelDType, ResponseOk, SchedulerConfig, VisionMessages,
+    best_device,
+    core::{
+        AdapterPaths, AutoLoaderBuilder, EmbeddingSpecificConfig, LocalModelPaths,
+        MistralRsBuilder, ModelPaths, NormalSpecificConfig, VisionSpecificConfig,
+    },
 };
+
 use ochat_types::{
     chats::messages::Role,
     generation::text::{ChatQueryData, ChatQueryMessage, ChatResponse, ChatStreamResult},
@@ -63,7 +67,7 @@ pub async fn get_model(data: &ChatQueryData) -> Result<Model, ServerError> {
         config_filename: path.join("config.json"),
         template_filename: None,
         filenames: vec![path.join(name)],
-        adapter_paths: mistralrs::AdapterPaths::None,
+        adapter_paths: AdapterPaths::None,
         gen_conf: get_file_if_exists(path.join("generation_config.json")),
         preprocessor_config: get_file_if_exists(path.join("preprocessor_config.json")),
         processor_config: get_file_if_exists(path.join("processor_config.json")),
