@@ -3,7 +3,6 @@ pub mod settings;
 pub mod style;
 pub mod subscriptions;
 pub mod utils;
-pub mod widgets;
 pub mod windows;
 
 use iced::{

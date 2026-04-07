@@ -5542,6 +5542,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced_drop"
+version = "0.2.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38c14f9045f72b950c8f2083e426385677aaa114fef22bcab165a22980b83840"
+dependencies = [
+ "iced",
+ "iced_core",
+ "iced_runtime",
+ "iced_widget",
+]
+
+[[package]]
 name = "iced_futures"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8549,6 +8561,7 @@ dependencies = [
  "clipboard-rs",
  "derive_builder",
  "iced",
+ "iced_drop",
  "iced_selection",
  "iced_split",
  "image",

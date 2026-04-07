@@ -12,18 +12,18 @@ use crate::{
     },
     style::{self},
     utils::get_path_assets,
-    widgets::drag::{self, DragAndDrop},
     windows::message::WindowMessage,
 };
 use iced::{
     Element, Length, Padding, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        Button, button, center_x, column, container, hover, markdown, right, row, rule, space, svg,
-        text_input,
+        Button, Id as WidgetId, button, center_x, column, container, hover, markdown, right, row,
+        rule, space, svg, text_input,
     },
     window::{self},
 };
+use iced_drop::droppable;
 use iced_selection::text;
 use ochat_common::data::RequestType;
 use ochat_types::{chats::previews::Preview, folders::Folder, surreal::RecordId};
@@ -83,7 +83,9 @@ pub enum SideBarItem {
     },
 }
 #[derive(Debug, Clone, Default)]
-pub struct SideBarItems(pub Vec<SideBarItem>);
+pub struct SideBarItems {
+    pub items: Vec<SideBarItem>,
+}
 
 impl SideBarItem {
     pub fn get_record_id(&self) -> &RecordId {
@@ -173,6 +175,20 @@ impl SideBarItem {
             _ => {}
         }
     }
+
+    pub fn folder_ids(&self) -> Vec<String> {
+        match self {
+            Self::Folder { folder, children } => {
+                let mut lst = vec![folder.id.key().to_string()];
+                for child in children {
+                    lst.append(&mut child.folder_ids());
+                }
+                lst
+            }
+            Self::Preview(_) => Vec::new(),
+        }
+    }
+
     pub fn get_children_recursive(
         &self,
         all_folders: &[Folder],
@@ -270,18 +286,70 @@ impl SideBarItem {
             }
         }
     }
+
+    pub fn find_parent_id(&self, target: &str, parent: Option<&str>) -> Option<String> {
+        match self {
+            SideBarItem::Preview(x) => {
+                if x.id.key().to_string() == target {
+                    parent.map(|p| p.to_string())
+                } else {
+                    None
+                }
+            }
+            SideBarItem::Folder { folder, children } => {
+                let current_id = folder.id.key().to_string();
+                if current_id == target {
+                    parent.map(|p| p.to_string())
+                } else {
+                    for child in children {
+                        if let Some(found) = child.find_parent_id(target, Some(&current_id)) {
+                            return Some(found);
+                        }
+                    }
+                    None
+                }
+            }
+        }
+    }
+
+    pub fn find_folder_name(&self, target: &str) -> Option<String> {
+        match self {
+            SideBarItem::Folder { folder, children } => {
+                if folder.id.key().to_string() == target {
+                    Some(folder.name.clone())
+                } else {
+                    for child in children {
+                        if let Some(found) = child.find_folder_name(target) {
+                            return Some(found);
+                        }
+                    }
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 impl SideBarItems {
+    pub fn folder_ids(&self) -> Vec<String> {
+        let mut ids = Vec::new();
+
+        for child in &self.items {
+            ids.append(&mut child.folder_ids());
+        }
+
+        ids
+    }
     pub fn update_from_id<F: FnMut(&mut SideBarItem)>(&mut self, id: &RecordId, func: &mut F) {
-        for child in self.0.iter_mut() {
+        for child in self.items.iter_mut() {
             child.update_from_id(id, func);
         }
     }
 
     pub fn get_first_preview(&self) -> Option<&PreviewMk> {
         let mut ret = None;
-        for child in self.0.iter() {
+        for child in self.items.iter() {
             ret = child.get_first_preview();
             if ret.is_some() {
                 break;
@@ -293,7 +361,7 @@ impl SideBarItems {
     pub async fn get(search: Option<String>) -> Result<Self, String> {
         let req = DATA.read().unwrap().to_request();
 
-        let mut list = {
+        let mut items = {
             let mut list = Vec::new();
             let previews = req
                 .make_request::<Vec<Preview>, ()>("preview/all/", &(), RequestType::Get)
@@ -363,13 +431,31 @@ impl SideBarItems {
                     .collect(),
             );
 
-            list.retain(|x| x.contains_any(&wanted));
+            items.retain(|x| x.contains_any(&wanted));
 
-            for child in list.iter_mut() {
+            for child in items.iter_mut() {
                 child.filter_contains_any(&wanted);
             }
         }
-        Ok(Self(list))
+        Ok(Self { items })
+    }
+
+    pub fn parent_id_of(&self, target: &str) -> Option<String> {
+        for item in &self.items {
+            if let Some(found) = item.find_parent_id(target, None) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    pub fn folder_name_by_id(&self, target: &str) -> Option<String> {
+        for item in &self.items {
+            if let Some(found) = item.find_folder_name(target) {
+                return Some(found);
+            }
+        }
+        None
     }
 }
 
@@ -381,10 +467,26 @@ pub struct HomeSideBar {
     pub expanded: Vec<String>,
     pub buttons_expanded: Vec<String>,
     pub editing: HashMap<String, String>,
-    pub drag: DragAndDrop,
-    pub dragging: Option<String>,
+    pub dragging: Option<DragItem>,
+    pub drag_hover: Option<WidgetId>,
     pub search: String,
 }
+
+#[derive(Debug, Clone)]
+pub enum DragItem {
+    Chat(String),
+    Folder(String),
+}
+
+impl DragItem {
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Chat(id) | Self::Folder(id) => id,
+        }
+    }
+}
+
+pub const SIDEBAR_ROOT_ID: &str = "sidebar-root";
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum IsInSpecial {
     Fav,
@@ -397,8 +499,8 @@ impl Default for HomeSideBar {
         Self {
             split: NORMAL_SIZE,
             is_collapsed: false,
-            drag: DragAndDrop::default(),
             dragging: None,
+            drag_hover: None,
             expanded: Vec::new(),
             buttons_expanded: Vec::new(),
             editing: HashMap::new(),
@@ -417,14 +519,17 @@ impl HomeSideBar {
 
         content = content.push(rule::vertical(2).style(style::rule::side_bar_darker));
 
-        container(content).style(style::container::side_bar).into()
+        container(content)
+            .id(WidgetId::from(SIDEBAR_ROOT_ID))
+            .style(style::container::side_bar)
+            .into()
     }
 
     fn view_item<'a>(
         &'a self,
         id: window::Id,
         item: &'a SideBarItem,
-        parent: Option<String>,
+        _parent: Option<String>,
         expanded: bool,
         buttons_expanded: bool,
         edit: Option<&'a String>,
@@ -453,29 +558,12 @@ impl HomeSideBar {
                 .width(Length::Fill)
                 .into()
         } else {
-            button(markdown::view_with(
+            container(markdown::view_with(
                 item.get_markdown().iter(),
                 style::markdown::main(theme),
                 &style::markdown::CustomViewer,
             ))
-            .on_press({
-                if item.is_folder() {
-                    Message::Window(WindowMessage::Page(
-                        id,
-                        PageMessage::Home(HomeMessage::ExpandItem(
-                            item.get_record_id().key().to_string(),
-                        )),
-                    ))
-                } else {
-                    Message::Window(WindowMessage::Page(
-                        id,
-                        PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
-                            HomePickingType::ReplaceChat(item.get_record_id().key().to_string()),
-                        ))),
-                    ))
-                }
-            })
-            .style(style::button::transparent_back_white_text)
+            .padding(5)
             .width(Length::Fill)
             .into()
         };
@@ -493,21 +581,10 @@ impl HomeSideBar {
                         )),
                     ))),
             );
-        } else if !buttons_expanded && self.split < BUTTONS_EXPAND_CUT_OFF {
-            hover_buttons = hover_buttons.push(
-                style::svg_button::text("panel_close.svg", SUB_HEADING_SIZE)
-                    .height(Length::Fill)
-                    .on_press(Message::Window(WindowMessage::Page(
-                        id,
-                        PageMessage::Home(HomeMessage::ButtonExpandItem(
-                            item.get_record_id().key().to_string(),
-                        )),
-                    ))),
-            );
-        } else {
-            if self.split < BUTTONS_EXPAND_CUT_OFF {
+        } else if item.is_folder() {
+            if !buttons_expanded && self.split < BUTTONS_EXPAND_CUT_OFF {
                 hover_buttons = hover_buttons.push(
-                    style::svg_button::text("panel_open.svg", SUB_HEADING_SIZE)
+                    style::svg_button::text("panel_close.svg", SUB_HEADING_SIZE)
                         .height(Length::Fill)
                         .on_press(Message::Window(WindowMessage::Page(
                             id,
@@ -516,29 +593,14 @@ impl HomeSideBar {
                             )),
                         ))),
                 );
-            }
-
-            if !item.is_builtin() {
-                hover_buttons = hover_buttons.push(
-                    style::svg_button::text("delete.svg", SUB_HEADING_SIZE)
-                        .height(Length::Fill)
-                        .on_press(Message::Window(WindowMessage::Page(
-                            id,
-                            PageMessage::Home(HomeMessage::DeleteItem(
-                                item.get_record_id().key().to_string(),
-                            )),
-                        ))),
-                );
-            }
-
-            if item.is_folder() {
-                if parent.is_some() {
+            } else {
+                if self.split < BUTTONS_EXPAND_CUT_OFF {
                     hover_buttons = hover_buttons.push(
-                        style::svg_button::text("folder_upload.svg", SUB_HEADING_SIZE)
+                        style::svg_button::text("panel_open.svg", SUB_HEADING_SIZE)
                             .height(Length::Fill)
                             .on_press(Message::Window(WindowMessage::Page(
                                 id,
-                                PageMessage::Home(HomeMessage::RemoveFolderFromFolder(
+                                PageMessage::Home(HomeMessage::ButtonExpandItem(
                                     item.get_record_id().key().to_string(),
                                 )),
                             ))),
@@ -579,119 +641,149 @@ impl HomeSideBar {
                             )),
                         ))),
                 );
-            } else {
-                if let Some(parent) = parent {
-                    hover_buttons = hover_buttons.push(
-                        style::svg_button::text("folder_upload.svg", SUB_HEADING_SIZE)
-                            .height(Length::Fill)
-                            .on_press(Message::Window(WindowMessage::Page(
-                                id,
-                                PageMessage::Home(HomeMessage::RemoveChatFromFolder(
-                                    parent,
-                                    item.get_record_id().key().to_string(),
-                                )),
-                            ))),
-                    );
-                }
-
-                if is_in_special != IsInSpecial::Archive {
-                    hover_buttons = hover_buttons.push(
-                        style::svg_button::text("zip.svg", SUB_HEADING_SIZE)
-                            .height(Length::Fill)
-                            .on_press(Message::Window(WindowMessage::Page(
-                                id,
-                                PageMessage::Home(HomeMessage::ArchiveChat(
-                                    item.get_record_id().key().to_string(),
-                                )),
-                            ))),
-                    );
-                }
-
-                if is_in_special == IsInSpecial::None {
-                    hover_buttons = hover_buttons.push(
-                        style::svg_button::text("thumbs_up.svg", SUB_HEADING_SIZE)
-                            .height(Length::Fill)
-                            .on_press(Message::Window(WindowMessage::Page(
-                                id,
-                                PageMessage::Home(HomeMessage::FavChat(
-                                    item.get_record_id().key().to_string(),
-                                )),
-                            ))),
-                    );
-                }
             }
-        }
-
-        let mut body = column![
-            container(hover(
-                row(if let SideBarItem::Folder { folder, .. } = item {
-                    vec![
-                        svg(svg::Handle::from_path(get_path_assets(
-                            match folder.name.as_str() {
-                                "Archived" => "zip.svg".to_string(),
-                                "Favourites" => "thumbs_up.svg".to_string(),
-                                _ => "folder.svg".to_string(),
-                            },
-                        )))
-                        .style(style::svg::text)
-                        .width(SUB_HEADING_SIZE)
-                        .into(),
-                        title,
-                    ]
-                } else {
-                    vec![title]
-                })
-                .align_y(Vertical::Center)
-                .spacing(5),
-                right(hover_buttons).align_y(Vertical::Center)
-            ))
-            .max_height(HEADER_SIZE * 2)
-        ]
-        .spacing(10);
-
-        if expanded {
-            if let SideBarItem::Folder { folder, children } = item {
-                if !children.is_empty() {
-                    body = body.push(
-                        row![
-                            space().width(10),
-                            column(children.iter().map(|x| {
-                                let item_id = x.get_record_id().key().to_string();
-                                self.view_item(
-                                    id.clone(),
-                                    x,
-                                    Some(item.get_record_id().key().to_string()),
-                                    self.expanded.contains(&item_id),
-                                    self.buttons_expanded.contains(&item_id),
-                                    self.editing.get(&item_id),
-                                    match folder.name.as_str() {
-                                        "Archived" => IsInSpecial::Archive,
-                                        "Favourites" => IsInSpecial::Fav,
-                                        _ => is_in_special.clone(),
-                                    },
-                                    theme,
-                                )
-                            }))
-                            .spacing(0)
-                        ]
-                        .spacing(5),
-                    );
-                    body = body.push(rule::horizontal(1).style(style::rule::translucent::text))
-                }
-            }
+        } else if is_in_special == IsInSpecial::None {
+            hover_buttons = hover_buttons.push(
+                style::svg_button::text("thumbs_up.svg", SUB_HEADING_SIZE)
+                    .height(Length::Fill)
+                    .on_press(Message::Window(WindowMessage::Page(
+                        id,
+                        PageMessage::Home(HomeMessage::FavChat(
+                            item.get_record_id().key().to_string(),
+                        )),
+                    ))),
+            );
         }
 
         let item_id = item.get_record_id().key().to_string();
-        drag::drag(item.get_name().to_string(), self.drag.clone(), body)
-            .on_drop(move |x| {
-                Message::Window(WindowMessage::Page(
-                    id,
-                    PageMessage::Home(HomeMessage::Dropped(x, item_id.clone())),
-                ))
+
+        let header = container(
+            row(if let SideBarItem::Folder { folder, .. } = item {
+                vec![
+                    svg(svg::Handle::from_path(get_path_assets(
+                        match folder.name.as_str() {
+                            "Archived" => "zip.svg".to_string(),
+                            "Favourites" => "thumbs_up.svg".to_string(),
+                            _ => "folder.svg".to_string(),
+                        },
+                    )))
+                    .style(style::svg::text)
+                    .width(SUB_HEADING_SIZE)
+                    .into(),
+                    title,
+                ]
+            } else {
+                vec![title]
             })
-            .can_drag(!item.is_builtin())
-            .payload(item.get_record_id().key().to_string())
+            .align_y(Vertical::Center)
+            .spacing(5)
+            .width(Length::Fill),
+        )
+        .max_height(HEADER_SIZE * 2)
+        .style(if self.dragging.is_some() && item.is_folder() {
+            style::container::drop_target
+        } else {
+            iced::widget::container::transparent
+        })
+        .id(format!(
+            "{}:{}",
+            if item.is_folder() { "folder" } else { "chat" },
+            item_id.trim()
+        ));
+
+        let press_message = if item.is_folder() {
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::ExpandItem(
+                    item.get_record_id().key().to_string(),
+                )),
+            ))
+        } else {
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::ReplaceChat(item.get_record_id().key().to_string()),
+                ))),
+            ))
+        };
+
+        let header_el: Element<'a, Message> = if item.is_builtin() || edit.is_some() {
+            header.into()
+        } else {
+            let drag_item = if item.is_folder() {
+                DragItem::Folder(item_id.clone())
+            } else {
+                DragItem::Chat(item_id.clone())
+            };
+            container(hover(
+                droppable(header)
+                    .on_press(press_message)
+                    .on_drag({
+                        let drag_item = drag_item.clone();
+                        move |point, _| {
+                            Message::Window(WindowMessage::Page(
+                                id,
+                                PageMessage::Home(HomeMessage::DragMove(drag_item.clone(), point)),
+                            ))
+                        }
+                    })
+                    .on_drop(move |point, _| {
+                        Message::Window(WindowMessage::Page(
+                            id,
+                            PageMessage::Home(HomeMessage::Drop(drag_item.clone(), point)),
+                        ))
+                    })
+                    .on_cancel(Message::Window(WindowMessage::Page(
+                        id,
+                        PageMessage::Home(HomeMessage::CancelDrag),
+                    )))
+                    .drag_threshold(0.0)
+                    .drag_center(true)
+                    .drag_overlay(true),
+                right(hover_buttons).align_y(Vertical::Center),
+            ))
+            .max_height(HEADER_SIZE * 2)
             .into()
+        };
+
+        let mut body = column![header_el].spacing(10);
+
+        if expanded
+            && let SideBarItem::Folder { folder, children } = item
+            && !children.is_empty()
+        {
+            body = body.push(
+                container(
+                    row![
+                        space().width(10),
+                        column(children.iter().map(|x| {
+                            let child_id = x.get_record_id().key().to_string();
+                            self.view_item(
+                                id.clone(),
+                                x,
+                                Some(item.get_record_id().key().to_string()),
+                                self.expanded.contains(&child_id),
+                                self.buttons_expanded.contains(&child_id),
+                                self.editing.get(&child_id),
+                                match folder.name.as_str() {
+                                    "Archived" => IsInSpecial::Archive,
+                                    "Favourites" => IsInSpecial::Fav,
+                                    _ => is_in_special.clone(),
+                                },
+                                theme,
+                            )
+                        }))
+                        .spacing(0)
+                    ]
+                    .spacing(5),
+                )
+                .padding(Padding::from([6.0, 0.0]))
+                .style(iced::widget::container::transparent),
+            );
+            body = body.push(rule::horizontal(1).style(style::rule::translucent::text))
+        }
+
+        body.into()
     }
 
     fn chat_buttons<'a>(&'a self, app: &'a Application, id: window::Id) -> Element<'a, Message> {
@@ -759,10 +851,10 @@ impl HomeSideBar {
         );
 
         let previews = column(
-            if self.search.is_empty() || self.items.0.is_empty() {
-                &app.cache.side_bar_items.0
+            if self.search.is_empty() || self.items.items.is_empty() {
+                &app.cache.side_bar_items.items
             } else {
-                &self.items.0
+                &self.items.items
             }
             .iter()
             .map(|x| {

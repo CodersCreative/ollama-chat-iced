@@ -104,6 +104,20 @@ pub mod container {
         }
     }
 
+    pub fn drop_target(theme: &Theme) -> Style {
+        Style {
+            background: Some(iced::Background::Color(change_alpha(
+                theme.palette().primary,
+                0.08,
+            ))),
+            border: iced::Border::default()
+                .width(1)
+                .color(change_alpha(theme.palette().primary, 0.35))
+                .rounded(6),
+            ..Default::default()
+        }
+    }
+
     pub fn window_back(_theme: &Theme) -> Style {
         Style {
             background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),

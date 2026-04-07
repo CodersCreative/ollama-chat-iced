@@ -1,12 +1,19 @@
+use std::collections::HashMap;
+
 use crate::{
     Application, DATA, InputMessage, Message,
     pages::{
         PageMessage,
-        home::{HomePaneType, panes::PaneMessage, sidebar::SideBarItems},
+        home::{
+            HomePaneType,
+            panes::PaneMessage,
+            sidebar::{DragItem, SIDEBAR_ROOT_ID, SideBarItems},
+        },
     },
     windows::message::WindowMessage,
 };
-use iced::{Task, window};
+use iced::{Point, Rectangle, Task, widget::Id as WidgetId, window};
+use iced_drop::zones_on_point;
 use ochat_common::data::RequestType;
 use ochat_types::{
     chats::{Chat, ChatData, previews::Preview},
@@ -22,6 +29,10 @@ pub enum HomePickingType {
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
     Dropped(String, String),
+    DragMove(DragItem, Point),
+    Drop(DragItem, Point),
+    DropZones(DragItem, Vec<(WidgetId, Rectangle)>),
+    CancelDrag,
     SearchItems(InputMessage),
     SetItems(SideBarItems),
     ExpandItem(String),
@@ -108,7 +119,7 @@ impl HomeMessage {
             Self::SearchItems(InputMessage::Update(x)) => {
                 let page = app.get_home_page(&id).unwrap();
                 if x.is_empty() {
-                    page.side_bar.items.0.clear();
+                    page.side_bar.items.items.clear();
                 }
                 page.side_bar.search = x;
                 Task::none()
@@ -117,6 +128,95 @@ impl HomeMessage {
                 app.get_home_page(&id).unwrap().side_bar.split =
                     app.windows.get(&id).unwrap().get_size_from_split(x);
                 Task::none()
+            }
+            Self::DragMove(drag_item, _) => {
+                app.get_home_page(&id).unwrap().side_bar.dragging = Some(drag_item.clone());
+                Task::none()
+            }
+            Self::CancelDrag => {
+                let page = app.get_home_page(&id).unwrap();
+                page.side_bar.dragging = None;
+                page.side_bar.drag_hover = None;
+                Task::none()
+            }
+            Self::Drop(drag_item, point) => zones_on_point(
+                move |zones| {
+                    Message::Window(WindowMessage::Page(
+                        id,
+                        PageMessage::Home(HomeMessage::DropZones(drag_item.clone(), zones)),
+                    ))
+                },
+                point,
+                None,
+                None,
+            ),
+            Self::DropZones(drag_item, zones) => {
+                let using_cache = {
+                    let page = app.get_home_page(&id).unwrap();
+                    page.side_bar.dragging = None;
+                    page.side_bar.drag_hover = None;
+
+                    app.get_home_page(&id)
+                        .unwrap()
+                        .side_bar
+                        .items
+                        .items
+                        .is_empty()
+                };
+
+                let side_bar_items = if using_cache {
+                    &app.cache.side_bar_items
+                } else {
+                    &app.get_home_page(&id).unwrap().side_bar.items
+                };
+
+                let mut zone_map = HashMap::new();
+
+                for folder_id in &side_bar_items.folder_ids() {
+                    zone_map.insert(
+                        WidgetId::from(format!("folder:{}", folder_id)),
+                        folder_id.clone(),
+                    );
+                }
+
+                let in_sidebar = zones
+                    .iter()
+                    .any(|(id, _)| id == &WidgetId::from(SIDEBAR_ROOT_ID));
+                let target = zones
+                    .into_iter()
+                    .find_map(|(zone_id, _)| zone_map.get(&zone_id).cloned());
+
+                match target {
+                    Some(to) if to != drag_item.id() => {
+                        let target_name = side_bar_items.folder_name_by_id(&to);
+                        match (drag_item.clone(), target_name.as_deref()) {
+                            (DragItem::Chat(chat_id), Some("Favourites")) => {
+                                Self::FavChat(chat_id).handle(app, id)
+                            }
+                            (DragItem::Chat(chat_id), Some("Archived")) => {
+                                Self::ArchiveChat(chat_id).handle(app, id)
+                            }
+                            (_, None) => return Task::none(),
+                            _ => Self::Dropped(drag_item.id().to_string(), to).handle(app, id),
+                        }
+                    }
+                    _ if !in_sidebar => {
+                        Self::DeleteItem(drag_item.id().to_string()).handle(app, id)
+                    }
+                    _ if in_sidebar => {
+                        let parent = side_bar_items.parent_id_of(drag_item.id());
+                        match (drag_item, parent) {
+                            (DragItem::Chat(chat_id), Some(folder_id)) => {
+                                Self::RemoveChatFromFolder(folder_id, chat_id).handle(app, id)
+                            }
+                            (DragItem::Folder(folder_id), Some(_)) => {
+                                Self::RemoveFolderFromFolder(folder_id).handle(app, id)
+                            }
+                            _ => Task::none(),
+                        }
+                    }
+                    _ => Task::none(),
+                }
             }
             Self::SearchItems(_) => {
                 let search = app.get_home_page(&id).unwrap().side_bar.search.clone();
