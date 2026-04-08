@@ -30,7 +30,7 @@ pub async fn search_models(search: Path<String>) -> Result<Json<Vec<HFModel>>, S
     ]);
 
     let response = request.send().await?;
-    process_searched_models(response.json().await?)
+    process_searched_models(response.json().await?).await
 }
 
 pub async fn list_all_models() -> Result<Json<Vec<HFModel>>, ServerError> {

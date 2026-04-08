@@ -14,6 +14,8 @@ pub struct SettingsData {
     pub models_path: Option<PathBuf>,
     #[builder(default = "None")]
     pub use_llama_cpp: Option<bool>,
+    #[builder(default = "None")]
+    pub hf_token: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder, PartialEq, Eq, PartialOrd, Ord)]
@@ -58,6 +60,7 @@ impl Into<SettingsData> for Settings {
             previews_provider: self.previews_provider,
             use_llama_cpp: Some(self.use_llama_cpp),
             models_path: Some(self.models_path),
+            hf_token: self.hf_token,
         }
     }
 }
@@ -88,5 +91,7 @@ pub struct Settings {
     pub models_path: PathBuf,
     #[serde(default = "Default::default")]
     pub use_llama_cpp: bool,
+    #[serde(default = "Default::default")]
+    pub hf_token: Option<String>,
     pub id: RecordId,
 }

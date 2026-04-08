@@ -3,10 +3,12 @@ use axum::Json;
 use ochat_types::providers::hf::{
     DownloadedHFModels, HFModel, HFModelDetails, HFModelVariant, HFModelVariants, ModelType,
 };
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use serde::Deserialize;
 use serde_json::Value;
 use spider::hashbrown::HashSet;
 use std::collections::HashMap;
+use std::env;
 use tokio::fs;
 
 pub mod conversion;
@@ -17,6 +19,32 @@ pub mod tts;
 
 const HF_URL: &str = "https://huggingface.co";
 const API_URL: &str = "https://huggingface.co/api";
+
+async fn hf_auth_token() -> Option<String> {
+    let settings = get_settings().await.ok()?.0;
+    settings.hf_token.and_then(|x| {
+        let trimmed = x.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    })
+}
+
+pub async fn hf_auth_headers() -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    if let Some(token) = hf_auth_token().await
+        && let Ok(value) = HeaderValue::from_str(&format!("Bearer {token}"))
+    {
+        headers.insert(AUTHORIZATION, value);
+    }
+    headers
+}
+
+pub async fn hf_has_auth() -> bool {
+    hf_auth_token().await.is_some()
+}
 
 pub async fn get_downloaded_hf_models() -> Result<Json<DownloadedHFModels>, ServerError> {
     let directory = get_settings().await?.0.models_path;
@@ -91,7 +119,9 @@ pub async fn get_downloaded_hf_models() -> Result<Json<DownloadedHFModels>, Serv
     Ok(Json(DownloadedHFModels { variants: files }))
 }
 
-pub fn process_searched_models(mut models: Vec<Value>) -> Result<Json<Vec<HFModel>>, ServerError> {
+pub async fn process_searched_models(
+    mut models: Vec<Value>,
+) -> Result<Json<Vec<HFModel>>, ServerError> {
     #[derive(Deserialize, PartialEq, Eq)]
     #[serde(untagged)]
     enum Gated {
@@ -105,10 +135,12 @@ pub fn process_searched_models(mut models: Vec<Value>) -> Result<Json<Vec<HFMode
         }
     }
 
-    models.retain(|model| {
-        Gated::Bool(false)
-            == serde_json::from_value(model.get("gated").unwrap().clone()).unwrap_or_default()
-    });
+    if !hf_has_auth().await {
+        models.retain(|model| {
+            Gated::Bool(false)
+                == serde_json::from_value(model.get("gated").unwrap().clone()).unwrap_or_default()
+        });
+    }
 
     Ok(Json(
         models
@@ -237,7 +269,10 @@ pub async fn fetch_model_details_base(
     model_type: ModelType,
 ) -> Result<Json<HFModelDetails>, ServerError> {
     let id = format!("{}/{}", user.trim(), id.trim());
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .default_headers(hf_auth_headers().await)
+        .build()
+        .unwrap_or_default();
     let request = client.get(format!("{}/models/{}", API_URL, id.trim()));
     let response: Value = request.send().await?.error_for_status()?.json().await?;
     let params: u64 = if let Some(x) = response.get("gguf") {
@@ -254,8 +289,11 @@ pub async fn fetch_model_details_base(
 
     let mut model: HFModelDetails = serde_json::from_value(response).unwrap();
     model.parameters = params;
-    model.description = reqwest::get(format!("{}/{}/raw/main/README.md", HF_URL, id.trim()))
+    model.description = client
+        .get(format!("{}/{}/raw/main/README.md", HF_URL, id.trim()))
+        .send()
         .await?
+        .error_for_status()?
         .text()
         .await?;
     model.id = id.clone();

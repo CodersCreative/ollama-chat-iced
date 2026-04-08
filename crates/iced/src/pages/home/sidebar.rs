@@ -18,8 +18,8 @@ use iced::{
     Element, Length, Padding, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
-        Button, Id as WidgetId, button, center_x, column, container, hover, markdown, right, row,
-        rule, space, svg, text_input,
+        Button, Id as WidgetId, button, center_x, column, container, hover, markdown, mouse_area,
+        right, row, rule, space, svg, text_input,
     },
     window::{self},
 };
@@ -707,46 +707,50 @@ impl HomeSideBar {
             ))
         };
 
-        let header_el: Element<'a, Message> = if item.is_builtin() || edit.is_some() {
-            header.into()
+        let header: Element<'a, Message> = if item.is_builtin() || edit.is_some() {
+            mouse_area(header).on_press(press_message).into()
         } else {
             let drag_item = if item.is_folder() {
                 DragItem::Folder(item_id.clone())
             } else {
                 DragItem::Chat(item_id.clone())
             };
-            container(hover(
-                droppable(header)
-                    .on_press(press_message)
-                    .on_drag({
-                        let drag_item = drag_item.clone();
-                        move |point, _| {
-                            Message::Window(WindowMessage::Page(
-                                id,
-                                PageMessage::Home(HomeMessage::DragMove(drag_item.clone(), point)),
-                            ))
-                        }
-                    })
-                    .on_drop(move |point, _| {
+
+            droppable(header)
+                .on_press(press_message)
+                .on_drag({
+                    let drag_item = drag_item.clone();
+                    move |point, _| {
                         Message::Window(WindowMessage::Page(
                             id,
-                            PageMessage::Home(HomeMessage::Drop(drag_item.clone(), point)),
+                            PageMessage::Home(HomeMessage::DragMove(drag_item.clone(), point)),
                         ))
-                    })
-                    .on_cancel(Message::Window(WindowMessage::Page(
+                    }
+                })
+                .on_drop(move |point, _| {
+                    Message::Window(WindowMessage::Page(
                         id,
-                        PageMessage::Home(HomeMessage::CancelDrag),
-                    )))
-                    .drag_threshold(0.0)
-                    .drag_center(true)
-                    .drag_overlay(true),
-                right(hover_buttons).align_y(Vertical::Center),
-            ))
-            .max_height(HEADER_SIZE * 2)
-            .into()
+                        PageMessage::Home(HomeMessage::Drop(drag_item.clone(), point)),
+                    ))
+                })
+                .on_cancel(Message::Window(WindowMessage::Page(
+                    id,
+                    PageMessage::Home(HomeMessage::CancelDrag),
+                )))
+                .drag_threshold(0.0)
+                .drag_center(true)
+                .drag_overlay(true)
+                .into()
         };
 
-        let mut body = column![header_el].spacing(10);
+        let header: Element<'a, Message> = container(hover(
+            header,
+            right(hover_buttons).align_y(Vertical::Center),
+        ))
+        .max_height(HEADER_SIZE * 2)
+        .into();
+
+        let mut body = column![header].spacing(10);
 
         if expanded
             && let SideBarItem::Folder { folder, children } = item

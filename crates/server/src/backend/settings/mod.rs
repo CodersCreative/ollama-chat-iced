@@ -19,6 +19,7 @@ DEFINE TABLE IF NOT EXISTS {0} SCHEMALESS PERMISSIONS FULL;
 DEFINE FIELD IF NOT EXISTS previews_provider ON TABLE {0} TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS models_path ON TABLE {0} TYPE string;
 DEFINE FIELD IF NOT EXISTS use_llama_cpp ON TABLE {0} TYPE bool;
+DEFINE FIELD IF NOT EXISTS hf_token ON TABLE {0} TYPE option<string>;
 ",
             SETTINGS_TABLE,
         ))
@@ -75,6 +76,7 @@ pub async fn reset_settings() -> Result<Json<Option<Settings>>, ServerError> {
         embeddings_provider,
         use_llama_cpp: Some(true),
         models_path: Some(PathBuf::from_str(&get_path_local("models/".to_string())).unwrap()),
+        hf_token: None,
     };
 
     let settings_list: Vec<Settings> = CONN.select(SETTINGS_TABLE).await?;
@@ -97,6 +99,7 @@ pub async fn get_settings() -> Result<Json<Settings>, ServerError> {
             embeddings_provider: None,
             use_llama_cpp: true,
             models_path: PathBuf::from_str(&get_path_local("models/".to_string())).unwrap(),
+            hf_token: None,
             id: (SETTINGS_TABLE, "unknown").into(),
         })
     } else {
@@ -119,6 +122,11 @@ pub async fn update_settings(
 
     if let Some(x) = settings.use_llama_cpp {
         current_settings.use_llama_cpp = x;
+    }
+
+    if let Some(x) = settings.hf_token {
+        let token = x.trim().to_string();
+        current_settings.hf_token = if token.is_empty() { None } else { Some(token) };
     }
 
     let chat: Vec<Settings> = CONN

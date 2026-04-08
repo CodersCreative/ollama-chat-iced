@@ -5,8 +5,8 @@ use crate::backend::{
 use axum::Json;
 use futures::Stream;
 use mistralrs::{
-    DefaultSchedulerMethod, Model, ModelDType, ResponseOk, SchedulerConfig, VisionMessages,
-    best_device,
+    DefaultSchedulerMethod, GgufModelBuilder, Model, ModelDType, ResponseOk, SchedulerConfig,
+    VisionMessages, best_device,
     core::{
         AdapterPaths, AutoLoaderBuilder, EmbeddingSpecificConfig, LocalModelPaths,
         MistralRsBuilder, ModelPaths, NormalSpecificConfig, VisionSpecificConfig,
@@ -50,12 +50,79 @@ pub async fn get_model(data: &ChatQueryData) -> Result<Model, ServerError> {
         }
     };
 
+    let find_first_existing = |candidates: &[&str]| -> Option<PathBuf> {
+        for candidate in candidates {
+            if let Some(found) = get_file_if_exists(path.join(candidate)) {
+                return Some(found);
+            }
+        }
+        None
+    };
+
+    let tokenizer_path = find_first_existing(&[
+        "tokenizer.json",
+        "tokenizer.model",
+        "tokenizer.json.sec",
+        "tokenizer.model.sec",
+        "tokenizer.json.ter",
+        "tokenizer.model.ter",
+    ])
+    .ok_or_else(|| ServerError::Unknown("Missing tokenizer file in model dir".to_string()))?;
+
+    let chat_template_path = find_first_existing(&[
+        "chat_template.jinja",
+        "chat_template.jinja.sec",
+        "chat_template.jinja.ter",
+    ]);
+
+    let tokenizer_config_path = find_first_existing(&[
+        "tokenizer_config.json",
+        "tokenizer_config.json.sec",
+        "tokenizer_config.json.ter",
+    ]);
+
+    let config_path =
+        find_first_existing(&["config.json", "config.json.sec", "config.json.ter"])
+            .ok_or_else(|| ServerError::Unknown("Missing config.json in model dir".to_string()))?;
+
+    let mut weight_files: Vec<PathBuf> = Vec::new();
+    if let Ok(entries) = fs::read_dir(&path) {
+        for entry in entries.flatten() {
+            let file_path = entry.path();
+            if let Some(ext) = file_path.extension().and_then(|x| x.to_str()) {
+                let is_weight = matches!(ext, "safetensors" | "bin" | "gguf");
+                if is_weight {
+                    weight_files.push(file_path);
+                }
+            }
+        }
+    }
+
+    let explicit = get_file_if_exists(path.join(&name));
+    if let Some(explicit) = explicit {
+        if !weight_files.contains(&explicit) {
+            weight_files.push(explicit);
+        }
+    }
+
+    if weight_files.is_empty() {
+        return Err(ServerError::Unknown(
+            "No model weight files (.safetensors/.bin/.gguf) found".to_string(),
+        ));
+    }
+
+    weight_files.sort();
+
     let loader = AutoLoaderBuilder::new(
         NormalSpecificConfig::default(),
         VisionSpecificConfig::default(),
         EmbeddingSpecificConfig::default(),
         None,
-        get_file_if_exists(path.join("tokenizer.json")).map(|x| x.to_str().unwrap().to_string()),
+        if tokenizer_path.extension().and_then(|x| x.to_str()) == Some("json") {
+            Some(tokenizer_path.to_string_lossy().to_string())
+        } else {
+            None
+        },
         data.provider.trim().split_once(":").unwrap().1.to_string(),
         true,
         None,
@@ -63,16 +130,45 @@ pub async fn get_model(data: &ChatQueryData) -> Result<Model, ServerError> {
     .build();
 
     let paths: Box<dyn ModelPaths> = Box::new(LocalModelPaths {
-        tokenizer_filename: path.join("tokenizers.json"),
-        config_filename: path.join("config.json"),
-        template_filename: None,
-        filenames: vec![path.join(name)],
+        tokenizer_filename: tokenizer_path.clone(),
+        config_filename: config_path,
+        template_filename: chat_template_path.clone(),
+        filenames: weight_files.clone(),
         adapter_paths: AdapterPaths::None,
         gen_conf: get_file_if_exists(path.join("generation_config.json")),
         preprocessor_config: get_file_if_exists(path.join("preprocessor_config.json")),
         processor_config: get_file_if_exists(path.join("processor_config.json")),
-        chat_template_json_filename: None,
+        chat_template_json_filename: tokenizer_config_path,
     });
+
+    let gguf_files: Vec<String> = weight_files
+        .iter()
+        .filter(|p| p.extension().and_then(|x| x.to_str()) == Some("gguf"))
+        .map(|p| p.to_string_lossy().to_string())
+        .collect();
+
+    if !gguf_files.is_empty() {
+        let mut builder = GgufModelBuilder::new(
+            data.provider.trim().split_once(":").unwrap().1.to_string(),
+            gguf_files,
+        )
+        .with_device_mapping(mistralrs::DeviceMapSetting::Auto(
+            mistralrs::AutoDeviceMapParams::default_text(),
+        ));
+
+        if let Some(template) = &chat_template_path {
+            builder = builder.with_chat_template(template.to_string_lossy().to_string());
+        }
+
+        if tokenizer_path.extension().and_then(|x| x.to_str()) == Some("json") {
+            builder = builder.with_tokenizer_json(tokenizer_path.to_string_lossy().to_string());
+        }
+
+        return Ok(builder
+            .build()
+            .await
+            .map_err(|e| ServerError::Unknown(e.to_string()))?);
+    }
 
     let pipeline = loader
         .load_model_from_path(
@@ -159,11 +255,25 @@ pub async fn stream(data: ChatQueryData) -> impl Stream<Item = ChatStreamResult>
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     tokio::spawn(async move {
-        let model = get_model(&data).await.unwrap();
-        let mut response = match model
-            .stream_chat_request(get_messages_from_chat_query(data.messages).unwrap())
-            .await
-        {
+        let model = match get_model(&data).await {
+            Ok(m) => m,
+            Err(e) => {
+                let _ = tx.send(ChatStreamResult::Err(e.to_string()));
+                let _ = tx.send(ChatStreamResult::Finished);
+                return;
+            }
+        };
+
+        let msgs = match get_messages_from_chat_query(data.messages) {
+            Ok(m) => m,
+            Err(e) => {
+                let _ = tx.send(ChatStreamResult::Err(e));
+                let _ = tx.send(ChatStreamResult::Finished);
+                return;
+            }
+        };
+
+        let mut response = match model.stream_chat_request(msgs).await {
             Ok(x) => x,
             Err(e) => {
                 let _ = tx.send(ChatStreamResult::Err(e.to_string()));

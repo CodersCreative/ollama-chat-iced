@@ -43,6 +43,7 @@ pub enum SettingsViewMessage {
     UpdateProviderUrl(usize, String),
     UpdateProviderType(usize, ProviderType),
     UpdateProviderKey(usize, String),
+    UpdateHfToken(String),
     UpdatePreviewModel(SettingsProvider),
     UpdateDefaultModel(SettingsProvider),
     UpdateSttModel(SettingsProvider),
@@ -167,6 +168,11 @@ impl SettingsViewMessage {
                 UpdateProviderInputProperty!(index, provider_type)
             }
             Self::UpdateProviderKey(index, api_key) => UpdateProviderInputProperty!(index, api_key),
+            Self::UpdateHfToken(token) => {
+                let token = token.trim().to_string();
+                app.cache.settings.hf_token = if token.is_empty() { None } else { Some(token) };
+                Task::future(save_settings(app.cache.settings.clone()))
+            }
             Self::UpdatePreviewModel(model) => UpdateModel!(model, previews_provider),
             Self::UpdateDefaultModel(model) => {
                 app.cache.client_settings.default_provider = Some(model);
@@ -407,6 +413,20 @@ impl SettingsView {
         .size(SUB_HEADING_SIZE)
         .style(style::text::text);
 
+        let hf_token = text_input(
+            "Enter your Hugging Face token...",
+            app.cache.settings.hf_token.as_deref().unwrap_or(""),
+        )
+        .on_input(move |x| {
+            Message::HomePaneView(HomePaneViewMessage::Settings(
+                id,
+                SettingsViewMessage::UpdateHfToken(x),
+            ))
+        })
+        .size(SUB_HEADING_SIZE)
+        .secure(true)
+        .style(style::text_input::input);
+
         let providers = {
             let header = row![
                 text("Providers")
@@ -540,6 +560,8 @@ impl SettingsView {
                     ochat,
                     sub_heading("Models Download Path"),
                     models_path,
+                    sub_heading("Hugging Face Token"),
+                    hf_token,
                     providers,
                     model_column,
                     sub_heading("Decorations"),

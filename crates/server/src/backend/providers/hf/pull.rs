@@ -2,7 +2,7 @@ use crate::backend::{
     providers::hf::{
         API_URL, HF_URL,
         conversion::{ModelFormat, convert_model},
-        model_is_gated,
+        hf_auth_headers, hf_has_auth, model_is_gated,
     },
     settings::get_settings,
 };
@@ -21,8 +21,10 @@ use tokio::{
     time::timeout,
 };
 
-const EXTRA_FILES: [&str; 7] = [
+const EXTRA_FILES: [&str; 9] = [
     "tokenizer.json",
+    "tokenizer.model",
+    "tokenizer_config.json",
     "config.json",
     "preprocessor_config.json",
     "generation_config.json",
@@ -50,6 +52,7 @@ pub async fn run_pull_stream(
 ) -> impl Stream<Item = HFPullModelStreamResult> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let client = reqwest::Client::builder()
+        .default_headers(hf_auth_headers().await)
         .timeout(REQUEST_TIMEOUT)
         .build()
         .unwrap_or_default();
@@ -111,7 +114,7 @@ pub async fn run_pull_stream(
     let mut base_model = details.get_base_model();
 
     base_model = if let Some(base_model) = base_model {
-        if model_is_gated(&base_model, &client).await.unwrap_or(true) {
+        if model_is_gated(&base_model, &client).await.unwrap_or(true) && !hf_has_auth().await {
             None
         } else {
             Some(base_model)
@@ -123,7 +126,7 @@ pub async fn run_pull_stream(
     let secondary_model = {
         let id = model_id.rsplit_once("-");
         if let Some(id) = id {
-            if model_is_gated(id.0, &client).await.unwrap_or(true) {
+            if model_is_gated(id.0, &client).await.unwrap_or(true) && !hf_has_auth().await {
                 None
             } else {
                 Some(id.0.to_string())
