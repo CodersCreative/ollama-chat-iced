@@ -10,6 +10,7 @@ use crate::{
                 view::{
                     call::{CallView, CallViewMessage},
                     chat::{ChatsView, ChatsViewMessage},
+                    editor::{EditorView, EditorViewMessage},
                     models::{ModelsView, ModelsViewMessage},
                     options::{OptionsView, OptionsViewMessage},
                     prompts::{PromptsView, PromptsViewMessage},
@@ -35,6 +36,7 @@ use std::{collections::HashMap, fmt::Display};
 
 pub mod call;
 pub mod chat;
+pub mod editor;
 pub mod models;
 pub mod options;
 pub mod prompts;
@@ -49,6 +51,7 @@ pub struct HomePaneViewData {
     pub options: HashMap<u32, OptionsView>,
     pub pulls: HashMap<u32, PullsView>,
     pub chats: HashMap<u32, ChatsView>,
+    pub editors: HashMap<u32, EditorView>,
     pub call: Option<CallView>,
 }
 
@@ -60,6 +63,7 @@ pub enum HomePaneViewMessage {
     Pulls(u32, PullsViewMessage),
     Settings(u32, SettingsViewMessage),
     Chats(u32, ChatsViewMessage),
+    Editor(u32, EditorViewMessage),
     Call(CallViewMessage),
 }
 
@@ -72,6 +76,7 @@ impl HomePaneViewMessage {
             Self::Pulls(id, x) => x.handle(app, id),
             Self::Settings(id, x) => x.handle(app, id),
             Self::Chats(id, x) => x.handle(app, id),
+            Self::Editor(id, x) => x.handle(app, id),
             Self::Call(x) => x.handle(app),
         }
     }
@@ -195,7 +200,7 @@ impl HomePanes {
                     pane,
                     state.to_string(),
                     action,
-                    state.view(app, id.clone()),
+                    state.view(app, id.clone(), pane),
                 )
             })
             .on_click(move |x| {
@@ -230,6 +235,7 @@ impl Display for HomePaneTypeWithId {
             "{}",
             match self {
                 Self::Chat(_) => "Chat",
+                Self::Code(_) => "Code",
                 Self::Pulls(_) => "Pulls",
                 Self::Models(_) => "Ollama Models",
                 Self::Prompts(_) => "Prompts",
@@ -246,7 +252,12 @@ impl Display for HomePaneTypeWithId {
 }
 
 impl HomePaneTypeWithId {
-    pub fn view<'a>(&'a self, app: &'a Application, _id: window::Id) -> Element<'a, Message> {
+    pub fn view<'a>(
+        &'a self,
+        app: &'a Application,
+        _id: window::Id,
+        pane: pane_grid::Pane,
+    ) -> Element<'a, Message> {
         match self {
             Self::Models(x) => app.view_data.home.models.get(x).unwrap().view(app, *x),
             Self::Prompts(x) => app.view_data.home.prompts.get(x).unwrap().view(app, *x),
@@ -254,6 +265,7 @@ impl HomePaneTypeWithId {
             Self::Pulls(x) => app.view_data.home.pulls.get(x).unwrap().view(app, *x),
             Self::Settings(x) => app.view_data.home.settings.get(x).unwrap().view(app, *x),
             Self::Chat(x) => app.view_data.home.chats.get(x).unwrap().view(app, *x),
+            Self::Code(x) => app.view_data.home.editors.get(x).unwrap().view(app, *x, pane),
             Self::Call => app.view_data.home.call.as_ref().unwrap().view(app),
             Self::Loading => center(
                 container(column![

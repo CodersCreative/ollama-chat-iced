@@ -34,3 +34,5 @@ open = "5.3.2"
 iced_split = "0.1.0"
 iced_selection = { version = "0.4.0", features = ["markdown"] }
 iced_drop = { version = "0.2.22", features = ["helpers"] }
+iced-code-editor = { version = "0.3.7", features = ["lsp-process"] }
+iced_term = "0.8.0"

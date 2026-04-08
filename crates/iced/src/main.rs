@@ -44,9 +44,9 @@ use crate::{
                     ViewFileType,
                 },
                 view::{
-                    HomePaneViewData, HomePaneViewMessage, chat::ChatsView, models::ModelsView,
-                    options::OptionsView, prompts::PromptsView, pulls::PullsView,
-                    settings::SettingsView,
+                    HomePaneViewData, HomePaneViewMessage, chat::ChatsView, editor::EditorView,
+                    models::ModelsView, options::OptionsView, prompts::PromptsView,
+                    pulls::PullsView, settings::SettingsView,
                 },
             },
             sidebar::SideBarItems,
@@ -479,10 +479,16 @@ impl Application {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch([
+        let mut subscriptions = vec![
             window::close_events().map(|id| Message::Window(WindowMessage::WindowClosed(id))),
             self.subscriptions.get(self),
-        ])
+        ];
+
+        for (editor_id, editor) in &self.view_data.home.editors {
+            subscriptions.extend(editor.terminal_subscriptions(*editor_id));
+        }
+
+        Subscription::batch(subscriptions)
     }
 
     pub fn get_home_page(&mut self, id: &window::Id) -> Option<&mut HomePage> {
@@ -577,6 +583,10 @@ impl Application {
 
     pub fn get_settings_view(&mut self, id: &u32) -> Option<&mut SettingsView> {
         self.view_data.home.settings.get_mut(id)
+    }
+
+    pub fn get_editor_view(&mut self, id: &u32) -> Option<&mut EditorView> {
+        self.view_data.home.editors.get_mut(id)
     }
 
     pub fn get_pulls_view(&mut self, id: &u32) -> Option<&mut PullsView> {

@@ -136,7 +136,6 @@ impl HomeMessage {
             Self::CancelDrag => {
                 let page = app.get_home_page(&id).unwrap();
                 page.side_bar.dragging = None;
-                page.side_bar.drag_hover = None;
                 Task::none()
             }
             Self::Drop(drag_item, point) => zones_on_point(
@@ -154,7 +153,6 @@ impl HomeMessage {
                 let using_cache = {
                     let page = app.get_home_page(&id).unwrap();
                     page.side_bar.dragging = None;
-                    page.side_bar.drag_hover = None;
 
                     app.get_home_page(&id)
                         .unwrap()

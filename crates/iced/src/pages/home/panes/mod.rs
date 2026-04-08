@@ -8,8 +8,9 @@ use crate::{
             panes::{
                 data::{MessageMk, MessagesData, PromptsData},
                 view::{
-                    call::CallView, chat::ChatsView, models::ModelsView, options::OptionsView,
-                    prompts::PromptsView, pulls::PullsView, settings::SettingsView,
+                    call::CallView, chat::ChatsView, editor::EditorView, models::ModelsView,
+                    options::OptionsView, prompts::PromptsView, pulls::PullsView,
+                    settings::SettingsView,
                 },
             },
         },
@@ -33,6 +34,7 @@ pub enum HomePaneType {
     Loading,
     Call,
     Chat,
+    Code,
     Pulls,
     Models,
     Prompts,
@@ -79,6 +81,12 @@ impl HomePaneType {
             Self::Pulls => {
                 app.view_data.home.pulls.insert(count, PullsView::default());
                 HomePaneTypeWithId::Pulls(count)
+            }
+            Self::Code => {
+                let mut editor = EditorView::new(&app.theme());
+                editor.window_id = None;
+                app.view_data.home.editors.insert(count, editor);
+                HomePaneTypeWithId::Code(count)
             }
             Self::Info => HomePaneTypeWithId::Info,
             Self::Call => {
@@ -130,6 +138,7 @@ impl HomePaneType {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HomePaneTypeWithId {
     Chat(u32),
+    Code(u32),
     Pulls(u32),
     Models(u32),
     Prompts(u32),
@@ -150,6 +159,7 @@ impl Into<HomePaneType> for &HomePaneTypeWithId {
             HomePaneTypeWithId::Call => HomePaneType::Call,
             HomePaneTypeWithId::NotImplemented => HomePaneType::NotImplemented,
             HomePaneTypeWithId::Chat(_) => HomePaneType::Chat,
+            HomePaneTypeWithId::Code(_) => HomePaneType::Code,
             HomePaneTypeWithId::Pulls(_) => HomePaneType::Pulls,
             HomePaneTypeWithId::Models(_) => HomePaneType::Models,
             HomePaneTypeWithId::Prompts(_) => HomePaneType::Prompts,
@@ -195,6 +205,7 @@ pub enum PaneMessage {
     Resized(pane_grid::ResizeEvent),
     Split(pane_grid::Axis, pane_grid::Pane, HomePaneType),
     Replace(pane_grid::Pane, HomePaneType),
+    OpenCodeWorkspace,
     ReplaceChat(pane_grid::Pane, String),
     ChatLoaded(pane_grid::Pane, Chat, Vec<MessageMk>),
     Pick(HomePickingType),
@@ -381,16 +392,81 @@ impl PaneMessage {
             }
             Self::Replace(pane, pane_type) => {
                 let value = pane_type.new(app);
-                let page = app.get_home_page(&id).unwrap();
+                let editor_id = {
+                    let page = app.get_home_page(&id).unwrap();
 
-                // TODO remove pane from view_data
-                let _ = page.panes.panes.panes.insert(pane.clone(), value);
+                    // TODO remove pane from view_data
+                    let _ = page.panes.panes.panes.insert(pane.clone(), value);
 
-                page.panes.pick = None;
-                page.panes.focus = Some(pane);
+                    page.panes.pick = None;
+                    page.panes.focus = Some(pane.clone());
+                    match page.panes.panes.get(pane).cloned() {
+                        Some(HomePaneTypeWithId::Code(editor_id)) => Some(editor_id),
+                        _ => None,
+                    }
+                };
 
                 if pane_type == HomePaneType::Chat {
                     Self::handle_new_chat(app, id, pane)
+                } else {
+                    if let Some(editor_id) = editor_id {
+                        if let Some(editor) = app.view_data.home.editors.get_mut(&editor_id) {
+                            editor.window_id = Some(id);
+                        }
+                    }
+                    Task::none()
+                }
+            }
+            Self::OpenCodeWorkspace => {
+                let target = app
+                    .get_home_page(&id)
+                    .unwrap()
+                    .panes
+                    .focus
+                    .clone()
+                    .or_else(|| {
+                        app.get_home_page(&id)
+                            .unwrap()
+                            .panes
+                            .panes
+                            .panes
+                            .first_key_value()
+                            .map(|x| x.0.clone())
+                    });
+
+                let Some(target) = target else {
+                    return Task::none();
+                };
+
+                let editor_value = HomePaneType::Code.new(app);
+                let editor_id = {
+                    let page = app.get_home_page(&id).unwrap();
+                    let _ = page.panes.panes.panes.insert(target.clone(), editor_value);
+                    page.panes.focus = Some(target.clone());
+
+                    match page.panes.panes.get(target).cloned() {
+                        Some(HomePaneTypeWithId::Code(editor_id)) => Some(editor_id),
+                        _ => None,
+                    }
+                };
+
+                if let Some(editor_id) = editor_id
+                    && let Some(editor) = app.view_data.home.editors.get_mut(&editor_id)
+                {
+                    editor.window_id = Some(id);
+                }
+
+                let chat_value = HomePaneType::Chat.new(app);
+                let result = {
+                    let page = app.get_home_page(&id).unwrap();
+                    page.panes
+                        .panes
+                        .split(pane_grid::Axis::Vertical, target, chat_value)
+                };
+
+                if let Some((chat_pane, _)) = result {
+                    app.get_home_page(&id).unwrap().panes.focus = Some(chat_pane.clone());
+                    Self::handle_new_chat(app, id, chat_pane)
                 } else {
                     Task::none()
                 }
@@ -417,22 +493,38 @@ impl PaneMessage {
 
             Self::Split(axis, pane, pane_type) => {
                 let value = pane_type.new(app);
-                let page = app.get_home_page(&id).unwrap();
-                let result = page.panes.panes.split(axis, pane, value);
+                let pane = {
+                    let page = app.get_home_page(&id).unwrap();
+                    let result = page.panes.panes.split(axis, pane, value);
 
-                let pane = if let Some((p, _)) = result {
-                    page.panes.focus = Some(p.clone());
-                    p
-                } else {
+                    let pane = if let Some((p, _)) = result {
+                        page.panes.focus = Some(p.clone());
+                        p
+                    } else {
+                        page.panes.pick = None;
+                        return Task::none();
+                    };
+
                     page.panes.pick = None;
-                    return Task::none();
+                    pane
                 };
 
-                page.panes.pick = None;
+                let editor_id = {
+                    let page = app.get_home_page(&id).unwrap();
+                    match page.panes.panes.get(pane).cloned() {
+                        Some(HomePaneTypeWithId::Code(editor_id)) => Some(editor_id),
+                        _ => None,
+                    }
+                };
 
                 if pane_type == HomePaneType::Chat {
                     Self::handle_new_chat(app, id, pane)
                 } else {
+                    if let Some(editor_id) = editor_id {
+                        if let Some(editor) = app.view_data.home.editors.get_mut(&editor_id) {
+                            editor.window_id = Some(id);
+                        }
+                    }
                     Task::none()
                 }
             }

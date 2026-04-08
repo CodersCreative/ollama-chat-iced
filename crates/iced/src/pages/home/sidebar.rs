@@ -468,7 +468,6 @@ pub struct HomeSideBar {
     pub buttons_expanded: Vec<String>,
     pub editing: HashMap<String, String>,
     pub dragging: Option<DragItem>,
-    pub drag_hover: Option<WidgetId>,
     pub search: String,
 }
 
@@ -500,7 +499,6 @@ impl Default for HomeSideBar {
             split: NORMAL_SIZE,
             is_collapsed: false,
             dragging: None,
-            drag_hover: None,
             expanded: Vec::new(),
             buttons_expanded: Vec::new(),
             editing: HashMap::new(),
@@ -928,6 +926,15 @@ impl HomeSideBar {
             )),
         );
 
+        let new_code_pane = style::svg_button::text("code_blocks.svg", size).on_press(
+            Message::Window(WindowMessage::Page(
+                id,
+                PageMessage::Home(HomeMessage::Pane(PaneMessage::Pick(
+                    HomePickingType::OpenPane(HomePaneType::Code),
+                ))),
+            )),
+        );
+
         let new_tools_pane = style::svg_button::text("tools.svg", size).on_press(Message::Window(
             WindowMessage::Page(
                 id,
@@ -963,7 +970,7 @@ impl HomeSideBar {
             )),
         );
 
-        let mut widgets = vec![new_chat_pane];
+        let mut widgets = vec![new_chat_pane, new_code_pane];
 
         #[cfg(feature = "sound")]
         {
